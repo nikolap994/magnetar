@@ -3,6 +3,19 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] — 2026-11-26
+
+### Added
+- Speed-limit fields pick KiB/s, MiB/s or GiB/s automatically (10240 KiB/s is shown as 10 MiB/s).
+- Author credit and GitHub links in the sidebar, empty state and Settings → About.
+
+### Changed
+- "No torrents yet" is now centred in the window.
+
+### Security
+- Built with Go 1.26.11 and updated dependencies; `govulncheck` reports no known vulnerabilities and now gates
+  every release.
+
 ## [0.1.0] — 2026-11-26
 
 ### Added
