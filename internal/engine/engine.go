@@ -69,6 +69,8 @@ type Engine struct {
 	// (e.g. the speed schedule).
 	onSettingsChanged func(config.Settings)
 
+	stats statsState
+
 	// Connection health: incoming peer connections prove the port is reachable.
 	started      time.Time
 	incomingSeen int       // incoming connections observed this session
@@ -155,6 +157,7 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 	e.cl = cl
 	e.ctx, e.cancel = context.WithCancel(context.Background())
 	e.started = time.Now()
+	e.loadStats()
 
 	recs, err := e.loadState()
 	if err != nil {
@@ -1062,6 +1065,9 @@ func (e *Engine) loop() {
 			if err := e.saveStateLocked(); err != nil {
 				e.log.Warn("save session", "err", err)
 			}
+			if err := e.saveStatsLocked(); err != nil {
+				e.log.Warn("save statistics", "err", err)
+			}
 			e.dirty = false
 			saveEvery = 0
 		}
@@ -1104,6 +1110,7 @@ func (e *Engine) applyScheduleLocked(now time.Time) {
 func (e *Engine) tickLocked() {
 	e.applyScheduleLocked(time.Now())
 	var gDown, gUp float64
+	var tickDown, tickUp int64
 	for _, h := range e.order {
 		m := e.torrents[h]
 		if m.t == nil {
@@ -1112,6 +1119,8 @@ func (e *Engine) tickLocked() {
 		d, u := m.liveStats()
 		m.downRate = smooth(m.downRate, float64(d-m.lastDown))
 		m.upRate = smooth(m.upRate, float64(u-m.lastUp))
+		tickDown += d - m.lastDown
+		tickUp += u - m.lastUp
 		m.lastDown, m.lastUp = d, u
 		gDown += m.downRate
 		for _, pc := range m.t.PeerConns() {
@@ -1163,6 +1172,7 @@ func (e *Engine) tickLocked() {
 		}
 	}
 	e.downRate, e.upRate = gDown, gUp
+	e.recordTransferLocked(time.Now(), tickDown, tickUp)
 }
 
 func smooth(prev, sample float64) float64 {
@@ -1272,6 +1282,9 @@ func (e *Engine) Close() error {
 	e.cancel()
 	e.mu.Lock()
 	err := e.saveStateLocked()
+	if serr := e.saveStatsLocked(); serr != nil {
+		e.log.Warn("save statistics", "err", serr)
+	}
 	if e.cl != nil {
 		e.cl.Close()
 		e.cl = nil

@@ -90,6 +90,7 @@ func (s *Server) routes() {
 	m.Handle("POST /api/torrents/{hash}/trackers", s.authed(s.handleTrackers))
 	m.Handle("POST /api/actions", s.authed(s.handleActions))
 	m.Handle("GET /api/stats", s.authed(s.handleStats))
+	m.Handle("GET /api/statistics", s.authed(func(w http.ResponseWriter, r *http.Request) { writeJSON(w, s.eng.Statistics()) }))
 	m.Handle("GET /api/settings", s.authed(s.handleGetSettings))
 	m.Handle("PUT /api/settings", s.authed(s.handlePutSettings))
 	m.Handle("POST /api/password", s.authed(s.handlePassword))
