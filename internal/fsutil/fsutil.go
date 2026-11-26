@@ -62,11 +62,14 @@ func Within(base string, elems ...string) (string, error) {
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 		return "", fmt.Errorf("%w: %q", ErrOutside, joined)
 	}
+	if joined == base {
+		return base, nil
+	}
 	prefix := base
 	if !strings.HasSuffix(prefix, string(filepath.Separator)) {
 		prefix += string(filepath.Separator)
 	}
-	if joined != base && !strings.HasPrefix(joined, prefix) {
+	if !strings.HasPrefix(joined, prefix) {
 		return "", fmt.Errorf("%w: %q", ErrOutside, joined)
 	}
 	return joined, nil
