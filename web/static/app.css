@@ -405,6 +405,24 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .ctx-menu button.danger { color: var(--red); }
 .ctx-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 
+/* Updates */
+.update-pill {
+  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  height: 34px; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  color: #fff; background: linear-gradient(135deg, #22c55e, #06b6d4);
+  box-shadow: 0 6px 18px -8px rgba(34, 197, 94, .8);
+}
+.update-pill:hover { filter: brightness(1.08); }
+.update-pill.busy { background: var(--panel-2); color: var(--muted); box-shadow: none; cursor: default; }
+.update-pill svg { width: 16px; height: 16px; }
+.release-notes {
+  white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 var(--font);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-s);
+  padding: 12px 14px; margin: 8px 0 4px; max-height: 300px; overflow: auto;
+}
+.update-card { text-align: left; margin: 18px 0; }
+.update-card .switch { margin-bottom: 4px; }
+
 /* Responsive */
 .with-detail .list-head, .with-detail .row-t { grid-template-columns: 28px minmax(180px, 1fr) 80px 140px 88px 76px; }
 .with-detail .list-head .col.rate + .col.rate, .with-detail .row-t .up,

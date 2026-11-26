@@ -185,6 +185,7 @@ function connect() {
     const d = JSON.parse(ev.data);
     state.torrents = d.torrents || [];
     state.stats = d.stats || {};
+    if (d.update) { state.update = d.update; renderUpdate(); }
     state.history.push([state.stats.downRate || 0, state.stats.upRate || 0]);
     if (state.history.length > 90) state.history.shift();
     const known = new Set(state.torrents.map((t) => t.hash));
@@ -835,6 +836,67 @@ $("#btn-handler").addEventListener("click", () => {
     toast("Your browser will ask to confirm");
   } catch (e) { fail(e); }
 });
+/* ---------- updates ---------- */
+function updateStatusText(u) {
+  if (!u) return "Update information is not available.";
+  if (u.state === "checking") return "Checking for updates…";
+  if (u.state === "downloading") return `Downloading Magnetar ${u.latest} and verifying its signature…`;
+  if (u.state === "installing") return `Installing Magnetar ${u.latest} — Magnetar will restart…`;
+  if (u.state === "error") return "Update failed: " + u.error;
+  if (u.available) return `Magnetar ${u.latest} is available (you have ${u.current}).`;
+  if (u.checkedAt) return `You have the latest version (${u.current}). Last checked ${new Date(u.checkedAt).toLocaleString()}.`;
+  return `You have Magnetar ${u.current}.`;
+}
+function renderUpdate() {
+  const u = state.update;
+  const pill = $("#update-pill");
+  const busy = u && (u.state === "downloading" || u.state === "installing");
+  pill.hidden = !(u && (u.available || busy));
+  pill.classList.toggle("busy", !!busy);
+  if (u) {
+    pill.querySelector("span").textContent = busy ? (u.state === "downloading" ? "Downloading update…" : "Installing…") : `Update to ${u.latest}`;
+    $("#update-status").textContent = updateStatusText(u);
+    if ($("#dlg-update").open) fillUpdateDialog();
+  }
+}
+function fillUpdateDialog() {
+  const u = state.update;
+  $("#upd-title").textContent = `Magnetar ${u.latest} is available`;
+  $("#upd-sub").textContent = `You have ${u.current}.` + (u.publishedAt ? ` Released ${new Date(u.publishedAt).toLocaleDateString()}.` : "");
+  $("#upd-notes").textContent = (u.notes || "No release notes.").replace(/\r/g, "").trim();
+  $("#upd-link").href = u.url || "https://github.com/nikolap994/magnetar/releases/latest";
+  const busy = u.state === "downloading" || u.state === "installing";
+  $("#upd-install").disabled = !u.canInstall || busy;
+  $("#upd-hint").textContent = busy ? updateStatusText(u)
+    : u.canInstall ? "The download is verified against Magnetar's signing key before it is installed. Transfers resume after the restart."
+    : "This installation cannot update itself — download the new version from the release page.";
+  $("#upd-err").textContent = u.state === "error" ? u.error : "";
+}
+$("#update-pill").addEventListener("click", () => {
+  const u = state.update;
+  if (!u || !u.available || u.state === "downloading" || u.state === "installing") return;
+  fillUpdateDialog();
+  $("#dlg-update").returnValue = "";
+  $("#dlg-update").showModal();
+});
+$("#update-form").addEventListener("submit", async (ev) => {
+  if (!ev.submitter || ev.submitter.value !== "install") return;
+  ev.preventDefault();
+  try {
+    await api("/api/update/install", { method: "POST" });
+    $("#dlg-update").close();
+    toast("Downloading update — Magnetar will restart when it is ready");
+  } catch (e) { $("#upd-err").textContent = e.message; }
+});
+$("#btn-check-update").addEventListener("click", async () => {
+  $("#update-status").textContent = "Checking for updates…";
+  try {
+    state.update = await api("/api/update/check", { method: "POST" });
+    renderUpdate();
+    toast(state.update.available ? `Magnetar ${state.update.latest} is available` : "You have the latest version");
+  } catch (e) { $("#update-status").textContent = e.message; fail(e); }
+});
+
 $("#btn-register").addEventListener("click", async () => {
   try { await api("/api/system/register", { method: "POST" }); toast("Magnetar now opens magnet links and .torrent files"); }
   catch (e) { fail(e); }
