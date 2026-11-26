@@ -6,11 +6,12 @@
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo dev)
 PKG     := github.com/nikolap994/magnetar
-# Public half of the release signing key (repository variable UPDATE_PUBLIC_KEY).
-# Builds without it still run but never install updates.
+# Optional override of the release signing public key (default: internal/update/key.go).
 UPDATE_PUBLIC_KEY ?=
-LDFLAGS := -s -w -buildid= -X $(PKG)/internal/engine.Version=$(VERSION) \
-	-X $(PKG)/internal/update.releasePublicKey=$(UPDATE_PUBLIC_KEY)
+LDFLAGS := -s -w -buildid= -X $(PKG)/internal/engine.Version=$(VERSION)
+ifneq ($(UPDATE_PUBLIC_KEY),)
+LDFLAGS += -X $(PKG)/internal/update.releasePublicKey=$(UPDATE_PUBLIC_KEY)
+endif
 GOFLAGS := -trimpath
 WINRES  := go run github.com/tc-hib/go-winres@v0.3.3
 export CGO_ENABLED := 0

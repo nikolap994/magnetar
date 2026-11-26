@@ -151,3 +151,9 @@ func TestExtractBinary(t *testing.T) {
 		t.Fatal("missing binary not reported")
 	}
 }
+
+func TestReleaseKeyEmbedded(t *testing.T) {
+	if !Configured() {
+		t.Fatal("release public key is missing or malformed; updates could not be verified")
+	}
+}
