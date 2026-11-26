@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestDefaultsValid(t *testing.T) {
@@ -74,5 +75,50 @@ func TestStorePersistsWithPrivatePerms(t *testing.T) {
 	}
 	if os.PathSeparator == '/' && fi.Mode().Perm() != 0o600 {
 		t.Fatalf("settings.json has mode %v, want 0600", fi.Mode().Perm())
+	}
+}
+
+func TestAltSchedule(t *testing.T) {
+	s := Defaults() // 09:00–17:00, Monday–Friday
+	s.AltScheduleEnabled = true
+	at := func(day time.Weekday, hh, mm int) time.Time {
+		// 2026-11-22 is a Sunday.
+		return time.Date(2026, 11, 22+int(day), hh, mm, 0, 0, time.Local)
+	}
+	cases := []struct {
+		t    time.Time
+		want bool
+	}{
+		{at(time.Monday, 9, 0), true},
+		{at(time.Monday, 16, 59), true},
+		{at(time.Monday, 17, 0), false},
+		{at(time.Monday, 8, 59), false},
+		{at(time.Saturday, 12, 0), false},
+	}
+	for _, c := range cases {
+		if got := s.InAltSchedule(c.t); got != c.want {
+			t.Errorf("%v: got %v, want %v", c.t, got, c.want)
+		}
+	}
+	// Overnight: Friday 22:00 → Saturday 06:00, only Friday selected.
+	s.AltScheduleFrom, s.AltScheduleTo, s.AltScheduleDays = "22:00", "06:00", 1<<uint(time.Friday)
+	if !s.InAltSchedule(at(time.Friday, 23, 0)) || !s.InAltSchedule(at(time.Saturday, 5, 59)) {
+		t.Error("overnight window not applied")
+	}
+	if s.InAltSchedule(at(time.Saturday, 23, 0)) || s.InAltSchedule(at(time.Friday, 5, 0)) {
+		t.Error("overnight window applied on the wrong day")
+	}
+}
+
+func TestParseClock(t *testing.T) {
+	for in, want := range map[string]int{"00:00": 0, "09:30": 570, "23:59": 1439} {
+		if got, ok := ParseClock(in); !ok || got != want {
+			t.Errorf("ParseClock(%q) = %d, %v", in, got, ok)
+		}
+	}
+	for _, bad := range []string{"", "9:30", "24:00", "12:60", "ab:cd", "12-30"} {
+		if _, ok := ParseClock(bad); ok {
+			t.Errorf("ParseClock(%q) accepted", bad)
+		}
 	}
 }

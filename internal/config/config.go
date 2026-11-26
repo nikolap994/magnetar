@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/nikolap994/magnetar/internal/fsutil"
 )
@@ -47,7 +48,13 @@ type Settings struct {
 	AltSpeedEnabled      bool  `json:"altSpeedEnabled"`
 	AltDownloadLimitKBps int64 `json:"altDownloadLimitKBps"`
 	AltUploadLimitKBps   int64 `json:"altUploadLimitKBps"`
-	PieceHashers         int   `json:"pieceHashers"`
+	// Turn alternative limits on automatically between From and To ("HH:MM",
+	// may cross midnight) on the selected days (bit 0 = Sunday ... bit 6 = Saturday).
+	AltScheduleEnabled bool   `json:"altScheduleEnabled"`
+	AltScheduleFrom    string `json:"altScheduleFrom"`
+	AltScheduleTo      string `json:"altScheduleTo"`
+	AltScheduleDays    int    `json:"altScheduleDays"`
+	PieceHashers       int    `json:"pieceHashers"`
 
 	// Organisation
 	Categories []Category `json:"categories"`
@@ -57,7 +64,8 @@ type Settings struct {
 
 	// Seeding
 	SeedAfterComplete bool    `json:"seedAfterComplete"`
-	SeedRatioLimit    float64 `json:"seedRatioLimit"` // 0 = no limit
+	SeedRatioLimit    float64 `json:"seedRatioLimit"`   // 0 = no limit
+	SeedTimeLimitMin  int     `json:"seedTimeLimitMin"` // stop seeding after this many minutes; 0 = no limit
 
 	// Security
 	BlocklistPath string `json:"blocklistPath"` // P2P/eMule style IP blocklist file.
@@ -131,6 +139,9 @@ func Defaults() Settings {
 
 		AltDownloadLimitKBps: 1024,
 		AltUploadLimitKBps:   256,
+		AltScheduleFrom:      "09:00",
+		AltScheduleTo:        "17:00",
+		AltScheduleDays:      0b0111110, // Monday–Friday
 		ShowAddDialog:        true,
 		AppWindow:            true,
 		TrayIcon:             true,
@@ -210,6 +221,21 @@ func (s *Settings) Validate() error {
 	if s.MoveCompletedEnabled && s.MoveCompletedDir == "" {
 		errs = append(errs, errors.New("choose a folder for completed downloads"))
 	}
+	if _, ok := ParseClock(s.AltScheduleFrom); !ok {
+		errs = append(errs, errors.New("schedule start must be a time like 09:00"))
+	}
+	if _, ok := ParseClock(s.AltScheduleTo); !ok {
+		errs = append(errs, errors.New("schedule end must be a time like 17:00"))
+	}
+	if s.AltScheduleDays < 0 || s.AltScheduleDays > 127 {
+		errs = append(errs, errors.New("invalid schedule days"))
+	}
+	if s.AltScheduleEnabled && s.AltScheduleDays == 0 {
+		errs = append(errs, errors.New("choose at least one day for the speed schedule"))
+	}
+	if s.SeedTimeLimitMin < 0 {
+		errs = append(errs, errors.New("seed time limit cannot be negative"))
+	}
 	if s.SeedRatioLimit < 0 {
 		errs = append(errs, errors.New("seed ratio limit cannot be negative"))
 	}
@@ -238,6 +264,40 @@ func (s Settings) EffectiveLimits() (down, up int64) {
 		return s.AltDownloadLimitKBps, s.AltUploadLimitKBps
 	}
 	return s.DownloadLimitKBps, s.UploadLimitKBps
+}
+
+// ParseClock parses "HH:MM" into minutes after midnight.
+func ParseClock(s string) (int, bool) {
+	var h, m int
+	if len(s) != 5 || s[2] != ':' {
+		return 0, false
+	}
+	if _, err := fmt.Sscanf(s, "%02d:%02d", &h, &m); err != nil || h > 23 || m > 59 || h < 0 || m < 0 {
+		return 0, false
+	}
+	return h*60 + m, true
+}
+
+// InAltSchedule reports whether t falls inside the alternative-speed schedule.
+func (s Settings) InAltSchedule(t time.Time) bool {
+	from, ok1 := ParseClock(s.AltScheduleFrom)
+	to, ok2 := ParseClock(s.AltScheduleTo)
+	if !ok1 || !ok2 || from == to {
+		return false
+	}
+	now := t.Hour()*60 + t.Minute()
+	day := func(d time.Weekday) bool { return s.AltScheduleDays&(1<<uint(d)) != 0 }
+	if from < to {
+		return day(t.Weekday()) && now >= from && now < to
+	}
+	// Overnight window, e.g. 22:00–06:00: the part after midnight belongs to the previous day.
+	if now >= from {
+		return day(t.Weekday())
+	}
+	if now < to {
+		return day((t.Weekday() + 6) % 7)
+	}
+	return false
 }
 
 // IsLoopback reports whether host only accepts local connections.
