@@ -669,6 +669,8 @@ async function openAdd(prefill = "") {
   } else if (prefill) {
     $("#add-magnets").value = ($("#add-magnets").value.trim() + "\n" + prefill).trim();
   }
+  schedulePreview();
+  updateFree();
 }
 // Magnet links opened from the browser get their own small window; close it when done.
 $("#dlg-add").addEventListener("close", () => {
@@ -697,6 +699,7 @@ function addFiles(files) {
     if (f.name.toLowerCase().endsWith(".torrent") || f.type === "application/x-bittorrent") state.pendingFiles.push(f);
   }
   renderPending();
+  schedulePreview();
 }
 $("#btn-add").addEventListener("click", () => openAdd());
 $("#btn-add-empty").addEventListener("click", () => openAdd());
@@ -708,11 +711,152 @@ dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("o
 dz.addEventListener("dragleave", () => dz.classList.remove("over"));
 dz.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.remove("over"); addFiles(e.dataTransfer.files); });
 
+/* ---------- add dialog: preview & file selection ---------- */
+// With exactly one magnet or one .torrent file, fetch its file list so the
+// user can choose files and see whether it fits before adding.
+const pv = { key: null, hash: null, info: null, skip: new Set(), timer: null, poll: null, used: false, free: null };
+
+function previewSource() {
+  const mags = $("#add-magnets").value.split("\n").map((s) => s.trim()).filter(Boolean);
+  if (mags.length === 1 && !state.pendingFiles.length) return { kind: "magnet", key: mags[0], magnet: mags[0] };
+  if (!mags.length && state.pendingFiles.length === 1) {
+    const f = state.pendingFiles[0];
+    return { kind: "file", key: `file:${f.name}:${f.size}:${f.lastModified}`, file: f };
+  }
+  return null;
+}
+function schedulePreview() {
+  clearTimeout(pv.timer);
+  pv.timer = setTimeout(startPreview, 450);
+}
+function dropPreview() {
+  clearInterval(pv.poll);
+  if (pv.hash && !pv.used) api(`/api/preview/${pv.hash}`, { method: "DELETE" }).catch(() => {});
+  Object.assign(pv, { key: null, hash: null, info: null, skip: new Set(), poll: null, used: false });
+}
+async function startPreview() {
+  const src = previewSource();
+  if (!src) { dropPreview(); renderPreview(); return; }
+  if (src.key === pv.key) return;
+  dropPreview();
+  pv.key = src.key;
+  renderPreview("loading");
+  try {
+    let info;
+    if (src.kind === "file") {
+      const fd = new FormData();
+      fd.append("torrent", src.file, src.file.name);
+      info = await api("/api/preview", { method: "POST", form: fd });
+    } else {
+      info = await api("/api/preview", { method: "POST", body: { magnet: src.magnet } });
+    }
+    if (pv.key !== src.key) return;
+    pv.hash = info.hash;
+    pv.info = info;
+    renderPreview();
+    if (!info.ready) {
+      pv.poll = setInterval(async () => {
+        try {
+          const i = await api(`/api/preview/${pv.hash}`);
+          if (pv.key !== src.key) return;
+          pv.info = i;
+          if (i.ready || i.error) clearInterval(pv.poll);
+          renderPreview();
+        } catch { clearInterval(pv.poll); }
+      }, 1000);
+    }
+  } catch (e) {
+    if (pv.key !== src.key) return;
+    renderPreview(e.status === 409 ? "exists" : "error", e.message);
+  }
+}
+function renderPreview(mode, msg) {
+  const box = $("#add-preview"), list = $("#ap-list");
+  if (!pv.key) { box.hidden = true; updateFree(); return; }
+  box.hidden = false;
+  const i = pv.info;
+  const waiting = (text) => list.replaceChildren(h("div", { class: "ap-wait" }, h("span", { class: "spinner" }), h("span", { text })));
+  $("#ap-all").hidden = $("#ap-none").hidden = !(i && i.ready);
+  if (mode === "loading") { $("#ap-summary").textContent = ""; return waiting("Preparing…"); }
+  if (mode === "exists") { $("#ap-summary").textContent = ""; return list.replaceChildren(h("div", { class: "ap-wait", text: "This torrent is already in your list." })); }
+  if (mode === "error" || (i && i.error)) { $("#ap-summary").textContent = ""; return list.replaceChildren(h("div", { class: "ap-wait error", text: msg || i.error })); }
+  if (!i.ready) {
+    $("#ap-summary").textContent = i.name || "";
+    return waiting(i.peers ? `Fetching the file list from ${i.peers} peers… You can also add it right away.` : "Looking for peers to fetch the file list… You can also add it right away.");
+  }
+  const files = [...i.files].sort((a, b) => a.path.localeCompare(b.path));
+  list.replaceChildren(...files.slice(0, 3000).map((f) => {
+    const on = !pv.skip.has(f.index);
+    const cb = h("input", { type: "checkbox", checked: on, "aria-label": f.path });
+    const slash = f.path.lastIndexOf("/");
+    const row = h("label", { class: "ap-row" + (on ? "" : " off"), title: f.path },
+      cb,
+      h("span", { class: "ap-path" }, slash >= 0 ? h("span", { class: "ap-dir", text: f.path.slice(0, slash + 1) }) : null, f.path.slice(slash + 1)),
+      h("span", { class: "ap-size", text: bytes(f.size) }));
+    cb.addEventListener("change", () => {
+      cb.checked ? pv.skip.delete(f.index) : pv.skip.add(f.index);
+      row.classList.toggle("off", !cb.checked);
+      previewSummary();
+    });
+    return row;
+  }));
+  previewSummary();
+}
+function selectedSize() {
+  const i = pv.info;
+  if (!i || !i.ready) return null;
+  return i.files.filter((f) => !pv.skip.has(f.index)).reduce((a, f) => a + f.size, 0);
+}
+function previewSummary() {
+  const i = pv.info;
+  const n = i.files.length - [...pv.skip].filter((x) => x < i.files.length).length;
+  $("#ap-summary").textContent = `${n} of ${i.files.length} files · ${bytes(selectedSize())} of ${bytes(i.size)}`;
+  $("#add-submit").disabled = n === 0;
+  updateFree();
+}
+let freeTimer = null;
+function updateFree() {
+  clearTimeout(freeTimer);
+  freeTimer = setTimeout(async () => {
+    const path = $("#add-path").value.trim();
+    const el = $("#add-free");
+    if (!path) { el.textContent = ""; return; }
+    try {
+      const { free } = await api("/api/fs/free?path=" + encodeURIComponent(path));
+      const need = selectedSize();
+      el.textContent = `${bytes(free)} free` + (need != null ? ` · needs ${bytes(need)}` : "");
+      el.classList.toggle("low", need != null && need > free);
+    } catch { el.textContent = ""; }
+  }, 250);
+}
+$("#ap-all").addEventListener("click", () => { pv.skip.clear(); renderPreview(); });
+$("#ap-none").addEventListener("click", () => { pv.info.files.forEach((f) => pv.skip.add(f.index)); renderPreview(); });
+$("#add-magnets").addEventListener("input", schedulePreview);
+$("#add-path").addEventListener("input", updateFree);
+$("#dlg-add").addEventListener("close", () => { clearTimeout(pv.timer); dropPreview(); renderPreview(); $("#add-submit").disabled = false; });
+
 $("#add-form").addEventListener("submit", async (ev) => {
   if (ev.submitter && ev.submitter.value === "cancel") return;
   ev.preventDefault();
   const magnets = $("#add-magnets").value.trim();
   if (!magnets && !state.pendingFiles.length) { toast("Add a magnet link or a .torrent file", "err"); return; }
+  const src = previewSource();
+  if (pv.hash && src && src.key === pv.key) {
+    $("#add-submit").disabled = true;
+    try {
+      const res = await api("/api/torrents", { method: "POST", body: {
+        previewHash: pv.hash, skipFiles: [...pv.skip], savePath: $("#add-path").value.trim(),
+        paused: $("#add-paused").checked, sequential: $("#add-seq").checked } });
+      pv.used = true;
+      const r = res[0] || {};
+      if (r.error) toast(r.error.includes("already") ? "Already added" : r.error, "err");
+      else toast("Torrent added");
+      rememberPath($("#add-path").value.trim());
+      $("#dlg-add").close();
+    } catch (e) { fail(e); }
+    finally { $("#add-submit").disabled = false; }
+    return;
+  }
   const fd = new FormData();
   fd.append("magnets", magnets);
   fd.append("savePath", $("#add-path").value.trim());

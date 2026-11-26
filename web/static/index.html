@@ -166,6 +166,17 @@
           <button type="button" class="btn ghost" data-browse="#add-path"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
         </div>
         <datalist id="recent-paths"></datalist>
+        <p class="free-space" id="add-free"></p>
+      </div>
+      <div id="add-preview" class="add-preview" hidden>
+        <div class="ap-head">
+          <b>Files</b>
+          <span id="ap-summary" class="muted"></span>
+          <span class="spacer"></span>
+          <button type="button" class="btn ghost sm" id="ap-all">All</button>
+          <button type="button" class="btn ghost sm" id="ap-none">None</button>
+        </div>
+        <div id="ap-list" class="ap-list"></div>
       </div>
       <div class="row">
         <label class="switch"><input type="checkbox" id="add-paused"><span></span>Start paused</label>
