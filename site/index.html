@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Magnetar - a fast, secure, open-source BitTorrent client</title>
+  <meta name="description" content="Magnetar is a free, open-source BitTorrent client for Windows and Linux. Open magnet links from your browser, pick files, set speed limits, stay private.">
+  <meta property="og:title" content="Magnetar - open-source BitTorrent client">
+  <meta property="og:description" content="Free for Windows and Linux. Magnet links from your browser, file selection, categories, speed schedules, signed updates.">
+  <meta property="og:image" content="screenshots/screenshot-list.png">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f3f4fb;
+      --ink: #1d1640;
+      --ink-soft: #4d4870;
+      --violet: #7c3aed;
+      --cyan: #0891b2;
+      --piece: #dcdff0;
+      --rule: #d8daea;
+      --font: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.55 var(--font); -webkit-font-smoothing: antialiased; }
+    a { color: var(--violet); }
+    a:focus-visible, button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+    /* Header */
+    header.top { display: flex; align-items: center; gap: 28px; padding: 22px 0; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 22px; color: var(--ink); text-decoration: none; letter-spacing: -.01em; }
+    .brand img { width: 34px; height: 34px; }
+    nav.links { margin-left: auto; display: flex; gap: 24px; font-size: 16px; }
+    nav.links a { color: var(--ink-soft); text-decoration: none; }
+    nav.links a:hover { color: var(--ink); }
+
+    /* Hero */
+    .hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 56px; align-items: center; padding: 56px 0 72px; }
+    .hero h1 { font-size: clamp(42px, 6vw, 72px); line-height: 1.02; letter-spacing: -.035em; font-weight: 800; margin: 0 0 22px; max-width: 12ch; }
+    .hero p.lead { font-size: 20px; color: var(--ink-soft); max-width: 34em; margin: 0 0 32px; }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 14px; font: 600 17px var(--font); text-decoration: none; }
+    .btn.main { background: var(--ink); color: #fff; }
+    .btn.main:hover { background: #2c2260; }
+    .btn.plain { color: var(--ink); border: 1.5px solid var(--rule); background: #fff; }
+    .btn.plain:hover { border-color: var(--ink-soft); }
+    .cta small { width: 100%; color: var(--ink-soft); font-size: 14px; margin-top: 4px; }
+
+    /* Piece map: the hero image */
+    .swarm { background: #fff; border: 1.5px solid var(--rule); border-radius: 22px; padding: 22px; }
+    .swarm-head { display: flex; justify-content: space-between; font-size: 15px; color: var(--ink-soft); margin-bottom: 14px; }
+    .swarm-head b { color: var(--ink); font-weight: 700; }
+    .pieces { display: grid; grid-template-columns: repeat(24, 1fr); gap: 3px; }
+    .pieces i { aspect-ratio: 1; border-radius: 3px; background: var(--piece); transition: background-color .25s ease; }
+    .pieces i.got { background: var(--violet); }
+    .pieces i.got.alt { background: var(--cyan); }
+    .swarm-foot { display: flex; justify-content: space-between; margin-top: 14px; font-size: 14px; color: var(--ink-soft); }
+    .bar { height: 6px; border-radius: 6px; background: var(--piece); margin-top: 16px; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--violet), var(--cyan)); transition: width .25s ease; }
+
+    /* Screenshot */
+    .shot { margin: 0 0 96px; }
+    .shot img { width: 100%; display: block; border-radius: 18px; border: 1.5px solid var(--rule); box-shadow: 0 30px 60px -30px rgba(29, 22, 64, .45); }
+
+    /* Features */
+    section { padding: 0 0 96px; }
+    h2 { font-size: clamp(30px, 4vw, 44px); letter-spacing: -.03em; line-height: 1.08; font-weight: 800; margin: 0 0 14px; }
+    .intro { color: var(--ink-soft); max-width: 36em; margin: 0 0 44px; }
+    .groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 44px; }
+    .group h3 { font-size: 22px; margin: 0 0 14px; letter-spacing: -.01em; padding-bottom: 12px; border-bottom: 3px solid var(--ink); }
+    .group dl { margin: 0; }
+    .group dt { font-weight: 700; margin-top: 16px; }
+    .group dd { margin: 2px 0 0; color: var(--ink-soft); font-size: 16.5px; }
+
+    /* Install */
+    .install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+    .os { background: #fff; border: 1.5px solid var(--rule); border-radius: 18px; padding: 24px; }
+    .os h3 { margin: 0 0 6px; font-size: 22px; }
+    .os p { margin: 0 0 16px; color: var(--ink-soft); font-size: 16px; }
+    pre { margin: 0; background: var(--ink); color: #e9e6ff; padding: 14px 16px; border-radius: 12px; font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-x: auto; }
+    .os .btn { margin-bottom: 14px; }
+
+    /* Security */
+    .trust { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
+    .trust ul { margin: 0; padding-left: 20px; color: var(--ink-soft); }
+    .trust li { margin-bottom: 10px; }
+    .trust li b { color: var(--ink); }
+
+    footer { border-top: 1.5px solid var(--rule); padding: 36px 0 48px; display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; font-size: 16px; color: var(--ink-soft); }
+    footer .me { color: var(--ink); font-weight: 700; }
+    footer .gh { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font-weight: 600; }
+    footer .gh svg { width: 22px; height: 22px; }
+
+    @media (max-width: 900px) {
+      .hero, .trust { grid-template-columns: 1fr; gap: 40px; }
+      .groups, .install { grid-template-columns: 1fr; }
+      nav.links { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .pieces i, .bar span { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="./"><img src="logo.svg" alt="">Magnetar</a>
+      <nav class="links" aria-label="Sections">
+        <a href="#features">Features</a>
+        <a href="#install">Install</a>
+        <a href="#security">Security</a>
+        <a href="https://github.com/nikolap994/magnetar">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="hero">
+        <div>
+          <h1>Torrents without the clutter.</h1>
+          <p class="lead">Magnetar is a free, open-source BitTorrent client for Windows and Linux. Click a magnet link in your browser, choose the files you want, and let it run quietly in the tray.</p>
+          <div class="cta">
+            <a class="btn main" id="dl-main" href="https://github.com/nikolap994/magnetar/releases/latest">Download Magnetar</a>
+            <a class="btn plain" href="https://github.com/nikolap994/magnetar">View the source</a>
+            <small id="dl-note">Free, no ads, no tracking. Windows 10/11 and Ubuntu/Debian.</small>
+          </div>
+        </div>
+        <figure class="swarm" aria-label="A torrent's pieces arriving from the swarm">
+          <div class="swarm-head"><b>Big Buck Bunny</b><span id="sw-pct">0%</span></div>
+          <div class="pieces" id="pieces"></div>
+          <div class="bar"><span id="sw-bar"></span></div>
+          <div class="swarm-foot"><span>Pieces arrive out of order from many peers</span><span id="sw-peers">0 peers</span></div>
+        </figure>
+      </div>
+
+      <figure class="shot">
+        <img src="screenshots/screenshot-list.png" alt="Magnetar's main window: a torrent list with speeds, categories and connection status" width="1440" height="860">
+      </figure>
+
+      <section id="features">
+        <h2>Everything you use, nothing you don't</h2>
+        <p class="intro">Built in Go on the anacrolix/torrent engine, with an interface you can understand at a glance.</p>
+        <div class="groups">
+          <div class="group">
+            <h3>Everyday downloading</h3>
+            <dl>
+              <dt>Magnet links from your browser</dt><dd>Click a link and Magnetar asks where to save it.</dd>
+              <dt>Pick files first</dt><dd>See every file and its size, and whether it fits on your disk, before anything downloads.</dd>
+              <dt>Picks up where it left off</dt><dd>Add a torrent again and only the missing pieces are fetched.</dd>
+              <dt>Statistics</dt><dd>All-time totals and a 24-hour bandwidth chart.</dd>
+            </dl>
+          </div>
+          <div class="group">
+            <h3>Control</h3>
+            <dl>
+              <dt>Speed limits and a turtle mode</dt><dd>One click for slower limits, or let a schedule switch them during work hours.</dd>
+              <dt>Categories with folders</dt><dd>Movies here, Linux images there, finished downloads moved automatically.</dd>
+              <dt>Connection status</dt><dd>Tells you when peers cannot reach you, and how to fix it.</dd>
+              <dt>Updates itself</dt><dd>New versions install with one click and are verified before they run.</dd>
+            </dl>
+          </div>
+          <div class="group">
+            <h3>Privacy</h3>
+            <dl>
+              <dt>Encryption by default</dt><dd>Protocol encryption is preferred, or required with one switch.</dd>
+              <dt>Stays on your VPN</dt><dd>Bind traffic to your VPN's address and it stops if the VPN drops.</dd>
+              <dt>Blocklists and anonymous mode</dt><dd>Block known bad ranges and hide the client's name from peers.</dd>
+              <dt>Nothing phones home</dt><dd>No telemetry, no accounts. The only outside check is an optional daily update check.</dd>
+            </dl>
+          </div>
+        </div>
+      </section>
+
+      <section id="install">
+        <h2>Install in a minute</h2>
+        <p class="intro">No administrator rights needed on Windows. Every download is signed and can be traced back to the exact build that produced it.</p>
+        <div class="install">
+          <div class="os">
+            <h3>Windows 10 and 11</h3>
+            <p>Run the installer and choose Magnetar for magnet links.</p>
+            <a class="btn main" data-asset="windows_amd64_setup.exe" href="https://github.com/nikolap994/magnetar/releases/latest">Windows installer</a>
+            <p>For ARM PCs, pick the arm64 installer on the releases page.</p>
+          </div>
+          <div class="os">
+            <h3>Ubuntu, Debian, Mint</h3>
+            <p>Download the package, then install it:</p>
+            <a class="btn main" data-asset="amd64.deb" href="https://github.com/nikolap994/magnetar/releases/latest">Download .deb</a>
+            <pre><code>sudo apt install ./magnetar_*_amd64.deb
+magnetar register</code></pre>
+          </div>
+          <div class="os">
+            <h3>Other Linux</h3>
+            <p>Portable build for any distribution:</p>
+            <a class="btn plain" data-asset="linux_amd64.tar.gz" href="https://github.com/nikolap994/magnetar/releases/latest">Download .tar.gz</a>
+            <pre><code>tar xzf magnetar_*_linux_amd64.tar.gz
+cd magnetar_*_linux_amd64 &amp;&amp; ./install.sh</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="security">
+        <div class="trust">
+          <div>
+            <h2>Safe to run on your own computer</h2>
+            <p class="intro">Magnetar's interface only listens on your computer, every request is authenticated, and updates refuse to install unless they carry the project's signature.</p>
+          </div>
+          <ul>
+            <li><b>Signed releases.</b> Built only by GitHub Actions, signed with Sigstore, with build provenance for every file.</li>
+            <li><b>Verified updates.</b> The updater checks an Ed25519 signature and SHA-256 hash before installing anything.</li>
+            <li><b>Contained file access.</b> File names in torrents can never reach outside your download folder.</li>
+            <li><b>Open source.</b> Read every line on GitHub; security reports go through private advisories.</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Made by <a class="me" href="https://github.com/nikolap994">Nikola Pavlović</a></span>
+      <span>MIT License</span>
+      <a href="https://github.com/nikolap994/magnetar/releases">Release notes</a>
+      <a class="gh" href="https://github.com/nikolap994/magnetar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
+        Star on GitHub
+      </a>
+    </footer>
+  </div>
+
+  <script>
+    // Piece map: fill pieces in a random order, like a real swarm, once on load.
+    (function () {
+      const N = 24 * 10, grid = document.getElementById("pieces");
+      const cells = Array.from({ length: N }, () => grid.appendChild(document.createElement("i")));
+      const order = [...cells.keys()].sort(() => Math.random() - 0.5).slice(0, Math.round(N * 0.82));
+      const pct = document.getElementById("sw-pct"), bar = document.getElementById("sw-bar"), peers = document.getElementById("sw-peers");
+      const paint = (k) => {
+        for (let j = 0; j < k; j++) cells[order[j]].className = "got" + (order[j] % 7 === 0 ? " alt" : "");
+        const p = Math.round((k / N) * 100);
+        pct.textContent = p + "%"; bar.style.width = p + "%";
+        peers.textContent = Math.min(38, 6 + Math.round(k / 6)) + " peers";
+      };
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) return paint(order.length);
+      let k = 0;
+      const step = () => { k = Math.min(order.length, k + 4); paint(k); if (k < order.length) setTimeout(step, 22); };
+      setTimeout(step, 350);
+    })();
+
+    // Point download buttons at the latest release's files; fall back to the releases page.
+    (async function () {
+      try {
+        const r = await fetch("https://api.github.com/repos/nikolap994/magnetar/releases/latest");
+        if (!r.ok) return;
+        const rel = await r.json();
+        const find = (suffix) => (rel.assets || []).find((a) => a.name.endsWith(suffix));
+        document.querySelectorAll("[data-asset]").forEach((a) => {
+          const asset = find(a.dataset.asset);
+          if (asset) a.href = asset.browser_download_url;
+        });
+        const isWin = /Windows/i.test(navigator.userAgent), isLinux = /Linux/i.test(navigator.userAgent) && !/Android/i.test(navigator.userAgent);
+        const main = document.getElementById("dl-main"), note = document.getElementById("dl-note");
+        const pick = isWin ? find("windows_amd64_setup.exe") : isLinux ? find("amd64.deb") : null;
+        if (pick) {
+          main.href = pick.browser_download_url;
+          main.textContent = isWin ? "Download for Windows" : "Download for Ubuntu";
+          note.textContent = `Version ${rel.tag_name.replace(/^v/, "")}. Free, no ads, no tracking.`;
+        }
+      } catch (e) { /* keep the releases-page links */ }
+    })();
+  </script>
+</body>
+</html>
