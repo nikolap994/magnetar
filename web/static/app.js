@@ -942,6 +942,7 @@ function handleIncomingLinks() {
   else if (hash === "#settings") openSettings();
   else if (hash.startsWith("#settings:")) openSettings().then(() => $(`.settings-nav [data-sec="${hash.slice(10)}"]`)?.click());
   else if (hash === "#speed") openSpeed();
+  else if (hash === "#stats") openStatistics();
   else if (hash === "#add") openAdd();
 }
 
@@ -1133,6 +1134,141 @@ dayButtons().forEach((b) => b.addEventListener("click", () => {
   v.value = String(Number(v.value || 0) ^ (1 << Number(b.dataset.day)));
   renderDays();
 }));
+
+/* ---------- statistics ---------- */
+const SVG_NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs = {}) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  return el;
+}
+const hhmm = (sec) => new Date(sec * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+function niceMax(v) {
+  if (v <= 0) return 1024;
+  const p = Math.pow(1024, Math.floor(Math.log(v) / Math.log(1024)));
+  const n = v / p;
+  const step = [1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((s) => s >= n) || 1024;
+  return step * p;
+}
+async function openStatistics() {
+  let s;
+  try { s = await api("/api/statistics"); } catch (e) { return fail(e); }
+  const uptime = Math.max(0, Math.floor((Date.now() - new Date(s.sessionStart)) / 1000));
+  const tile = (value, label, sub) => h("div", { class: "tile" }, h("b", { text: value }), h("span", { text: label }), sub ? h("small", { text: sub }) : null);
+  $("#st-tiles").replaceChildren(
+    tile(bytes(s.allTimeDown), "Downloaded (all time)", `since ${new Date(s.firstStarted).toLocaleDateString()}`),
+    tile(bytes(s.allTimeUp), "Uploaded (all time)", `ratio ${s.allTimeRatio.toFixed(2)}`),
+    tile(`${bytes(s.sessionDown)} / ${bytes(s.sessionUp)}`, "This session ↓ / ↑", `running for ${eta(uptime)}`),
+    tile(`${s.completed} / ${s.torrents}`, "Completed / torrents", `${s.sessions} session${s.sessions === 1 ? "" : "s"}`),
+  );
+  state.statsData = s;
+  $("#st-table").hidden = true;
+  $("#st-chart").hidden = false;
+  $("#st-table-btn").textContent = "Show table";
+  $("#dlg-stats").showModal();
+  drawBandwidthChart(s.history || []);
+}
+function drawBandwidthChart(history) {
+  const wrap = $("#st-chart");
+  const now = Math.floor(Date.now() / 1000);
+  const t0 = now - 24 * 3600;
+  const pts = history.filter((p) => p.t >= t0);
+  if (!pts.some((p) => p.down > 0 || p.up > 0)) {
+    wrap.replaceChildren(h("div", { class: "chart-empty", text: "No transfers recorded in the last 24 hours yet." }));
+    return;
+  }
+  const W = Math.max(wrap.clientWidth, 480), H = 240, L = 64, R = 76, T = 10, B = 26;
+  const x = (t) => L + ((t - t0) / (now - t0)) * (W - L - R);
+  const ymax = niceMax(Math.max(...pts.map((p) => Math.max(p.down, p.up))));
+  const y = (v) => T + (1 - v / ymax) * (H - T - B);
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Download and upload speed over the last 24 hours" });
+  // Recessive grid and y labels.
+  for (let i = 0; i <= 4; i++) {
+    const v = (ymax / 4) * i, yy = y(v);
+    svg.append(svgEl("line", { class: "grid", x1: L, x2: W - R, y1: yy, y2: yy }));
+    const lab = svgEl("text", { class: "axis-label", x: L - 8, y: yy + 4, "text-anchor": "end" });
+    lab.textContent = i === 0 ? "0" : bytes(v) + "/s";
+    svg.append(lab);
+  }
+  // Hour ticks every 4 hours.
+  for (let k = 0; k <= 6; k++) {
+    const t = t0 + k * 4 * 3600;
+    const lab = svgEl("text", { class: "axis-label", x: x(t), y: H - 6, "text-anchor": k === 0 ? "start" : k === 6 ? "end" : "middle" });
+    lab.textContent = k === 6 ? "now" : hhmm(t);
+    svg.append(lab);
+  }
+  const path = (key) => pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p[key]).toFixed(1)}`).join("");
+  const base = y(0).toFixed(1);
+  svg.append(svgEl("path", { class: "area dl", d: `${path("down")}L${x(pts[pts.length - 1].t).toFixed(1)},${base}L${x(pts[0].t).toFixed(1)},${base}Z` }));
+  svg.append(svgEl("path", { class: "line ul", d: path("up") }));
+  svg.append(svgEl("path", { class: "line dl", d: path("down") }));
+  // Direct labels at the line ends (secondary encoding besides colour).
+  const last = pts[pts.length - 1];
+  let ld = y(last.down), lu = y(last.up);
+  if (Math.abs(ld - lu) < 14) { if (ld <= lu) { ld -= 7; lu += 7; } else { ld += 7; lu -= 7; } }
+  for (const [txt, yy] of [["Download", ld], ["Upload", lu]]) {
+    const t = svgEl("text", { class: "end-label", x: x(last.t) + 8, y: yy + 4 });
+    t.textContent = txt;
+    svg.append(t);
+  }
+  // Hover: crosshair, dots and tooltip.
+  const cross = svgEl("line", { class: "cross", y1: T, y2: H - B, visibility: "hidden" });
+  const dotD = svgEl("circle", { class: "dot dl", r: 5, visibility: "hidden" });
+  const dotU = svgEl("circle", { class: "dot ul", r: 5, visibility: "hidden" });
+  const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" });
+  svg.append(cross, dotU, dotD, hit);
+  const tip = h("div", { class: "chart-tip", hidden: true });
+  const show = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const px = ((ev.clientX - r.left) / r.width) * W;
+    const t = t0 + ((px - L) / (W - L - R)) * (now - t0);
+    let best = pts[0];
+    for (const p of pts) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
+    const cx = x(best.t);
+    cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
+    dotD.setAttribute("cx", cx); dotD.setAttribute("cy", y(best.down)); dotD.setAttribute("visibility", "visible");
+    dotU.setAttribute("cx", cx); dotU.setAttribute("cy", y(best.up)); dotU.setAttribute("visibility", "visible");
+    tip.replaceChildren(
+      h("div", { class: "t", text: hhmm(best.t) }),
+      h("div", {}, h("i", { class: "sw dl" }), `Download ${rate(best.down)}`),
+      h("div", {}, h("i", { class: "sw ul" }), `Upload ${rate(best.up)}`));
+    tip.hidden = false;
+    const left = (cx / W) * r.width;
+    tip.style.left = Math.min(left + 12, r.width - 170) + "px";
+    tip.style.top = "8px";
+  };
+  hit.addEventListener("mousemove", show);
+  hit.addEventListener("mouseleave", () => {
+    tip.hidden = true;
+    [cross, dotD, dotU].forEach((e) => e.setAttribute("visibility", "hidden"));
+  });
+  wrap.replaceChildren(svg, tip);
+}
+function renderStatsTable(history) {
+  const hours = new Map();
+  for (const p of history) {
+    const hr = Math.floor(p.t / 3600) * 3600;
+    const v = hours.get(hr) || { down: 0, up: 0 };
+    v.down += p.down * 60; v.up += p.up * 60;
+    hours.set(hr, v);
+  }
+  const rows = [...hours.entries()].sort((a, b) => b[0] - a[0]);
+  $("#st-table").replaceChildren(rows.length ? h("table", { class: "table" },
+    h("thead", {}, h("tr", {}, ["Hour", "Downloaded", "Uploaded", "Avg ↓", "Avg ↑"].map((c) => h("th", { text: c })))),
+    h("tbody", {}, rows.map(([hr, v]) => h("tr", {},
+      h("td", { text: `${hhmm(hr)}–${hhmm(hr + 3600)}` }), h("td", { text: bytes(v.down) }), h("td", { text: bytes(v.up) }),
+      h("td", { text: rate(Math.round(v.down / 3600)) }), h("td", { text: rate(Math.round(v.up / 3600)) })))))
+    : h("p", { class: "muted", text: "No data yet." }));
+}
+$("#btn-stats").addEventListener("click", openStatistics);
+$("#st-table-btn").addEventListener("click", () => {
+  const showTable = $("#st-table").hidden;
+  $("#st-table").hidden = !showTable;
+  $("#st-chart").hidden = showTable;
+  $("#st-table-btn").textContent = showTable ? "Show chart" : "Show table";
+  if (showTable) renderStatsTable(state.statsData.history || []);
+  else drawBandwidthChart(state.statsData.history || []);
+});
 
 /* ---------- connection health ---------- */
 const CONN = {

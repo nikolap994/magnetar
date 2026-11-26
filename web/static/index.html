@@ -39,6 +39,7 @@
     <symbol id="i-update" viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></symbol>
     <symbol id="i-move" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h6m0 0-2.5-2.5M16 13l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -99,6 +100,7 @@
         </div>
         <div class="spacer"></div>
         <button class="update-pill" id="update-pill" hidden><svg><use href="#i-update"/></svg><span></span></button>
+        <button class="btn icon" id="btn-stats" title="Statistics"><svg><use href="#i-chart"/></svg></button>
         <button class="btn icon" id="btn-theme" title="Toggle theme"><svg><use href="#i-moon"/></svg></button>
         <button class="btn icon" id="btn-settings" title="Settings"><svg><use href="#i-gear"/></svg></button>
         <button class="btn primary" id="btn-add"><svg><use href="#i-plus"/></svg><span>Add torrent</span></button>
@@ -400,6 +402,26 @@
         <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
         <button class="btn primary" value="ok">Apply</button>
       </footer>
+    </form>
+  </dialog>
+
+  <!-- Statistics -->
+  <dialog id="dlg-stats" class="dialog wide">
+    <form method="dialog">
+      <header><h2>Statistics</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div class="stat-tiles" id="st-tiles"></div>
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>Bandwidth — last 24 hours</h3>
+          <div class="legend" id="st-legend">
+            <span><i class="sw dl"></i>Download</span>
+            <span><i class="sw ul"></i>Upload</span>
+          </div>
+          <button type="button" class="btn ghost sm" id="st-table-btn">Show table</button>
+        </div>
+        <div class="chart-wrap" id="st-chart"></div>
+        <div class="chart-table" id="st-table" hidden></div>
+      </div>
     </form>
   </dialog>
 
