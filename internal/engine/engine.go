@@ -172,7 +172,7 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 		if !r.Paused {
 			if err := e.startLocked(m); err != nil {
 				m.err = err.Error()
-				e.log.Warn("restore torrent", "name", logSafe(r.Name), "err", err)
+				e.log.Warn("restore torrent", "name", logSafe(r.Name), "err", logSafe(err.Error()))
 			}
 		}
 	}
@@ -616,7 +616,7 @@ func (e *Engine) awaitInfo(m *managed, t *torrent.Torrent) {
 	}
 	e.mu.Unlock()
 	if err != nil && !errors.Is(err, context.Canceled) {
-		e.log.Warn("verify existing data", "name", logSafe(t.Name()), "err", err)
+		e.log.Warn("verify existing data", "name", logSafe(t.Name()), "err", logSafe(err.Error()))
 	}
 }
 

@@ -86,7 +86,7 @@ func (e *Engine) finishMove(m *managed, src, dest string, info *metainfo.Info, w
 	m.moving = false
 	if err != nil {
 		m.err = "move failed: " + err.Error()
-		e.log.Warn("move torrent", "name", logSafe(m.rec.Name), "err", err)
+		e.log.Warn("move torrent", "name", logSafe(m.rec.Name), "err", logSafe(err.Error()))
 	} else {
 		m.rec.SavePath = dest
 		e.publish(Event{Type: "moved", Hash: m.rec.InfoHash, Name: m.rec.Name, Message: dest})
