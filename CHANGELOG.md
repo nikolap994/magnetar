@@ -3,6 +3,19 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] — Unreleased
+
+### Added
+- In-app updater: daily check of GitHub Releases (can be disabled), release notes in the app, one-click
+  install & restart. Updates are verified with an Ed25519 release key compiled into Magnetar and a signed
+  SHA-256 list before anything is installed; Windows installs run the setup silently, `.deb` installs use
+  `pkexec apt-get`, portable builds swap the executable in place.
+
+### Security
+- Paths from torrent metadata can no longer point outside the save folder when checking for existing data.
+- Stricter validation of user-supplied folders (no `..`, NUL bytes or Windows device paths).
+- Logout cookie carries the `Secure` attribute like the session cookie; log file close errors are handled.
+
 ## [0.1.1] — 2026-11-26
 
 ### Added

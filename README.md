@@ -27,6 +27,7 @@ Windows installer · Ubuntu/Debian package · No ads · No telemetry
 - Opens in its own app window with a **tray icon** (open, pause/resume all, turtle mode, quit)
 - **Click a magnet link in any browser** → Magnetar asks where to save it, just like qBittorrent
 - Opens `.torrent` files from your file manager; optional start at sign-in
+- **Updates itself**: one click installs new releases, verified with Magnetar's signing key before anything runs
 
 **Everything you expect from a torrent client**
 - Magnet links, `.torrent` files and bare info hashes — paste anywhere, drag & drop, or click in the browser
@@ -74,8 +75,8 @@ Download from the [latest release](https://github.com/nikolap994/magnetar/releas
 Uninstall from **Settings → Apps → Installed apps → Magnetar**. Your downloads and settings are kept.
 A portable `.zip` is also available (run `magnetar.exe register` once to handle magnet links).
 
-> Until the project's Authenticode certificate is in place, SmartScreen may show *"Windows protected your PC"*.
-> Verify the download (see below), then click **More info → Run anyway**.
+> Until the project's Authenticode certificate is in place (see [docs/SIGNING.md](docs/SIGNING.md)), SmartScreen may
+> show *"Windows protected your PC"*. Verify the download (see below), then click **More info → Run anyway**.
 
 ### Ubuntu / Debian / Linux Mint / Pop!_OS
 ```sh
@@ -134,6 +135,13 @@ Magnetar's interface is a local web app shown in its own window. On launch it si
 link**, so no password is needed on your own computer. To use it from another device (e.g. on a home server), set a password first and then change the listen address
 in **Settings → Web interface**.
 
+### Updates
+
+Magnetar checks GitHub Releases once a day and shows **Update to x.y.z** in the toolbar when a new version is out.
+Click it to read the release notes and **Install & restart** — the download is verified against Magnetar's signing
+key and checksum before it is installed, and transfers resume after the restart. Turn automatic checks off in
+**Settings → About**. (Versions before 0.2.0 must be updated manually once.)
+
 ### Keyboard shortcuts
 
 | Key | Action |
@@ -174,6 +182,7 @@ Magnetar is designed so that running it does not widen your attack surface.
 | VPN drops | Binding to an IP makes sockets fail rather than fall back to another interface |
 | Browser extensions reading the UI | The app window uses its own isolated browser profile with extensions disabled |
 | Tampered downloads of Magnetar | Reproducible builds, Sigstore signatures and build-provenance attestations |
+| Malicious updates | Updates install only if `SHA256SUMS` carries a valid Ed25519 signature from the release key and the file's hash matches; HTTPS from GitHub hosts only |
 | Secrets on disk | Settings, keys and session files are written atomically with `0600` permissions |
 
 Found a vulnerability? Please follow [SECURITY.md](SECURITY.md).
@@ -186,6 +195,8 @@ cmd/magnetar-setup    Windows installer/uninstaller (embeds magnetar.exe, no adm
 internal/engine       torrent lifecycle, resume/verify, persistence, speed limits, sequential mode
 internal/server       hardened HTTP API, folder browser, Server-Sent Events for live updates
 internal/desktop      app window, tray icon, autostart
+internal/update       signed self-updater (GitHub Releases)
+internal/fsutil       validation of user- and torrent-supplied paths
 internal/auth         signed sessions, one-time launch tokens, Argon2id
 internal/config       validated settings, atomic writes
 web/static            dependency-free UI (HTML/CSS/JS), embedded in the binary
