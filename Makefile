@@ -6,12 +6,16 @@
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo dev)
 PKG     := github.com/nikolap994/magnetar
-LDFLAGS := -s -w -buildid= -X $(PKG)/internal/engine.Version=$(VERSION)
+# Public half of the release signing key (repository variable UPDATE_PUBLIC_KEY).
+# Builds without it still run but never install updates.
+UPDATE_PUBLIC_KEY ?=
+LDFLAGS := -s -w -buildid= -X $(PKG)/internal/engine.Version=$(VERSION) \
+	-X $(PKG)/internal/update.releasePublicKey=$(UPDATE_PUBLIC_KEY)
 GOFLAGS := -trimpath
 WINRES  := go run github.com/tc-hib/go-winres@v0.3.3
 export CGO_ENABLED := 0
 
-.PHONY: all build run test lint vet fmt icons winres release binaries archives deb installer checksums clean
+.PHONY: all build run test lint vet fmt icons winres release binaries archives deb installer checksums sign-checksums clean
 
 all: test build
 
@@ -86,6 +90,9 @@ installer: ## Windows setup executables (embed magnetar.exe)
 checksums:
 	@rm -rf dist/bin
 	@cd dist && sha256sum *.deb *.tar.gz *.zip *_setup.exe > SHA256SUMS
+
+sign-checksums: ## Sign dist/SHA256SUMS for the updater (needs MAGNETAR_UPDATE_KEY)
+	go run ./tools/signsums sign dist/SHA256SUMS
 
 clean:
 	rm -rf bin dist cmd/magnetar/rsrc_windows_*.syso cmd/magnetar-setup/rsrc_windows_*.syso \
