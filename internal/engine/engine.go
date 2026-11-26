@@ -1168,6 +1168,12 @@ func (e *Engine) publish(ev Event) {
 	}
 }
 
+// AnnounceShutdown tells connected windows that Magnetar is quitting so they
+// can close themselves.
+func (e *Engine) AnnounceShutdown() {
+	e.publish(Event{Type: "shutdown"})
+}
+
 // Close saves state and shuts down the client.
 func (e *Engine) Close() error {
 	e.cancel()

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // Window sizes for the main UI and the "add torrent" popup used for magnet links.
@@ -35,7 +36,7 @@ func OpenWindow(url, profileDir, size string, appWindow bool) error {
 			}
 			cmd := exec.Command(bin, args...)
 			if err := cmd.Start(); err == nil {
-				go cmd.Wait()
+				track(cmd)
 				return nil
 			}
 		}
@@ -85,6 +86,38 @@ func chromiumBinary() string {
 			}
 		}
 		return ""
+	}
+}
+
+var (
+	windowsMu sync.Mutex
+	windows   = map[*exec.Cmd]bool{} // app-window processes still running
+)
+
+// track remembers an app-window browser process until it exits. The first
+// launch with Magnetar's private profile becomes the browser's main process;
+// later launches hand their window to it and exit.
+func track(cmd *exec.Cmd) {
+	windowsMu.Lock()
+	windows[cmd] = true
+	windowsMu.Unlock()
+	go func() {
+		cmd.Wait()
+		windowsMu.Lock()
+		delete(windows, cmd)
+		windowsMu.Unlock()
+	}()
+}
+
+// CloseWindows ends the app-window browser processes Magnetar started. They
+// use Magnetar's own browser profile, so nothing else is affected.
+func CloseWindows() {
+	windowsMu.Lock()
+	defer windowsMu.Unlock()
+	for cmd := range windows {
+		if cmd.Process != nil {
+			cmd.Process.Kill()
+		}
 	}
 }
 
