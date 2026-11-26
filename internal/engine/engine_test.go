@@ -3,6 +3,7 @@ package engine
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -173,5 +174,11 @@ func TestSpeedScheduleBoundaries(t *testing.T) {
 	e.applyScheduleLocked(mon(18, 0))
 	if e.settings.AltSpeedEnabled {
 		t.Fatal("still on after the window")
+	}
+}
+
+func TestLogSafe(t *testing.T) {
+	if got := logSafe("evil\nlevel=ERROR msg=fake\r\x1b[31m"); strings.ContainsAny(got, "\n\r\x1b") {
+		t.Fatalf("control characters left: %q", got)
 	}
 }

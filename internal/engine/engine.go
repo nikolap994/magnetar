@@ -172,7 +172,7 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 		if !r.Paused {
 			if err := e.startLocked(m); err != nil {
 				m.err = err.Error()
-				e.log.Warn("restore torrent", "name", r.Name, "err", err)
+				e.log.Warn("restore torrent", "name", logSafe(r.Name), "err", err)
 			}
 		}
 	}
@@ -607,7 +607,7 @@ func (e *Engine) awaitInfo(m *managed, t *torrent.Torrent) {
 	}
 	// Like qBittorrent: hash whatever is already on disk before downloading,
 	// so only missing or damaged pieces are fetched.
-	e.log.Info("checking existing files", "name", t.Name())
+	e.log.Info("checking existing files", "name", logSafe(t.Name()))
 	err := t.VerifyDataContext(e.ctx)
 	e.mu.Lock()
 	m.checking = false
@@ -616,7 +616,7 @@ func (e *Engine) awaitInfo(m *managed, t *torrent.Torrent) {
 	}
 	e.mu.Unlock()
 	if err != nil && !errors.Is(err, context.Canceled) {
-		e.log.Warn("verify existing data", "name", t.Name(), "err", err)
+		e.log.Warn("verify existing data", "name", logSafe(t.Name()), "err", err)
 	}
 }
 
@@ -1317,4 +1317,17 @@ func (e *Engine) WriteStatus(w io.Writer) {
 	if cl != nil {
 		cl.WriteStatus(w)
 	}
+}
+
+// logSafe removes line breaks and other control characters from untrusted
+// text (torrent names come from metadata) before it is written to the log.
+func logSafe(s string) string {
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	return strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, s)
 }
