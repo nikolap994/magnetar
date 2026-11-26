@@ -80,3 +80,22 @@ func RegularFileExists(p string) bool {
 	fi, err := os.Stat(p)
 	return err == nil && fi.Mode().IsRegular()
 }
+
+// FreeSpace returns the bytes available to the user on the volume holding
+// path. If path does not exist yet, its nearest existing parent is used.
+func FreeSpace(path string) (uint64, error) {
+	p, err := CleanAbs(path)
+	if err != nil {
+		return 0, err
+	}
+	for {
+		if _, err := os.Stat(p); err == nil {
+			return freeSpace(p)
+		}
+		parent := filepath.Dir(p)
+		if parent == p {
+			return 0, os.ErrNotExist
+		}
+		p = parent
+	}
+}
