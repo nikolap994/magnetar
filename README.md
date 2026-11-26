@@ -31,14 +31,20 @@ Windows installer · Ubuntu/Debian package · No ads · No telemetry
 
 **Everything you expect from a torrent client**
 - Magnet links, `.torrent` files and bare info hashes - paste anywhere, drag & drop, or click in the browser
+- **Pick files before downloading**: see the file list, sizes and free disk space before anything is written
 - **Choose the download folder** per torrent with a built-in folder browser, plus a default folder
+- **Categories** with their own folders, **Move files to…** for existing torrents, and automatic moving of completed
+  downloads
 - **Resumes like qBittorrent**: remove a torrent but keep its files, add it again later and Magnetar checks what is
   already on disk and downloads only what is missing
 - **Speed limits like qBittorrent**: global download/upload limits plus *alternative* (turtle) limits you can toggle
-  with one click from the sidebar or tray
+  with one click from the sidebar or tray, or on a **schedule** (e.g. weekdays 9-17)
 - Pause, resume, verify, remove (with or without data), bulk actions and right-click menus
 - Per-file selection and priorities (skip / normal / high), sequential download for previewing video
-- Live speeds, ETA, ratio, peers, trackers and a piece map; seed-ratio limit
+- Live speeds, ETA, ratio, peers, trackers and a piece map; seed ratio and seed time limits
+- **Statistics**: all-time totals and a 24-hour bandwidth chart
+- **Connection status** that tells you when your port is not reachable, and how to fix it
+- Native notifications when downloads finish and live speeds in the tray tooltip
 - DHT, PEX, local peer discovery, µTP, UPnP/NAT-PMP, web seeds, BitTorrent v2 hybrid torrents
 
 **Built for speed**

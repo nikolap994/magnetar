@@ -3,6 +3,23 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-27
+
+### Added
+- Choose files before downloading: the add dialog fetches the torrent's file list (metadata only, nothing is written
+  to disk) and shows sizes, a running total and the free space in the chosen folder.
+- Categories with optional folders: sidebar filter, picker when adding, assignment from the context menu and the
+  bulk bar, editor in Settings.
+- Move files to another folder ("Set location") while keeping seeding, and optionally move completed downloads.
+- Connection status in the sidebar (connectable, checking, port not reachable, no network) with fix-it help.
+- Native notifications when a download completes and live speeds in the tray tooltip.
+- Speed schedule for the alternative limits (time window and weekdays) and a seed time limit.
+- Statistics: all-time and session totals and a 24-hour bandwidth chart with a table view.
+- Alternative limits can be edited right under the turtle switch; speed-limit fields pick KiB/s, MiB/s or GiB/s.
+
+### Fixed
+- Quitting from the tray now also closes the app window.
+
 ## [0.2.0] - 2026-11-26
 
 ### Added
