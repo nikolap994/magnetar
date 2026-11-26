@@ -322,6 +322,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 		defer r.MultipartForm.RemoveAll()
 		base := engine.AddOptions{
 			SavePath:   r.FormValue("savePath"),
+			Category:   r.FormValue("category"),
 			Paused:     r.FormValue("paused") == "true",
 			Sequential: r.FormValue("sequential") == "true",
 		}
@@ -355,6 +356,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 			Magnets     []string `json:"magnets"`
 			Magnet      string   `json:"magnet"`
 			PreviewHash string   `json:"previewHash"`
+			Category    string   `json:"category"`
 			SkipFiles   []int    `json:"skipFiles"`
 			SavePath    string   `json:"savePath"`
 			Paused      bool     `json:"paused"`
@@ -369,13 +371,13 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 			for _, i := range req.SkipFiles {
 				prios[i] = engine.PrioritySkip
 			}
-			add(engine.AddOptions{PreviewHash: req.PreviewHash, FilePriorities: prios, SavePath: req.SavePath,
+			add(engine.AddOptions{PreviewHash: req.PreviewHash, FilePriorities: prios, SavePath: req.SavePath, Category: req.Category,
 				Paused: req.Paused, Sequential: req.Sequential}, req.PreviewHash)
 		}
 		mags := req.Magnets
 		mags = append(mags, splitMagnets(req.Magnet)...)
 		for _, mag := range mags {
-			add(engine.AddOptions{Magnet: mag, SavePath: req.SavePath, Paused: req.Paused, Sequential: req.Sequential}, mag)
+			add(engine.AddOptions{Magnet: mag, SavePath: req.SavePath, Category: req.Category, Paused: req.Paused, Sequential: req.Sequential}, mag)
 		}
 	}
 	if len(results) == 0 {
@@ -418,6 +420,8 @@ func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 		Action     string   `json:"action"`
 		Hashes     []string `json:"hashes"`
 		DeleteData bool     `json:"deleteData"`
+		Category   string   `json:"category"`
+		Path       string   `json:"path"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -435,6 +439,10 @@ func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 		err = s.eng.Resume(req.Hashes...)
 	case "remove":
 		err = s.eng.Remove(req.DeleteData, req.Hashes...)
+	case "category":
+		err = s.eng.SetCategory(req.Category, req.Hashes...)
+	case "move":
+		err = s.eng.Move(req.Path, req.Hashes...)
 	case "recheck":
 		for _, h := range req.Hashes {
 			err = errors.Join(err, s.eng.Recheck(h))
