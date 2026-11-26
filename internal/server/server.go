@@ -95,6 +95,10 @@ func (s *Server) routes() {
 	m.Handle("POST /api/password", s.authed(s.handlePassword))
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))
+	m.Handle("GET /api/fs/free", s.authed(s.handleFree))
+	m.Handle("POST /api/preview", s.authed(s.handlePreview))
+	m.Handle("GET /api/preview/{hash}", s.authed(s.handlePreviewStatus))
+	m.Handle("DELETE /api/preview/{hash}", s.authed(s.handlePreviewCancel))
 	m.Handle("POST /api/system/register", s.authed(s.handleRegister))
 	m.Handle("GET /api/update", s.authed(s.handleUpdateStatus))
 	m.Handle("POST /api/update/check", s.authed(s.handleUpdateCheck))
@@ -348,15 +352,25 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		var req struct {
-			Magnets    []string `json:"magnets"`
-			Magnet     string   `json:"magnet"`
-			SavePath   string   `json:"savePath"`
-			Paused     bool     `json:"paused"`
-			Sequential bool     `json:"sequential"`
+			Magnets     []string `json:"magnets"`
+			Magnet      string   `json:"magnet"`
+			PreviewHash string   `json:"previewHash"`
+			SkipFiles   []int    `json:"skipFiles"`
+			SavePath    string   `json:"savePath"`
+			Paused      bool     `json:"paused"`
+			Sequential  bool     `json:"sequential"`
 		}
 		if err := readJSON(r, &req); err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
+		}
+		if req.PreviewHash != "" {
+			prios := map[int]int{}
+			for _, i := range req.SkipFiles {
+				prios[i] = engine.PrioritySkip
+			}
+			add(engine.AddOptions{PreviewHash: req.PreviewHash, FilePriorities: prios, SavePath: req.SavePath,
+				Paused: req.Paused, Sequential: req.Sequential}, req.PreviewHash)
 		}
 		mags := req.Magnets
 		mags = append(mags, splitMagnets(req.Magnet)...)
