@@ -37,6 +37,8 @@
     <symbol id="i-github" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
     <symbol id="i-update" viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 13h6m0 0-2.5-2.5M16 13l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -47,6 +49,10 @@
         <span>Magnetar</span>
       </div>
       <nav id="filters" class="filters" aria-label="Filters"></nav>
+      <div class="side-section">
+        <div class="side-head"><span>Categories</span><button class="btn icon xs" id="btn-manage-cats" title="Manage categories"><svg><use href="#i-plus"/></svg></button></div>
+        <nav id="cat-filters" class="filters" aria-label="Categories"></nav>
+      </div>
       <div class="side-stats">
         <div class="speed-card" id="speed-card" role="button" tabindex="0" title="Speed limits">
           <div class="speed-head"><span>Speed</span><span id="g-limits" class="limits"></span></div>
@@ -86,6 +92,8 @@
           <button class="btn ghost" data-bulk="resume" title="Resume"><svg><use href="#i-play"/></svg></button>
           <button class="btn ghost" data-bulk="pause" title="Pause"><svg><use href="#i-pause"/></svg></button>
           <button class="btn ghost" data-bulk="recheck" title="Verify data"><svg><use href="#i-refresh"/></svg></button>
+          <button class="btn ghost" data-bulk="category" title="Set category"><svg><use href="#i-tag"/></svg></button>
+          <button class="btn ghost" data-bulk="move" title="Move files to…"><svg><use href="#i-move"/></svg></button>
           <button class="btn ghost danger" data-bulk="remove" title="Remove"><svg><use href="#i-trash"/></svg></button>
         </div>
         <div class="spacer"></div>
@@ -184,6 +192,10 @@
         </div>
         <div id="ap-list" class="ap-list"></div>
       </div>
+      <label class="field">
+        <span>Category</span>
+        <select id="add-cat"><option value="">No category</option></select>
+      </label>
       <div class="row">
         <label class="switch"><input type="checkbox" id="add-paused"><span></span>Start paused</label>
         <label class="switch"><input type="checkbox" id="add-seq"><span></span>Sequential (stream-friendly)</label>
@@ -232,6 +244,19 @@
             </div>
             <label class="switch"><input type="checkbox" name="showAddDialog"><span></span>Ask where to save when opening magnet links</label>
             <label class="switch"><input type="checkbox" name="seedAfterComplete"><span></span>Keep seeding after download completes</label>
+            <label class="switch"><input type="checkbox" name="moveCompletedEnabled"><span></span>Move completed downloads to another folder</label>
+            <div class="field"><span>Completed downloads folder</span>
+              <div class="path-row">
+                <input name="moveCompletedDir" id="set-done" type="text" spellcheck="false" placeholder="e.g. /home/you/Videos" aria-label="Completed downloads folder">
+                <button type="button" class="btn ghost" data-browse="#set-done"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Categories</h3>
+              <p class="muted">Group torrents and give each group its own download folder (optional).</p>
+              <div id="cat-editor" class="cat-editor"></div>
+              <div class="row"><button type="button" class="btn ghost" id="cat-add"><svg><use href="#i-plus"/></svg><span>Add category</span></button></div>
+            </div>
             <label class="field"><span>Stop seeding at ratio <em>(0 = never)</em></span><input name="seedRatioLimit" type="number" min="0" step="0.1"></label>
           </section>
           <section data-sec="speed">
@@ -345,6 +370,19 @@
         <span id="folder-err" class="error"></span>
         <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
         <button class="btn primary" value="ok">Use this folder</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Set category -->
+  <dialog id="dlg-cat" class="dialog small">
+    <form method="dialog" id="cat-form">
+      <header><h2 id="cat-title">Set category</h2></header>
+      <label class="field"><span>Category</span><select id="cat-select"></select></label>
+      <label class="switch"><input type="checkbox" id="cat-move"><span></span>Also move files to the category folder</label>
+      <footer>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" value="ok">Apply</button>
       </footer>
     </form>
   </dialog>

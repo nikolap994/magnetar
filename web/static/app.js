@@ -138,6 +138,7 @@ async function boot() {
   $("#app").hidden = false;
   $("#about-ver").textContent = s.version;
   connect();
+  loadCategories();
   handleIncomingLinks();
 }
 function showFatal(e) {
@@ -219,7 +220,9 @@ function closeStream() { if (es) { es.close(); es = null; } }
 function visible() {
   const f = FILTERS.find((x) => x.id === state.filter) || FILTERS[0];
   const q = state.query.trim().toLowerCase();
-  const list = state.torrents.filter((t) => f.match(t) && (!q || t.name.toLowerCase().includes(q) || t.hash.includes(q)));
+  const cat = state.category;
+  const list = state.torrents.filter((t) => f.match(t) && (cat == null || (t.category || "") === cat) &&
+    (!q || t.name.toLowerCase().includes(q) || t.hash.includes(q)));
   const { key, dir } = state.sort;
   list.sort((a, b) => {
     let x = a[key], y = b[key];
@@ -232,9 +235,21 @@ function visible() {
 
 function render() {
   renderFilters();
+  renderCategories();
   renderStats();
   renderList();
   renderBulk();
+}
+
+function renderCategories() {
+  const nav = $("#cat-filters");
+  const items = [{ name: null, label: "All categories" }, ...state.cats.map((c) => ({ name: c.name, label: c.name })), { name: "", label: "Uncategorized" }];
+  nav.replaceChildren(...items.map((c) => {
+    const count = c.name == null ? state.torrents.length : state.torrents.filter((t) => (t.category || "") === c.name).length;
+    return h("button", { class: state.category === c.name ? "active" : "", title: c.name ? (state.cats.find((x) => x.name === c.name)?.savePath || "") : "",
+      onclick: () => { state.category = c.name; render(); } },
+      icon(c.name == null ? "all" : "tag"), h("span", { text: c.label }), h("span", { class: "count", text: count || "" }));
+  }));
 }
 
 function renderFilters() {
@@ -396,10 +411,15 @@ function updateRow(row, t) {
   row.classList.toggle("focused", state.detail === t.hash);
 }
 function subtitle(t) {
+  const s = subtitleText(t);
+  return t.category ? `${t.category} · ${s}` : s;
+}
+function subtitleText(t) {
   switch (t.state) {
     case "error": return t.error;
     case "downloading": case "stalled": return `${t.seeds} seeds · ${t.peers} peers` + (t.sequential ? " · sequential" : "");
     case "checking": return "Checking existing files…";
+    case "moving": return "Moving files…";
     case "metadata": return t.knownPeers ? `Fetching metadata from ${t.knownPeers} peers` : "Searching for peers";
     case "seeding": return `${t.peers} peers · ratio ${t.ratio.toFixed(2)}`;
     case "paused": return t.size ? `${bytes(t.completed)} of ${bytes(t.size)}` : "Paused";
@@ -438,6 +458,8 @@ for (const b of $$("#bulk [data-bulk]")) {
   b.addEventListener("click", () => {
     const hashes = [...state.selected];
     if (b.dataset.bulk === "remove") confirmRemove(hashes);
+    else if (b.dataset.bulk === "category") openCategoryDialog(hashes);
+    else if (b.dataset.bulk === "move") moveTo(hashes);
     else act(b.dataset.bulk, hashes);
   });
 }
@@ -483,6 +505,8 @@ function contextMenu(e, hash) {
     t.state === "paused" ? item("Resume", "play", () => act("resume", targets)) : item("Pause", "pause", () => act("pause", targets)),
     item("Verify data", "refresh", () => act("recheck", targets)),
     item(t.sequential ? "Disable sequential" : "Download sequentially", "down", () => setSequential(hash, !t.sequential)),
+    item("Category…", "tag", () => openCategoryDialog(targets)),
+    item("Move files to…", "move", () => moveTo(targets)),
     item("Copy magnet link", "copy", () => copyMagnet(hash)),
     item("Details", "file", () => openDetail(hash)),
     h("hr"),
@@ -590,6 +614,7 @@ const TABS = {
         "Sequential download (preview while downloading)"),
       kv([
         ["Save path", d.savePath, "mono"],
+        ["Category", d.category || "—"],
         ["Info hash", d.hash, "mono"],
         ["Pieces", d.numPieces ? `${d.numPieces.toLocaleString()} × ${bytes(d.pieceSize)}` : "–"],
         ["Peers", `${d.peers} connected · ${d.seeds} seeds · ${d.knownPeers} known`],
@@ -848,7 +873,7 @@ $("#add-form").addEventListener("submit", async (ev) => {
     $("#add-submit").disabled = true;
     try {
       const res = await api("/api/torrents", { method: "POST", body: {
-        previewHash: pv.hash, skipFiles: [...pv.skip], savePath: $("#add-path").value.trim(),
+        previewHash: pv.hash, skipFiles: [...pv.skip], savePath: $("#add-path").value.trim(), category: $("#add-cat").value,
         paused: $("#add-paused").checked, sequential: $("#add-seq").checked } });
       pv.used = true;
       const r = res[0] || {};
@@ -865,6 +890,7 @@ $("#add-form").addEventListener("submit", async (ev) => {
   fd.append("savePath", $("#add-path").value.trim());
   fd.append("paused", $("#add-paused").checked);
   fd.append("sequential", $("#add-seq").checked);
+  fd.append("category", $("#add-cat").value);
   state.pendingFiles.forEach((f) => fd.append("torrents", f, f.name));
   $("#add-submit").disabled = true;
   try {
@@ -937,6 +963,7 @@ async function openSettings() {
   $("#pw-remove").hidden = !state.settings.passwordSet;
   $("#settings-err").textContent = "";
   refreshRates($("#settings-form"));
+  renderCatEditor(state.settings.categories || []);
   $("#dlg-settings").showModal();
 }
 $("#btn-settings").addEventListener("click", openSettings);
@@ -954,10 +981,12 @@ $("#settings-form").addEventListener("submit", async (ev) => {
     if (!el.name || !(el.name in state.settings)) continue;
     body[el.name] = el.type === "checkbox" ? el.checked : NUMERIC.has(el.name) ? Number(el.value || 0) : el.value.trim();
   }
+  body.categories = readCatEditor();
   try {
     const res = await api("/api/settings", { method: "PUT", body });
     $("#dlg-settings").close();
     state.settings = null;
+    loadCategories();
     toast(res.restartRequired ? "Saved — restart Magnetar to apply web interface changes" : "Settings saved");
   } catch (e) { $("#settings-err").textContent = e.message; }
 });
@@ -1066,20 +1095,117 @@ async function browse(path) {
     $("#folder-list").replaceChildren(...items);
   } catch (e) { $("#folder-err").textContent = e.message; }
 }
-for (const b of $$("[data-browse]")) {
+let folderCallback = null;
+function pickFolder(initial, cb) {
+  folderTarget = null;
+  folderCallback = cb;
+  const dlg = $("#dlg-folder");
+  dlg.returnValue = "";
+  dlg.showModal();
+  browse(initial || "");
+}
+function bindBrowse(b) {
   b.addEventListener("click", () => {
-    folderTarget = $(b.dataset.browse);
+    folderCallback = null;
+    folderTarget = $(b.dataset.browse) || b.closest(".path-row")?.querySelector("input");
     const dlg = $("#dlg-folder");
     dlg.returnValue = "";
     dlg.showModal();
     browse(folderTarget.value.trim());
   });
 }
+$$("[data-browse]").forEach(bindBrowse);
 $("#folder-go").addEventListener("click", () => browse($("#folder-path").value.trim()));
 $("#folder-path").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); browse(e.target.value.trim()); } });
 $("#dlg-folder").addEventListener("close", () => {
-  if ($("#dlg-folder").returnValue === "ok" && folderTarget) folderTarget.value = $("#folder-path").value.trim();
+  if ($("#dlg-folder").returnValue !== "ok") return;
+  const picked = $("#folder-path").value.trim();
+  if (folderCallback) { const cb = folderCallback; folderCallback = null; cb(picked); return; }
+  if (folderTarget) { folderTarget.value = picked; folderTarget.dispatchEvent(new Event("input")); }
 });
+
+/* ---------- categories & moving ---------- */
+state.cats = [];
+state.category = null; // null = all, "" = uncategorized
+async function loadCategories() {
+  try {
+    const s = await api("/api/settings");
+    state.cats = s.categories || [];
+    fillCategorySelects();
+    render();
+  } catch { /* not signed in yet */ }
+}
+function fillCategorySelects() {
+  const opts = () => [h("option", { value: "", text: "No category" }), ...state.cats.map((c) => h("option", { value: c.name, text: c.name }))];
+  const keep = $("#add-cat").value;
+  $("#add-cat").replaceChildren(...opts());
+  $("#add-cat").value = state.cats.some((c) => c.name === keep) ? keep : "";
+  $("#cat-select").replaceChildren(...opts());
+}
+$("#add-cat").addEventListener("change", () => {
+  const c = state.cats.find((x) => x.name === $("#add-cat").value);
+  $("#add-path").value = (c && c.savePath) || (state.settings && state.settings.downloadDir) || $("#add-path").value;
+  updateFree(true);
+});
+let catTargets = [];
+function openCategoryDialog(hashes) {
+  if (!state.cats.length) { toast("Create a category first in Settings → Downloads", "err"); openSettings(); return; }
+  catTargets = hashes;
+  const current = hashes.length === 1 ? (byHash(hashes[0])?.category || "") : "";
+  fillCategorySelects();
+  $("#cat-select").value = current;
+  $("#cat-title").textContent = hashes.length > 1 ? `Set category for ${hashes.length} torrents` : "Set category";
+  $("#cat-move").checked = false;
+  $("#dlg-cat").returnValue = "";
+  $("#dlg-cat").showModal();
+}
+$("#dlg-cat").addEventListener("close", async () => {
+  if ($("#dlg-cat").returnValue !== "ok") return;
+  const name = $("#cat-select").value;
+  try {
+    await api("/api/actions", { method: "POST", body: { action: "category", hashes: catTargets, category: name } });
+    const c = state.cats.find((x) => x.name === name);
+    if ($("#cat-move").checked && c && c.savePath) {
+      await api("/api/actions", { method: "POST", body: { action: "move", hashes: catTargets, path: c.savePath } });
+      toast("Category set — moving files");
+    } else toast(name ? `Category set to ${name}` : "Category removed");
+  } catch (e) { fail(e); }
+});
+function moveTo(hashes) {
+  const first = byHash(hashes[0]);
+  pickFolder(first ? first.savePath : "", async (dest) => {
+    try {
+      await api("/api/actions", { method: "POST", body: { action: "move", hashes, path: dest } });
+      toast(hashes.length > 1 ? `Moving ${hashes.length} torrents…` : "Moving files…");
+    } catch (e) { fail(e); }
+  });
+}
+$("#btn-manage-cats").addEventListener("click", async () => {
+  await openSettings();
+  $('.settings-nav [data-sec="downloads"]').click();
+  if (!$("#cat-editor").children.length) addCatRow({ name: "", savePath: "" }, true);
+});
+function addCatRow(c, focus) {
+  const name = h("input", { type: "text", placeholder: "Name", value: c.name || "", maxlength: "40", "aria-label": "Category name" });
+  const path = h("input", { type: "text", placeholder: "Folder (optional)", value: c.savePath || "", spellcheck: "false", "aria-label": "Category folder" });
+  const browseBtn = h("button", { type: "button", class: "btn ghost sm", title: "Browse" }, icon("folder"));
+  browseBtn.addEventListener("click", () => pickFolder(path.value.trim(), (p) => { path.value = p; }));
+  const row = h("div", { class: "cat-row" }, name, path, browseBtn,
+    h("button", { type: "button", class: "btn ghost sm danger", title: "Remove", onclick: () => row.remove() }, icon("trash")));
+  $("#cat-editor").append(row);
+  if (focus) name.focus();
+}
+function renderCatEditor(cats) {
+  $("#cat-editor").replaceChildren();
+  cats.forEach((c) => addCatRow(c));
+}
+function readCatEditor() {
+  return $$("#cat-editor .cat-row").map((r) => {
+    const [name, path] = r.querySelectorAll("input");
+    return { name: name.value.trim(), savePath: path.value.trim() };
+  }).filter((c) => c.name);
+}
+$("#cat-add").addEventListener("click", () => addCatRow({ name: "", savePath: "" }, true));
 
 /* ---------- speed limits ---------- */
 let speedMode = "normal";
