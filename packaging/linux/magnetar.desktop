@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Magnetar
+GenericName=BitTorrent Client
+Comment=Fast, secure BitTorrent client
+Exec=/usr/bin/magnetar %U
+TryExec=/usr/bin/magnetar
+Icon=magnetar
+Terminal=false
+Categories=Network;FileTransfer;P2P;
+MimeType=x-scheme-handler/magnet;application/x-bittorrent;
+Keywords=torrent;magnet;bittorrent;download;p2p;
+StartupNotify=false
+StartupWMClass=Magnetar
