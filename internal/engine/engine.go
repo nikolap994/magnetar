@@ -27,6 +27,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/nikolap994/magnetar/internal/config"
+	"github.com/nikolap994/magnetar/internal/fsutil"
 )
 
 // Version is the application version, overridden at build time.
@@ -310,7 +311,7 @@ func (e *Engine) newClientRetry(s config.Settings) (*torrent.Client, error) {
 		time.Sleep(300 * time.Millisecond)
 	}
 	if s.ListenPort != 0 {
-		e.log.Warn("listen port busy, using a random port", "port", s.ListenPort)
+		e.log.Warn("configured listen port is busy, using a random port")
 		s.ListenPort = 0
 		return e.newClient(s)
 	}
@@ -324,6 +325,10 @@ func isAddrInUse(err error) bool {
 }
 
 func loadBlocklist(path string) (*iplist.IPList, int, error) {
+	path, err := fsutil.CleanAbs(path)
+	if err != nil {
+		return nil, 0, err
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, 0, err
@@ -394,10 +399,11 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 
 	savePath := e.Settings().DownloadDir
 	if opts.SavePath != "" {
-		if !filepath.IsAbs(opts.SavePath) {
-			return "", errors.New("save path must be absolute")
+		p, err := fsutil.CleanAbs(opts.SavePath)
+		if err != nil {
+			return "", fmt.Errorf("save path: %w", err)
 		}
-		savePath = filepath.Clean(opts.SavePath)
+		savePath = p
 	}
 	if err := os.MkdirAll(savePath, 0o755); err != nil {
 		return "", fmt.Errorf("create save path: %w", err)
@@ -566,22 +572,24 @@ func hasExistingData(savePath string, info *metainfo.Info) bool {
 	if info == nil {
 		return false
 	}
-	root := filepath.Join(savePath, info.BestName())
+	// File names come from torrent metadata, which is untrusted: never look
+	// outside the save folder.
+	exists := func(elems ...string) bool {
+		p, err := fsutil.Within(savePath, elems...)
+		if err != nil {
+			return false
+		}
+		return fsutil.RegularFileExists(p) || fsutil.RegularFileExists(p+".part")
+	}
 	if !info.IsDir() {
-		return fileExists(root) || fileExists(root+".part")
+		return exists(info.BestName())
 	}
 	for _, f := range info.UpvertedFiles() {
-		p := filepath.Join(append([]string{root}, f.BestPath()...)...)
-		if fileExists(p) || fileExists(p+".part") {
+		if exists(append([]string{info.BestName()}, f.BestPath()...)...) {
 			return true
 		}
 	}
 	return false
-}
-
-func fileExists(p string) bool {
-	fi, err := os.Stat(p)
-	return err == nil && fi.Mode().IsRegular()
 }
 
 func (e *Engine) applyFilePrioritiesLocked(m *managed) {
@@ -753,10 +761,9 @@ func deleteTorrentData(savePath string, info *metainfo.Info) error {
 	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
 		return fmt.Errorf("refusing to delete data for unsafe torrent name %q", name)
 	}
-	target := filepath.Join(savePath, name)
-	rel, err := filepath.Rel(savePath, target)
-	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
-		return fmt.Errorf("refusing to delete %q outside %q", target, savePath)
+	target, err := fsutil.Within(savePath, name)
+	if err != nil || target == filepath.Clean(savePath) {
+		return fmt.Errorf("refusing to delete data outside %q", savePath)
 	}
 	// Do not follow a symlink planted at the torrent root.
 	if fi, err := os.Lstat(target); err == nil && fi.Mode()&os.ModeSymlink != 0 {
@@ -899,7 +906,12 @@ func (e *Engine) Settings() config.Settings {
 
 // ApplySettings applies new settings, restarting the network stack if needed.
 func (e *Engine) ApplySettings(s config.Settings) error {
-	if err := os.MkdirAll(s.DownloadDir, 0o755); err != nil {
+	dir, err := fsutil.CleanAbs(s.DownloadDir)
+	if err != nil {
+		return fmt.Errorf("download directory: %w", err)
+	}
+	s.DownloadDir = dir
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("create download dir: %w", err)
 	}
 	e.mu.Lock()

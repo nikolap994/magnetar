@@ -87,3 +87,31 @@ func TestSharesData(t *testing.T) {
 		t.Fatalf("different path reported as conflict: %q", got)
 	}
 }
+
+func TestHasExistingDataIgnoresTraversal(t *testing.T) {
+	root := t.TempDir()
+	save := filepath.Join(root, "dl")
+	os.MkdirAll(save, 0o755)
+	// A file outside the save folder that a malicious torrent tries to probe.
+	if err := os.WriteFile(filepath.Join(root, "secret.txt"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	evil := &metainfo.Info{Name: "pack", Files: []metainfo.FileInfo{{Path: []string{"..", "..", "secret.txt"}, Length: 1}}}
+	if hasExistingData(save, evil) {
+		t.Fatal("followed a '..' path from torrent metadata outside the save folder")
+	}
+	evilSingle := &metainfo.Info{Name: "../secret.txt", Length: 1}
+	if hasExistingData(save, evilSingle) {
+		t.Fatal("followed a '..' torrent name outside the save folder")
+	}
+
+	good := &metainfo.Info{Name: "pack", Files: []metainfo.FileInfo{{Path: []string{"a.bin"}, Length: 1}}}
+	if hasExistingData(save, good) {
+		t.Fatal("reported data that does not exist")
+	}
+	os.MkdirAll(filepath.Join(save, "pack"), 0o755)
+	os.WriteFile(filepath.Join(save, "pack", "a.bin.part"), []byte("x"), 0o600)
+	if !hasExistingData(save, good) {
+		t.Fatal("missed an existing partial file")
+	}
+}
