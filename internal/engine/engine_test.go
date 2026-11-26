@@ -7,6 +7,9 @@ import (
 	"time"
 
 	"github.com/anacrolix/torrent/metainfo"
+	"github.com/nikolap994/magnetar/internal/config"
+	"golang.org/x/time/rate"
+	"log/slog"
 )
 
 func TestDeleteTorrentDataRefusesUnsafeNames(t *testing.T) {
@@ -137,5 +140,38 @@ func TestConnectionHealth(t *testing.T) {
 	}
 	if got := e.connectionLocked(GlobalStats{}); got != "offline" {
 		t.Fatalf("client down = %q, want offline", got)
+	}
+}
+
+func TestSpeedScheduleBoundaries(t *testing.T) {
+	s := config.Defaults() // 09:00–17:00 Mon–Fri
+	s.AltScheduleEnabled = true
+	e := &Engine{settings: s, log: slog.New(slog.DiscardHandler),
+		downLimiter: rate.NewLimiter(rate.Inf, 1), upLimiter: rate.NewLimiter(rate.Inf, 1)}
+	saved := 0
+	e.onSettingsChanged = func(config.Settings) { saved++ }
+	mon := func(h, m int) time.Time { return time.Date(2026, 11, 23, h, m, 0, 0, time.Local) } // a Monday
+
+	e.applyScheduleLocked(mon(8, 0))
+	if e.settings.AltSpeedEnabled {
+		t.Fatal("alternative limits on before the window")
+	}
+	e.applyScheduleLocked(mon(9, 0))
+	if !e.settings.AltSpeedEnabled || saved != 1 {
+		t.Fatalf("not switched on at the start (alt=%v saved=%d)", e.settings.AltSpeedEnabled, saved)
+	}
+	if e.downLimiter.Limit() != rate.Limit(s.AltDownloadLimitKBps*1024) {
+		t.Fatalf("alternative download limit not applied: %v", e.downLimiter.Limit())
+	}
+	// The user turns it off manually: respected until the next boundary.
+	e.settings.AltSpeedEnabled = false
+	e.applyScheduleLocked(mon(12, 0))
+	if e.settings.AltSpeedEnabled {
+		t.Fatal("manual override was undone inside the window")
+	}
+	e.applyScheduleLocked(mon(17, 0))
+	e.applyScheduleLocked(mon(18, 0))
+	if e.settings.AltSpeedEnabled {
+		t.Fatal("still on after the window")
 	}
 }

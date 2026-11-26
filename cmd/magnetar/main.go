@@ -161,6 +161,15 @@ func run() error {
 		return err
 	}
 
+	// Keep saved settings in sync when the speed schedule toggles alternative limits.
+	eng.SetSettingsHook(func(s config.Settings) {
+		cur := store.Get()
+		cur.AltSpeedEnabled = s.AltSpeedEnabled
+		if err := store.Update(cur); err != nil {
+			logger.Warn("save schedule state", "err", err)
+		}
+	})
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

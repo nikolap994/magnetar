@@ -63,6 +63,12 @@ type Engine struct {
 	downRate, upRate float64
 	blocklistSize    int
 
+	// Speed schedule: last schedule state applied, to act only on boundaries.
+	schedKnown, schedLast bool
+	// onSettingsChanged persists settings the engine changes by itself
+	// (e.g. the speed schedule).
+	onSettingsChanged func(config.Settings)
+
 	// Connection health: incoming peer connections prove the port is reachable.
 	started      time.Time
 	incomingSeen int       // incoming connections observed this session
@@ -1065,7 +1071,38 @@ func (e *Engine) loop() {
 
 const rateSmoothing = 0.4
 
+// SetSettingsHook registers fn to persist settings the engine changes itself.
+func (e *Engine) SetSettingsHook(fn func(config.Settings)) {
+	e.mu.Lock()
+	e.onSettingsChanged = fn
+	e.mu.Unlock()
+}
+
+// applyScheduleLocked turns alternative limits on or off when the schedule
+// crosses a boundary. Manual toggles stay until the next boundary.
+func (e *Engine) applyScheduleLocked(now time.Time) {
+	if !e.settings.AltScheduleEnabled {
+		e.schedKnown = false
+		return
+	}
+	in := e.settings.InAltSchedule(now)
+	if e.schedKnown && in == e.schedLast {
+		return
+	}
+	e.schedKnown, e.schedLast = true, in
+	if e.settings.AltSpeedEnabled == in {
+		return
+	}
+	e.settings.AltSpeedEnabled = in
+	e.applyLimits(e.settings)
+	e.log.Info("speed schedule", "alternative", in)
+	if e.onSettingsChanged != nil {
+		e.onSettingsChanged(e.settings)
+	}
+}
+
 func (e *Engine) tickLocked() {
+	e.applyScheduleLocked(time.Now())
 	var gDown, gUp float64
 	for _, h := range e.order {
 		m := e.torrents[h]
@@ -1108,6 +1145,13 @@ func (e *Engine) tickLocked() {
 		}
 		if !complete && m.rec.Sequential {
 			e.sequentialLocked(m)
+		}
+		if complete && e.settings.SeedTimeLimitMin > 0 && m.rec.CompletedAt != nil &&
+			time.Since(*m.rec.CompletedAt) > time.Duration(e.settings.SeedTimeLimitMin)*time.Minute {
+			e.stopLocked(m)
+			m.rec.Paused = true
+			e.dirty = true
+			continue
 		}
 		if complete && e.settings.SeedRatioLimit > 0 {
 			down, up := m.totals()
