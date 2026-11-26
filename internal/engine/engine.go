@@ -54,6 +54,7 @@ type Engine struct {
 	storages   map[string]storage.ClientImplCloser
 
 	torrents map[string]*managed
+	previews map[string]*preview
 	order    []string
 
 	downLimiter *rate.Limiter
@@ -119,6 +120,7 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 		log:         logger,
 		storages:    map[string]storage.ClientImplCloser{},
 		torrents:    map[string]*managed{},
+		previews:    map[string]*preview{},
 		subs:        map[chan Event]struct{}{},
 		downLimiter: rate.NewLimiter(rate.Inf, 1<<30),
 		upLimiter:   rate.NewLimiter(rate.Inf, 1<<30),
@@ -354,9 +356,13 @@ func loadBlocklist(path string) (*iplist.IPList, int, error) {
 type AddOptions struct {
 	Magnet      string
 	TorrentFile []byte
+	// PreviewHash adds a torrent whose metadata was fetched with Preview.
+	PreviewHash string
 	SavePath    string
 	Paused      bool
 	Sequential  bool
+	// FilePriorities by file index; missing entries are PriorityNormal.
+	FilePriorities map[int]int
 }
 
 // Add adds a torrent from a magnet link or .torrent file contents.
@@ -366,6 +372,20 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 		err  error
 		mi   *metainfo.MetaInfo
 	)
+	if opts.PreviewHash != "" {
+		e.mu.Lock()
+		file, magnet, perr := e.takePreviewLocked(opts.PreviewHash)
+		e.mu.Unlock()
+		if perr != nil {
+			return "", perr
+		}
+		opts.TorrentFile, opts.Magnet = file, magnet
+	}
+	for i, p := range opts.FilePriorities {
+		if i < 0 || p < PrioritySkip || p > PriorityHigh {
+			return "", errors.New("invalid file priority")
+		}
+	}
 	switch {
 	case len(opts.TorrentFile) > 0:
 		if len(opts.TorrentFile) > MaxTorrentFileSize {
@@ -444,6 +464,14 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 		Paused:     opts.Paused,
 		Sequential: opts.Sequential,
 		AddedAt:    time.Now().UTC(),
+	}
+	for i, p := range opts.FilePriorities {
+		if p != PriorityNormal {
+			if rec.FilePriorities == nil {
+				rec.FilePriorities = map[int]int{}
+			}
+			rec.FilePriorities[i] = p
+		}
 	}
 	m := &managed{hash: spec.InfoHash, rec: rec, checkExisting: true}
 	e.torrents[hash] = m
@@ -1001,6 +1029,7 @@ func (e *Engine) loop() {
 		}
 		e.mu.Lock()
 		e.tickLocked()
+		e.expirePreviewsLocked()
 		saveEvery++
 		if e.dirty || saveEvery >= 30 {
 			if err := e.saveStateLocked(); err != nil {
