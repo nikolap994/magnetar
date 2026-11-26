@@ -1,0 +1,19 @@
+# Build output
+/dist/
+/bin/
+/magnetar
+/magnetar.exe
+*.syso
+
+# Local runtime data
+/data/
+*.log
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+cmd/magnetar-setup/payload/magnetar.exe.gz
+cmd/magnetar-setup/payload/LICENSE.txt
