@@ -77,12 +77,22 @@
     .group dd { margin: 2px 0 0; color: var(--ink-soft); font-size: 16.5px; }
 
     /* Install */
-    .install { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-    .os { background: #fff; border: 1.5px solid var(--rule); border-radius: 18px; padding: 24px; }
-    .os h3 { margin: 0 0 6px; font-size: 22px; }
-    .os p { margin: 0 0 16px; color: var(--ink-soft); font-size: 16px; }
-    pre { margin: 0; background: var(--ink); color: #e9e6ff; padding: 14px 16px; border-radius: 12px; font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-x: auto; }
-    .os .btn { margin-bottom: 14px; }
+    .os-picker { display: inline-flex; gap: 4px; padding: 5px; background: #fff; border: 1.5px solid var(--rule); border-radius: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+    .os-picker button { all: unset; cursor: pointer; padding: 10px 18px; border-radius: 11px; font: 600 16px var(--font); color: var(--ink-soft); }
+    .os-picker button:hover { color: var(--ink); }
+    .os-picker button[aria-selected="true"] { background: var(--ink); color: #fff; }
+    .os-picker button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+    .os-panel { background: #fff; border: 1.5px solid var(--rule); border-radius: 22px; padding: 30px 32px; max-width: 760px; }
+    .os-panel[hidden] { display: none; }
+    .os-panel h3 { margin: 0 0 4px; font-size: 24px; letter-spacing: -.01em; }
+    .os-panel > p { margin: 0 0 22px; color: var(--ink-soft); }
+    .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 18px; }
+    .steps li { counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; }
+    .steps li::before { content: counter(step); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--piece); color: var(--ink); font-weight: 700; font-size: 15px; }
+    .steps li > div { min-width: 0; padding-top: 3px; }
+    .steps li p { margin: 0 0 10px; }
+    .steps .note { color: var(--ink-soft); font-size: 15.5px; margin-top: 10px; }
+    pre { margin: 0; background: var(--ink); color: #e9e6ff; padding: 14px 16px; border-radius: 12px; font: 14.5px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 
     /* Security */
     .trust { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
@@ -178,27 +188,44 @@
       <section id="install">
         <h2>Install in a minute</h2>
         <p class="intro">No administrator rights needed on Windows. Every download is signed and can be traced back to the exact build that produced it.</p>
-        <div class="install">
-          <div class="os">
-            <h3>Windows 10 and 11</h3>
-            <p>Run the installer and choose Magnetar for magnet links.</p>
-            <a class="btn main" data-asset="windows_amd64_setup.exe" href="https://github.com/nikolap994/magnetar/releases/latest">Windows installer</a>
-            <p>For ARM PCs, pick the arm64 installer on the releases page.</p>
-          </div>
-          <div class="os">
-            <h3>Ubuntu, Debian, Mint</h3>
-            <p>Download the package, then install it:</p>
-            <a class="btn main" data-asset="amd64.deb" href="https://github.com/nikolap994/magnetar/releases/latest">Download .deb</a>
-            <pre><code>sudo apt install ./magnetar_*_amd64.deb
-magnetar register</code></pre>
-          </div>
-          <div class="os">
-            <h3>Other Linux</h3>
-            <p>Portable build for any distribution:</p>
-            <a class="btn plain" data-asset="linux_amd64.tar.gz" href="https://github.com/nikolap994/magnetar/releases/latest">Download .tar.gz</a>
-            <pre><code>tar xzf magnetar_*_linux_amd64.tar.gz
-cd magnetar_*_linux_amd64 &amp;&amp; ./install.sh</code></pre>
-          </div>
+        <div class="os-picker" role="tablist" aria-label="Choose your system">
+          <button role="tab" id="tab-win" aria-controls="os-win" aria-selected="true">Windows</button>
+          <button role="tab" id="tab-deb" aria-controls="os-deb" aria-selected="false">Ubuntu &amp; Debian</button>
+          <button role="tab" id="tab-linux" aria-controls="os-linux" aria-selected="false">Other Linux</button>
+        </div>
+
+        <div class="os-panel" role="tabpanel" id="os-win" aria-labelledby="tab-win">
+          <h3>Windows 10 and 11</h3>
+          <p>Installs for your account only, no administrator rights needed.</p>
+          <ol class="steps">
+            <li><div><p>Download the installer.</p><a class="btn main" data-asset="windows_amd64_setup.exe" href="https://github.com/nikolap994/magnetar/releases/latest">Download for Windows</a>
+              <p class="note">For ARM PCs, pick the arm64 installer on the <a href="https://github.com/nikolap994/magnetar/releases/latest">releases page</a>.</p></div></li>
+            <li><div><p>Run it and choose <b>Yes</b> to open magnet links and .torrent files with Magnetar.</p>
+              <p class="note">If Windows shows "Windows protected your PC", choose More info, then Run anyway.</p></div></li>
+            <li><div><p>The first time you click a magnet link, Windows may ask which app to use. Pick Magnetar and tick Always.</p></div></li>
+          </ol>
+        </div>
+
+        <div class="os-panel" role="tabpanel" id="os-deb" aria-labelledby="tab-deb" hidden>
+          <h3>Ubuntu, Debian, Linux Mint, Pop!_OS</h3>
+          <p>A regular .deb package that adds Magnetar to your applications menu.</p>
+          <ol class="steps">
+            <li><div><p>Download the package.</p><a class="btn main" data-asset="amd64.deb" href="https://github.com/nikolap994/magnetar/releases/latest">Download .deb</a></div></li>
+            <li><div><p>Install it from the folder you downloaded it to:</p><pre><code>sudo apt install ./magnetar_*_amd64.deb</code></pre></div></li>
+            <li><div><p>Let your browser open magnet links with Magnetar:</p><pre><code>magnetar register</code></pre></div></li>
+          </ol>
+        </div>
+
+        <div class="os-panel" role="tabpanel" id="os-linux" aria-labelledby="tab-linux" hidden>
+          <h3>Any other Linux distribution</h3>
+          <p>A portable build that installs into your home folder.</p>
+          <ol class="steps">
+            <li><div><p>Download the archive.</p><a class="btn main" data-asset="linux_amd64.tar.gz" href="https://github.com/nikolap994/magnetar/releases/latest">Download .tar.gz</a></div></li>
+            <li><div><p>Unpack it and run the installer:</p><pre><code>tar xzf magnetar_*_linux_amd64.tar.gz
+cd magnetar_*_linux_amd64
+./install.sh</code></pre>
+              <p class="note">Add <code>--service</code> to also start Magnetar in the background when you log in.</p></div></li>
+          </ol>
         </div>
       </section>
 
@@ -246,6 +273,33 @@ cd magnetar_*_linux_amd64 &amp;&amp; ./install.sh</code></pre>
       let k = 0;
       const step = () => { k = Math.min(order.length, k + 4); paint(k); if (k < order.length) setTimeout(step, 22); };
       setTimeout(step, 350);
+    })();
+
+
+    // Install section: one system at a time, preselected from the visitor's OS.
+    (function () {
+      const tabs = [...document.querySelectorAll(".os-picker [role=tab]")];
+      const select = (tab, focus) => {
+        tabs.forEach((t) => {
+          const on = t === tab;
+          t.setAttribute("aria-selected", on);
+          t.tabIndex = on ? 0 : -1;
+          document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+        });
+        if (focus) tab.focus();
+      };
+      tabs.forEach((t, i) => {
+        t.addEventListener("click", () => select(t));
+        t.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+            e.preventDefault();
+            select(tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length], true);
+          }
+        });
+      });
+      const ua = navigator.userAgent;
+      if (/Linux/i.test(ua) && !/Android/i.test(ua)) select(tabs[1]);
+      else select(tabs[0]);
     })();
 
     // Point download buttons at the latest release's files; fall back to the releases page.
