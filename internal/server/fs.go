@@ -1,13 +1,14 @@
 package server
 
 import (
-	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/nikolap994/magnetar/internal/fsutil"
 )
 
 type dirListing struct {
@@ -29,11 +30,11 @@ func (s *Server) handleDirs(w http.ResponseWriter, r *http.Request) {
 			p, _ = os.UserHomeDir()
 		}
 	}
-	if !filepath.IsAbs(p) {
-		writeErr(w, http.StatusBadRequest, errors.New("path must be absolute"))
+	p, err := fsutil.CleanAbs(p)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	p = filepath.Clean(p)
 	entries, err := os.ReadDir(p)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -50,8 +51,10 @@ func (s *Server) handleDirs(w http.ResponseWriter, r *http.Request) {
 		}
 		isDir := e.IsDir()
 		if e.Type()&os.ModeSymlink != 0 {
-			if fi, err := os.Stat(filepath.Join(p, name)); err == nil {
-				isDir = fi.IsDir()
+			if target, err := fsutil.Within(p, name); err == nil {
+				if fi, err := os.Stat(target); err == nil {
+					isDir = fi.IsDir()
+				}
 			}
 		}
 		if isDir {

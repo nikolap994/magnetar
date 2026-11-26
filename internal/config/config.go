@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/nikolap994/magnetar/internal/fsutil"
 )
 
 // Encryption policies for peer connections (BitTorrent protocol encryption / MSE).
@@ -102,10 +104,10 @@ func Defaults() Settings {
 // Validate checks values and normalises them in place.
 func (s *Settings) Validate() error {
 	var errs []error
-	if s.DownloadDir == "" || !filepath.IsAbs(s.DownloadDir) {
-		errs = append(errs, errors.New("download directory must be an absolute path"))
+	if dir, err := fsutil.CleanAbs(s.DownloadDir); err != nil {
+		errs = append(errs, fmt.Errorf("download directory: %w", err))
 	} else {
-		s.DownloadDir = filepath.Clean(s.DownloadDir)
+		s.DownloadDir = dir
 	}
 	if s.ListenPort < 0 || s.ListenPort > 65535 {
 		errs = append(errs, errors.New("listen port must be between 0 and 65535"))
@@ -139,8 +141,12 @@ func (s *Settings) Validate() error {
 	if s.SeedRatioLimit < 0 {
 		errs = append(errs, errors.New("seed ratio limit cannot be negative"))
 	}
-	if s.BlocklistPath != "" && !filepath.IsAbs(s.BlocklistPath) {
-		errs = append(errs, errors.New("blocklist path must be absolute"))
+	if s.BlocklistPath != "" {
+		if p, err := fsutil.CleanAbs(s.BlocklistPath); err != nil {
+			errs = append(errs, fmt.Errorf("blocklist path: %w", err))
+		} else {
+			s.BlocklistPath = p
+		}
 	}
 	if s.WebHost == "" {
 		s.WebHost = "127.0.0.1"
