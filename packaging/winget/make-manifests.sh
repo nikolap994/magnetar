@@ -21,16 +21,16 @@ ARM=magnetar_${VERSION}_windows_arm64_setup.exe
 SCHEMA=https://aka.ms/winget-manifest
 
 cat > "$DIR/$ID.yaml" <<YAML
-# yaml-language-server: \$schema=$SCHEMA.version.1.6.0.schema.json
+# yaml-language-server: \$schema=$SCHEMA.version.1.28.0.schema.json
 PackageIdentifier: $ID
 PackageVersion: $VERSION
 DefaultLocale: en-US
 ManifestType: version
-ManifestVersion: 1.6.0
+ManifestVersion: 1.28.0
 YAML
 
 cat > "$DIR/$ID.installer.yaml" <<YAML
-# yaml-language-server: \$schema=$SCHEMA.installer.1.6.0.schema.json
+# yaml-language-server: \$schema=$SCHEMA.installer.1.28.0.schema.json
 PackageIdentifier: $ID
 PackageVersion: $VERSION
 InstallerLocale: en-US
@@ -60,11 +60,11 @@ Installers:
     InstallerUrl: $BASE/$ARM
     InstallerSha256: $(sha "$ARM")
 ManifestType: installer
-ManifestVersion: 1.6.0
+ManifestVersion: 1.28.0
 YAML
 
 cat > "$DIR/$ID.locale.en-US.yaml" <<YAML
-# yaml-language-server: \$schema=$SCHEMA.defaultLocale.1.6.0.schema.json
+# yaml-language-server: \$schema=$SCHEMA.defaultLocale.1.28.0.schema.json
 PackageIdentifier: $ID
 PackageVersion: $VERSION
 PackageLocale: en-US
@@ -93,7 +93,7 @@ Tags:
   - torrent-client
 ReleaseNotesUrl: https://github.com/nikolap994/magnetar/releases/tag/v$VERSION
 ManifestType: defaultLocale
-ManifestVersion: 1.6.0
+ManifestVersion: 1.28.0
 YAML
 
 echo "$DIR"
