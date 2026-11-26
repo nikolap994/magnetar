@@ -54,7 +54,13 @@
           <div class="speed up"><svg><use href="#i-up"/></svg><span id="g-up">0 B/s</span></div>
           <canvas id="spark" width="220" height="56" aria-hidden="true"></canvas>
         </div>
-        <button class="alt-toggle" id="alt-toggle" title="Alternative speed limits"><svg><use href="#i-turtle"/></svg><span>Alternative speed</span><i></i></button>
+        <div class="alt-box" id="alt-box">
+          <button class="alt-toggle" id="alt-toggle" title="Alternative speed limits"><svg><use href="#i-turtle"/></svg><span>Alternative speed</span><i></i></button>
+          <div class="alt-panel" id="alt-panel" hidden>
+            <label class="alt-row" title="Alternative download limit"><svg><use href="#i-down"/></svg><input class="rate" id="alt-down" type="number" min="0"></label>
+            <label class="alt-row" title="Alternative upload limit"><svg><use href="#i-up"/></svg><input class="rate" id="alt-up" type="number" min="0"></label>
+          </div>
+        </div>
         <dl class="net">
           <div><dt>Peers</dt><dd id="g-peers">0</dd></div>
           <div><dt>DHT nodes</dt><dd id="g-dht">0</dd></div>
@@ -63,7 +69,7 @@
         <div id="g-security" class="security-pill"><svg><use href="#i-shield"/></svg><span>Encrypted</span></div>
         <a class="credit" href="https://github.com/nikolap994/magnetar" target="_blank" rel="noopener noreferrer" title="Magnetar on GitHub">
           <svg><use href="#i-github"/></svg>
-          <span class="credit-text"><span>Made by <b>Nikola Pavlovic</b></span><span class="credit-sub">Open source on GitHub</span></span>
+          <span class="credit-text"><span>Made by <b>Nikola Pavlović</b></span><span class="credit-sub">Open source on GitHub</span></span>
           <svg class="credit-star"><use href="#i-star"/></svg>
         </a>
       </div>
@@ -299,7 +305,7 @@
               <img class="about-logo" src="/logo.svg" alt="">
               <h3>Magnetar <span id="about-ver"></span></h3>
               <p class="muted">Fast, secure, open-source BitTorrent client written in Go.</p>
-              <p class="about-author">Created by <a href="https://github.com/nikolap994" target="_blank" rel="noopener noreferrer">Nikola Pavlovic</a></p>
+              <p class="about-author">Created by <a href="https://github.com/nikolap994" target="_blank" rel="noopener noreferrer">Nikola Pavlović</a></p>
               <div class="about-links">
                 <a class="btn ghost" href="https://github.com/nikolap994/magnetar" target="_blank" rel="noopener noreferrer"><svg><use href="#i-github"/></svg><span>Source code</span></a>
                 <a class="btn ghost" href="https://github.com/nikolap994/magnetar/stargazers" target="_blank" rel="noopener noreferrer"><svg><use href="#i-star"/></svg><span>Star on GitHub</span></a>

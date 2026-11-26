@@ -196,6 +196,7 @@ function connect() {
   });
   es.addEventListener("notify", (ev) => {
     const n = JSON.parse(ev.data);
+    if (n.type === "shutdown") { showStopped(); return; }
     if (n.type === "completed") {
       toast("Download complete: " + n.name);
       if (document.hidden && "Notification" in window && Notification.permission === "granted") {
@@ -258,6 +259,7 @@ function renderStats() {
   const lim = (n) => (n ? bytes(n) + "/s" : "∞");
   $("#g-limits").textContent = (s.altSpeed ? "🐢 " : "") + "↓ " + lim(s.downLimit) + "  ↑ " + lim(s.upLimit);
   $("#alt-toggle").classList.toggle("on", !!s.altSpeed);
+  showAltPanel(!!s.altSpeed);
   $("#g-peers").textContent = s.peers ?? 0;
   $("#g-dht").textContent = s.dhtNodes ?? 0;
   $("#g-port").textContent = s.listenPort || "–";
@@ -669,8 +671,8 @@ async function openAdd(prefill = "") {
   } else if (prefill) {
     $("#add-magnets").value = ($("#add-magnets").value.trim() + "\n" + prefill).trim();
   }
-  schedulePreview();
-  updateFree();
+  startPreview(); // no debounce when opening: show the file list as soon as possible
+  updateFree(true);
 }
 // Magnet links opened from the browser get their own small window; close it when done.
 $("#dlg-add").addEventListener("close", () => {
@@ -812,12 +814,12 @@ function previewSummary() {
   const n = i.files.length - [...pv.skip].filter((x) => x < i.files.length).length;
   $("#ap-summary").textContent = `${n} of ${i.files.length} files · ${bytes(selectedSize())} of ${bytes(i.size)}`;
   $("#add-submit").disabled = n === 0;
-  updateFree();
+  updateFree(true);
 }
 let freeTimer = null;
-function updateFree() {
+function updateFree(now) {
   clearTimeout(freeTimer);
-  freeTimer = setTimeout(async () => {
+  const run = async () => {
     const path = $("#add-path").value.trim();
     const el = $("#add-free");
     if (!path) { el.textContent = ""; return; }
@@ -827,12 +829,13 @@ function updateFree() {
       el.textContent = `${bytes(free)} free` + (need != null ? ` · needs ${bytes(need)}` : "");
       el.classList.toggle("low", need != null && need > free);
     } catch { el.textContent = ""; }
-  }, 250);
+  };
+  if (now === true) run(); else freeTimer = setTimeout(run, 250);
 }
 $("#ap-all").addEventListener("click", () => { pv.skip.clear(); renderPreview(); });
 $("#ap-none").addEventListener("click", () => { pv.info.files.forEach((f) => pv.skip.add(f.index)); renderPreview(); });
 $("#add-magnets").addEventListener("input", schedulePreview);
-$("#add-path").addEventListener("input", updateFree);
+$("#add-path").addEventListener("input", () => updateFree());
 $("#dlg-add").addEventListener("close", () => { clearTimeout(pv.timer); dropPreview(); renderPreview(); $("#add-submit").disabled = false; });
 
 $("#add-form").addEventListener("submit", async (ev) => {
@@ -1105,11 +1108,39 @@ $("#speed-form").addEventListener("submit", async (ev) => {
   const body = speedMode === "alt"
     ? { altSpeedEnabled: true, altDownloadLimitKBps: down, altUploadLimitKBps: up }
     : { altSpeedEnabled: false, downloadLimitKBps: down, uploadLimitKBps: up };
-  try { await api("/api/settings", { method: "PUT", body }); $("#dlg-speed").close(); toast("Speed limits updated"); }
+  try { await api("/api/settings", { method: "PUT", body }); $("#dlg-speed").close(); altLoaded = false; if (!$("#alt-panel").hidden) { $("#alt-panel").hidden = true; showAltPanel(true); } toast("Speed limits updated"); }
   catch (e) { fail(e); }
 });
 $("#speed-card").addEventListener("click", openSpeed);
 $("#speed-card").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSpeed(); } });
+// Alternative limits can be edited right under the turtle switch.
+let altLoaded = false, altSaveTimer = null;
+async function showAltPanel(on) {
+  const panel = $("#alt-panel");
+  if (panel.hidden === !on) return;
+  panel.hidden = !on;
+  if (on && !altLoaded) {
+    try {
+      const s = await api("/api/settings");
+      setRate($("#alt-down"), s.altDownloadLimitKBps);
+      setRate($("#alt-up"), s.altUploadLimitKBps);
+      altLoaded = true;
+    } catch { /* shown on next open */ }
+  }
+}
+function saveAltLimits() {
+  clearTimeout(altSaveTimer);
+  altSaveTimer = setTimeout(async () => {
+    try {
+      await api("/api/settings", { method: "PUT", body: {
+        altDownloadLimitKBps: Number($("#alt-down").value || 0), altUploadLimitKBps: Number($("#alt-up").value || 0) } });
+      state.settings = null;
+    } catch (e) { fail(e); }
+  }, 600);
+}
+$("#alt-panel").addEventListener("input", saveAltLimits);
+$("#alt-panel").addEventListener("change", saveAltLimits);
+
 $("#alt-toggle").addEventListener("click", async () => {
   const on = !state.stats.altSpeed;
   try { await api("/api/settings", { method: "PUT", body: { altSpeedEnabled: on } }); toast(on ? "Alternative speed limits on" : "Normal speed limits"); }
@@ -1119,10 +1150,16 @@ $("#alt-toggle").addEventListener("click", async () => {
 $("#btn-quit").addEventListener("click", async () => {
   if (!confirm("Quit Magnetar? All transfers will stop.")) return;
   try { await api("/api/shutdown", { method: "POST" }); } catch { /* server exits */ }
+  showStopped();
+});
+// Magnetar quit (from the tray or here): close this window, or say so if the
+// browser does not allow it.
+function showStopped() {
   closeStream();
   document.body.replaceChildren(h("div", { class: "login" }, h("div", { class: "login-card" },
-    h("h1", { text: "Magnetar has stopped" }), h("p", { class: "muted", text: "You can close this tab." }))));
-});
+    h("h1", { text: "Magnetar has stopped" }), h("p", { class: "muted", text: "You can close this window." }))));
+  setTimeout(() => window.close(), 100);
+}
 $("#btn-theme").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light"));
 
 /* ---------- keyboard ---------- */

@@ -100,6 +100,12 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 .speed-card:hover, .speed-card:focus-visible { border-color: var(--accent); outline: none; }
 .speed-head { display: flex; justify-content: space-between; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-bottom: 6px; }
 .speed-head .limits { text-transform: none; letter-spacing: 0; }
+.alt-box { display: flex; flex-direction: column; gap: 6px; }
+.alt-panel { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid rgba(245, 158, 11, .35); border-radius: var(--radius-s); background: rgba(245, 158, 11, .05); }
+.alt-row { display: flex; align-items: center; gap: 6px; }
+.alt-row > svg { width: 14px; height: 14px; color: var(--amber); }
+.alt-row .rate-input { flex: 1; min-width: 0; }
+.alt-row .rate-input input, .alt-row .rate-input select { padding: 5px 7px; font-size: 12px; }
 .alt-toggle { all: unset; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-s); color: var(--muted); font-size: 12.5px; border: 1px solid var(--line); }
 .alt-toggle:hover { color: var(--text); background: var(--panel); }
 .alt-toggle i { margin-left: auto; width: 28px; height: 16px; border-radius: 16px; background: var(--line-2); position: relative; transition: .18s; }
