@@ -72,6 +72,7 @@
           <div><dt>DHT nodes</dt><dd id="g-dht">0</dd></div>
           <div><dt>Port</dt><dd id="g-port">–</dd></div>
         </dl>
+        <button class="conn-pill" id="g-conn" title="Connection status"><i class="dot"></i><span>Checking connection…</span></button>
         <div id="g-security" class="security-pill"><svg><use href="#i-shield"/></svg><span>Encrypted</span></div>
         <a class="credit" href="https://github.com/nikolap994/magnetar" target="_blank" rel="noopener noreferrer" title="Magnetar on GitHub">
           <svg><use href="#i-github"/></svg>
@@ -302,6 +303,7 @@
             <label class="switch"><input type="checkbox" name="trayIcon"><span></span>Show tray icon <em class="muted">(applies after restart)</em></label>
             <label class="switch"><input type="checkbox" name="openBrowser"><span></span>Open the window when Magnetar starts</label>
             <label class="switch"><input type="checkbox" name="autoStart"><span></span>Start Magnetar when I sign in (in the background)</label>
+            <label class="switch"><input type="checkbox" name="notifications"><span></span>Show a notification when a download completes</label>
             <div class="card">
               <h3>Magnet links &amp; .torrent files</h3>
               <p class="muted">Make Magnetar open magnet links clicked in any browser, and .torrent files.</p>
@@ -383,6 +385,19 @@
       <footer>
         <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
         <button class="btn primary" value="ok">Apply</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Connection help -->
+  <dialog id="dlg-conn" class="dialog">
+    <form method="dialog">
+      <header><h2 id="conn-title">Connection</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <p id="conn-text" class="muted"></p>
+      <ol id="conn-steps" class="conn-steps"></ol>
+      <footer>
+        <button type="button" class="btn ghost" id="conn-settings">Connection settings</button>
+        <button class="btn primary" value="ok">Close</button>
       </footer>
     </form>
   </dialog>

@@ -199,10 +199,7 @@ function connect() {
     const n = JSON.parse(ev.data);
     if (n.type === "shutdown") { showStopped(); return; }
     if (n.type === "completed") {
-      toast("Download complete: " + n.name);
-      if (document.hidden && "Notification" in window && Notification.permission === "granted") {
-        new Notification("Download complete", { body: n.name, icon: "/logo.svg" });
-      }
+      toast("Download complete: " + n.name); // the desktop notification comes from Magnetar itself
     } else if (n.type === "error") toast(n.name + ": " + n.message, "err");
   });
   es.onerror = async () => {
@@ -278,6 +275,7 @@ function renderStats() {
   $("#g-peers").textContent = s.peers ?? 0;
   $("#g-dht").textContent = s.dhtNodes ?? 0;
   $("#g-port").textContent = s.listenPort || "–";
+  renderConnection();
   const sec = $("#g-security");
   const parts = [];
   parts.push(s.encryption === "require" ? "Encryption required" : s.encryption === "allow" ? "Encryption optional" : "Encryption preferred");
@@ -900,7 +898,6 @@ $("#add-form").addEventListener("submit", async (ev) => {
     if (ok) toast(ok === 1 ? "Torrent added" : `${ok} torrents added`);
     rememberPath($("#add-path").value.trim());
     $("#dlg-add").close();
-    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
   } catch (e) { fail(e); }
   finally { $("#add-submit").disabled = false; }
 });
@@ -1122,6 +1119,44 @@ $("#dlg-folder").addEventListener("close", () => {
   const picked = $("#folder-path").value.trim();
   if (folderCallback) { const cb = folderCallback; folderCallback = null; cb(picked); return; }
   if (folderTarget) { folderTarget.value = picked; folderTarget.dispatchEvent(new Event("input")); }
+});
+
+/* ---------- connection health ---------- */
+const CONN = {
+  connectable: ["Connectable", "Other peers can connect to you — the best speeds are possible."],
+  checking: ["Checking connection…", "Magnetar is watching whether other peers can connect to you. This becomes clear a few minutes after a download starts."],
+  firewalled: ["Port not reachable", "Peers are not connecting to you, so you can only reach peers that accept incoming connections themselves. Downloads still work but are usually slower."],
+  offline: ["No network", "Magnetar cannot reach the BitTorrent network. Check your internet connection, VPN or the “Bind traffic to IP” setting."],
+};
+function renderConnection() {
+  const s = state.stats, c = s.connection || "checking";
+  const pill = $("#g-conn");
+  pill.className = "conn-pill " + c;
+  pill.querySelector("span").textContent = CONN[c][0] + (c === "connectable" ? ` · port ${s.listenPort}` : "");
+}
+$("#g-conn").addEventListener("click", () => {
+  const s = state.stats, c = s.connection || "checking", port = s.listenPort || "?";
+  $("#conn-title").textContent = CONN[c][0];
+  $("#conn-text").textContent = CONN[c][1];
+  const step = (...parts) => h("li", {}, ...parts.map((p) => (typeof p === "string" ? p : h("code", { text: p.code }))));
+  const steps = c === "connectable" ? [] : c === "offline" ? [
+    step("Check that this computer is online and the VPN (if any) is connected."),
+    step("If “Bind traffic to IP address” is set in Privacy & security, make sure that address still exists."),
+    step("Turn on DHT in Connection settings so peers can be found without trackers."),
+  ] : [
+    step(s.upnp ? "UPnP is on. Make sure UPnP/NAT-PMP is enabled in your router." : "Turn on “Forward port with UPnP / NAT-PMP” in Connection settings."),
+    step("Or forward port ", { code: `${port}` }, " (TCP and UDP) in your router to this computer."),
+    step("Allow Magnetar through your firewall (on Windows: allow it when Windows Defender Firewall asks, or in “Allow an app through firewall”)."),
+    step("Using a VPN? Many VPNs need port forwarding enabled in their app; then set that port as the listening port."),
+  ];
+  $("#conn-steps").replaceChildren(...steps);
+  $("#conn-steps").hidden = !steps.length;
+  $("#dlg-conn").showModal();
+});
+$("#conn-settings").addEventListener("click", async () => {
+  $("#dlg-conn").close();
+  await openSettings();
+  $('.settings-nav [data-sec="connection"]').click();
 });
 
 /* ---------- categories & moving ---------- */
