@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.nikolap994.magnetar</id>
+  <name>Magnetar</name>
+  <summary>Fast, secure BitTorrent client</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="io.github.nikolap994"><name>Magnetar contributors</name></developer>
+  <description>
+    <p>Magnetar is an open-source BitTorrent client with a modern interface. It supports magnet links,
+    .torrent files, file selection, sequential download, speed limits and strong privacy options such as
+    required encryption, VPN binding and IP blocklists.</p>
+  </description>
+  <launchable type="desktop-id">magnetar.desktop</launchable>
+  <url type="homepage">https://github.com/nikolap994/magnetar</url>
+  <url type="bugtracker">https://github.com/nikolap994/magnetar/issues</url>
+  <provides><binary>magnetar</binary></provides>
+  <categories><category>Network</category><category>FileTransfer</category><category>P2P</category></categories>
+  <content_rating type="oars-1.1"/>
+</component>
