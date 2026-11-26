@@ -20,6 +20,7 @@ const (
 	StateStalled     = "stalled"
 	StateError       = "error"
 	StateChecking    = "checking"
+	StateMoving      = "moving"
 )
 
 // Summary is a row in the torrent list.
@@ -43,6 +44,7 @@ type Summary struct {
 	AddedAt     time.Time  `json:"addedAt"`
 	CompletedAt *time.Time `json:"completedAt,omitempty"`
 	Sequential  bool       `json:"sequential"`
+	Category    string     `json:"category,omitempty"`
 	Error       string     `json:"error,omitempty"`
 }
 
@@ -54,6 +56,7 @@ func (e *Engine) summaryLocked(m *managed) Summary {
 		AddedAt:     m.rec.AddedAt,
 		CompletedAt: m.rec.CompletedAt,
 		Sequential:  m.rec.Sequential,
+		Category:    m.rec.Category,
 		DownRate:    int64(m.downRate),
 		UpRate:      int64(m.upRate),
 		ETA:         -1,
@@ -85,6 +88,8 @@ func (e *Engine) summaryLocked(m *managed) Summary {
 	s.Ratio = FormatRatio(ratio(s.Downloaded, s.Uploaded, s.Size))
 
 	switch {
+	case m.moving:
+		s.State = StateMoving
 	case m.err != "":
 		s.State = StateError
 	case t == nil:

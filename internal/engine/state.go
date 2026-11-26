@@ -33,6 +33,7 @@ type record struct {
 	FilePriorities map[int]int `json:"filePriorities,omitempty"`
 	ExtraTrackers  []string    `json:"extraTrackers,omitempty"`
 	Size           int64       `json:"size,omitempty"`
+	Category       string      `json:"category,omitempty"`
 	Completed      int64       `json:"completed,omitempty"`
 }
 

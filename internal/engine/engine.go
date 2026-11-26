@@ -86,6 +86,7 @@ type managed struct {
 	// arrives, so re-adding a torrent resumes from what is already on disk.
 	checkExisting bool
 	checking      bool
+	moving        bool
 }
 
 func (m *managed) liveStats() (down, up int64) {
@@ -363,6 +364,8 @@ type AddOptions struct {
 	Sequential  bool
 	// FilePriorities by file index; missing entries are PriorityNormal.
 	FilePriorities map[int]int
+	// Category to assign; its folder is used when SavePath is empty.
+	Category string
 }
 
 // Add adds a torrent from a magnet link or .torrent file contents.
@@ -417,7 +420,14 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 		return "", fmt.Errorf("invalid torrent: %w", err)
 	}
 
-	savePath := e.Settings().DownloadDir
+	cur := e.Settings()
+	if opts.Category != "" && !cur.HasCategory(opts.Category) {
+		return "", fmt.Errorf("unknown category %q", opts.Category)
+	}
+	savePath := cur.DownloadDir
+	if p := cur.CategoryPath(opts.Category); p != "" {
+		savePath = p
+	}
 	if opts.SavePath != "" {
 		p, err := fsutil.CleanAbs(opts.SavePath)
 		if err != nil {
@@ -463,6 +473,7 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 		SavePath:   savePath,
 		Paused:     opts.Paused,
 		Sequential: opts.Sequential,
+		Category:   opts.Category,
 		AddedAt:    time.Now().UTC(),
 	}
 	for i, p := range opts.FilePriorities {
@@ -735,6 +746,10 @@ func (e *Engine) Remove(deleteData bool, hashes ...string) error {
 		m, err := e.get(h)
 		if err != nil {
 			return err
+		}
+		if m.moving {
+			errs = append(errs, fmt.Errorf("%q is being moved; remove it when the move has finished", m.rec.Name))
+			continue
 		}
 		var info *metainfo.Info
 		if m.t != nil && m.t.Info() != nil {
@@ -1068,6 +1083,13 @@ func (e *Engine) tickLocked() {
 			m.rec.CompletedAt = &now
 			e.dirty = true
 			e.publish(Event{Type: "completed", Hash: h, Name: m.rec.Name})
+			if dest := e.completedDestLocked(m); dest != "" {
+				go func(h, dest string) {
+					if err := e.Move(dest, h); err != nil {
+						e.log.Warn("move completed download", "err", err)
+					}
+				}(h, dest)
+			}
 		}
 		if !complete && m.rec.Sequential {
 			e.sequentialLocked(m)
@@ -1139,6 +1161,18 @@ func (e *Engine) sequentialLocked(m *managed) {
 		}
 	}
 	m.seqPieces = want
+}
+
+// completedDestLocked is where a finished torrent should be moved, if anywhere.
+func (e *Engine) completedDestLocked(m *managed) string {
+	if !e.settings.MoveCompletedEnabled || e.settings.MoveCompletedDir == "" {
+		return ""
+	}
+	dest := e.settings.MoveCompletedDir
+	if filepath.Clean(m.rec.SavePath) == filepath.Clean(dest) {
+		return ""
+	}
+	return dest
 }
 
 // Subscribe returns a channel of events; call the returned func to unsubscribe.
