@@ -145,6 +145,9 @@ type GlobalStats struct {
 	BindAddress   string `json:"bindAddress,omitempty"`
 	Version       string `json:"version"`
 	Online        bool   `json:"online"`
+	// Connection is "connectable", "firewalled", "offline" or "checking".
+	Connection string `json:"connection"`
+	UPnP       bool   `json:"upnp"`
 }
 
 // Stats returns client-wide statistics.
@@ -171,6 +174,7 @@ func (e *Engine) Stats() GlobalStats {
 	}
 	if e.cl != nil {
 		g.Online = true
+		g.UPnP = e.settings.EnableUPnP && e.settings.BindAddress == ""
 		g.ListenPort = e.cl.LocalPort()
 		for _, s := range e.cl.DhtServers() {
 			if st, ok := s.Stats().(dht.ServerStats); ok {
@@ -178,7 +182,25 @@ func (e *Engine) Stats() GlobalStats {
 			}
 		}
 	}
+	g.Connection = e.connectionLocked(g)
 	return g
+}
+
+// firewalledAfter is how long we wait for an incoming connection while
+// actively transferring before warning that the port seems unreachable.
+const firewalledAfter = 5 * time.Minute
+
+func (e *Engine) connectionLocked(g GlobalStats) string {
+	switch {
+	case !g.Online || (e.settings.EnableDHT && g.DHTNodes == 0 && g.Peers == 0 && time.Since(e.started) > time.Minute):
+		return "offline"
+	case e.incomingSeen > 0:
+		return "connectable"
+	case !e.activeSince.IsZero() && time.Since(e.activeSince) > firewalledAfter:
+		return "firewalled"
+	default:
+		return "checking"
+	}
 }
 
 // FileView describes one file in a torrent.

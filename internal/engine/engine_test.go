@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/anacrolix/torrent/metainfo"
 )
@@ -113,5 +114,28 @@ func TestHasExistingDataIgnoresTraversal(t *testing.T) {
 	os.WriteFile(filepath.Join(save, "pack", "a.bin.part"), []byte("x"), 0o600)
 	if !hasExistingData(save, good) {
 		t.Fatal("missed an existing partial file")
+	}
+}
+
+func TestConnectionHealth(t *testing.T) {
+	e := &Engine{started: time.Now().Add(-time.Hour)}
+	e.settings.EnableDHT = true
+	online := GlobalStats{Online: true, DHTNodes: 50, Peers: 3}
+	if got := e.connectionLocked(online); got != "checking" {
+		t.Fatalf("fresh session = %q, want checking", got)
+	}
+	e.activeSince = time.Now().Add(-10 * time.Minute)
+	if got := e.connectionLocked(online); got != "firewalled" {
+		t.Fatalf("no incoming after 10 min = %q, want firewalled", got)
+	}
+	e.incomingSeen = 1
+	if got := e.connectionLocked(online); got != "connectable" {
+		t.Fatalf("with incoming = %q, want connectable", got)
+	}
+	if got := e.connectionLocked(GlobalStats{Online: true}); got != "offline" {
+		t.Fatalf("no DHT nodes or peers = %q, want offline", got)
+	}
+	if got := e.connectionLocked(GlobalStats{}); got != "offline" {
+		t.Fatalf("client down = %q, want offline", got)
 	}
 }

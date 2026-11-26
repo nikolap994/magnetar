@@ -63,6 +63,11 @@ type Engine struct {
 	downRate, upRate float64
 	blocklistSize    int
 
+	// Connection health: incoming peer connections prove the port is reachable.
+	started      time.Time
+	incomingSeen int       // incoming connections observed this session
+	activeSince  time.Time // when we first had a running torrent with peers
+
 	subsMu sync.Mutex
 	subs   map[chan Event]struct{}
 
@@ -143,6 +148,7 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 	}
 	e.cl = cl
 	e.ctx, e.cancel = context.WithCancel(context.Background())
+	e.started = time.Now()
 
 	recs, err := e.loadState()
 	if err != nil {
@@ -1071,6 +1077,15 @@ func (e *Engine) tickLocked() {
 		m.upRate = smooth(m.upRate, float64(u-m.lastUp))
 		m.lastDown, m.lastUp = d, u
 		gDown += m.downRate
+		for _, pc := range m.t.PeerConns() {
+			if pc.Discovery == torrent.PeerSourceIncoming {
+				e.incomingSeen++
+				break
+			}
+		}
+		if e.activeSince.IsZero() && m.t.Stats().ActivePeers > 0 {
+			e.activeSince = time.Now()
+		}
 		gUp += m.upRate
 
 		info := m.t.Info()
