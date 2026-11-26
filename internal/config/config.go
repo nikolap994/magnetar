@@ -49,6 +49,12 @@ type Settings struct {
 	AltUploadLimitKBps   int64 `json:"altUploadLimitKBps"`
 	PieceHashers         int   `json:"pieceHashers"`
 
+	// Organisation
+	Categories []Category `json:"categories"`
+	// Move finished downloads to MoveCompletedDir (category folders take precedence).
+	MoveCompletedEnabled bool   `json:"moveCompletedEnabled"`
+	MoveCompletedDir     string `json:"moveCompletedDir"`
+
 	// Seeding
 	SeedAfterComplete bool    `json:"seedAfterComplete"`
 	SeedRatioLimit    float64 `json:"seedRatioLimit"` // 0 = no limit
@@ -73,6 +79,32 @@ type Settings struct {
 
 	// Updates
 	AutoUpdateCheck bool `json:"autoUpdateCheck"` // Check GitHub Releases for new versions once a day.
+}
+
+// Category groups torrents and optionally gives them their own folder.
+type Category struct {
+	Name     string `json:"name"`
+	SavePath string `json:"savePath,omitempty"`
+}
+
+// CategoryPath returns the folder of a category, or "" if it has none.
+func (s Settings) CategoryPath(name string) string {
+	for _, c := range s.Categories {
+		if c.Name == name {
+			return c.SavePath
+		}
+	}
+	return ""
+}
+
+// HasCategory reports whether name is a configured category.
+func (s Settings) HasCategory(name string) bool {
+	for _, c := range s.Categories {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Defaults returns sensible, secure defaults.
@@ -141,6 +173,40 @@ func (s *Settings) Validate() error {
 	}
 	if s.DownloadLimitKBps < 0 || s.UploadLimitKBps < 0 || s.AltDownloadLimitKBps < 0 || s.AltUploadLimitKBps < 0 {
 		errs = append(errs, errors.New("speed limits cannot be negative"))
+	}
+	seen := map[string]bool{}
+	for i, c := range s.Categories {
+		c.Name = strings.TrimSpace(c.Name)
+		switch {
+		case c.Name == "" || len(c.Name) > 40:
+			errs = append(errs, errors.New("category names must be 1–40 characters"))
+		case strings.IndexFunc(c.Name, func(r rune) bool { return r < 32 || r == 127 }) >= 0:
+			errs = append(errs, fmt.Errorf("category %q contains control characters", c.Name))
+		case seen[strings.ToLower(c.Name)]:
+			errs = append(errs, fmt.Errorf("duplicate category %q", c.Name))
+		}
+		seen[strings.ToLower(c.Name)] = true
+		if c.SavePath != "" {
+			p, err := fsutil.CleanAbs(c.SavePath)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("category %q folder: %w", c.Name, err))
+			}
+			c.SavePath = p
+		}
+		s.Categories[i] = c
+	}
+	if len(s.Categories) > 100 {
+		errs = append(errs, errors.New("at most 100 categories are allowed"))
+	}
+	if s.MoveCompletedDir != "" {
+		p, err := fsutil.CleanAbs(s.MoveCompletedDir)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("completed downloads folder: %w", err))
+		}
+		s.MoveCompletedDir = p
+	}
+	if s.MoveCompletedEnabled && s.MoveCompletedDir == "" {
+		errs = append(errs, errors.New("choose a folder for completed downloads"))
 	}
 	if s.SeedRatioLimit < 0 {
 		errs = append(errs, errors.New("seed ratio limit cannot be negative"))
@@ -258,6 +324,7 @@ func (st *Store) Get() Settings {
 	defer st.mu.RUnlock()
 	s := st.cur
 	s.AllowedHosts = append([]string(nil), st.cur.AllowedHosts...)
+	s.Categories = append([]Category(nil), st.cur.Categories...)
 	return s
 }
 
