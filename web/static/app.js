@@ -160,7 +160,7 @@ async function showLogin(s) {
   } else {
     $("#login-msg").textContent = location.hash === "#expired"
       ? "That sign-in link has expired. Start Magnetar again (or run it once more) to get a fresh link."
-      : "Open Magnetar from your computer to sign in — it opens this page with a one-time link. Set a password in Settings to sign in from anywhere.";
+      : "Open Magnetar from your computer to sign in - it opens this page with a one-time link. Set a password in Settings to sign in from anywhere.";
     pwInput.hidden = true; submit.hidden = true;
   }
 }
@@ -612,7 +612,7 @@ const TABS = {
         "Sequential download (preview while downloading)"),
       kv([
         ["Save path", d.savePath, "mono"],
-        ["Category", d.category || "—"],
+        ["Category", d.category || "-"],
         ["Info hash", d.hash, "mono"],
         ["Pieces", d.numPieces ? `${d.numPieces.toLocaleString()} × ${bytes(d.pieceSize)}` : "–"],
         ["Peers", `${d.peers} connected · ${d.seeds} seeds · ${d.knownPeers} known`],
@@ -662,7 +662,7 @@ const TABS = {
   trackers(d) {
     const ta = h("textarea", { rows: 3, placeholder: "udp://tracker.example:1337/announce", spellcheck: "false" });
     return h("div", {},
-      d.trackers.length ? h("ul", { class: "trackers" }, d.trackers.map((t) => h("li", { text: t }))) : h("p", { class: "muted", text: "No trackers — peers are found through DHT and PEX." }),
+      d.trackers.length ? h("ul", { class: "trackers" }, d.trackers.map((t) => h("li", { text: t }))) : h("p", { class: "muted", text: "No trackers - peers are found through DHT and PEX." }),
       h("label", { class: "field" }, h("span", { text: "Add trackers (one per line)" }), ta),
       h("button", {
         class: "btn ghost sm", onclick: async () => {
@@ -956,7 +956,7 @@ async function openSettings() {
     if (el.type === "checkbox") el.checked = !!state.settings[el.name];
     else el.value = state.settings[el.name] ?? "";
   }
-  $("#pw-state").textContent = state.settings.passwordSet ? "A password is set." : "No password set — the UI only accepts one-time links from this computer.";
+  $("#pw-state").textContent = state.settings.passwordSet ? "A password is set." : "No password set - the UI only accepts one-time links from this computer.";
   $("#pw-current").hidden = !state.settings.passwordSet;
   $("#pw-remove").hidden = !state.settings.passwordSet;
   $("#settings-err").textContent = "";
@@ -986,7 +986,7 @@ $("#settings-form").addEventListener("submit", async (ev) => {
     $("#dlg-settings").close();
     state.settings = null;
     loadCategories();
-    toast(res.restartRequired ? "Saved — restart Magnetar to apply web interface changes" : "Settings saved");
+    toast(res.restartRequired ? "Saved - restart Magnetar to apply web interface changes" : "Settings saved");
   } catch (e) { $("#settings-err").textContent = e.message; }
 });
 $("#pw-save").addEventListener("click", async () => {
@@ -1016,7 +1016,7 @@ function updateStatusText(u) {
   if (!u) return "Update information is not available.";
   if (u.state === "checking") return "Checking for updates…";
   if (u.state === "downloading") return `Downloading Magnetar ${u.latest} and verifying its signature…`;
-  if (u.state === "installing") return `Installing Magnetar ${u.latest} — Magnetar will restart…`;
+  if (u.state === "installing") return `Installing Magnetar ${u.latest} - Magnetar will restart…`;
   if (u.state === "error") return "Update failed: " + u.error;
   if (u.available) return `Magnetar ${u.latest} is available (you have ${u.current}).`;
   if (u.checkedAt) return `You have the latest version (${u.current}). Last checked ${new Date(u.checkedAt).toLocaleString()}.`;
@@ -1044,7 +1044,7 @@ function fillUpdateDialog() {
   $("#upd-install").disabled = !u.canInstall || busy;
   $("#upd-hint").textContent = busy ? updateStatusText(u)
     : u.canInstall ? "The download is verified against Magnetar's signing key before it is installed. Transfers resume after the restart."
-    : "This installation cannot update itself — download the new version from the release page.";
+    : "This installation cannot update itself - download the new version from the release page.";
   $("#upd-err").textContent = u.state === "error" ? u.error : "";
 }
 $("#update-pill").addEventListener("click", () => {
@@ -1060,7 +1060,7 @@ $("#update-form").addEventListener("submit", async (ev) => {
   try {
     await api("/api/update/install", { method: "POST" });
     $("#dlg-update").close();
-    toast("Downloading update — Magnetar will restart when it is ready");
+    toast("Downloading update - Magnetar will restart when it is ready");
   } catch (e) { $("#upd-err").textContent = e.message; }
 });
 $("#btn-check-update").addEventListener("click", async () => {
@@ -1090,7 +1090,7 @@ async function browse(path) {
     for (const name of d.dirs) {
       items.push(h("button", { type: "button", onclick: () => browse(d.path + (d.path.endsWith(d.sep) ? "" : d.sep) + name) }, icon("folder"), h("span", { text: name })));
     }
-    if (!d.dirs.length) items.push(h("p", { class: "muted", text: "No sub-folders. Use this folder, or type a new path — it will be created." }));
+    if (!d.dirs.length) items.push(h("p", { class: "muted", text: "No sub-folders. Use this folder, or type a new path - it will be created." }));
     $("#folder-list").replaceChildren(...items);
   } catch (e) { $("#folder-err").textContent = e.message; }
 }
@@ -1272,7 +1272,7 @@ $("#st-table-btn").addEventListener("click", () => {
 
 /* ---------- connection health ---------- */
 const CONN = {
-  connectable: ["Connectable", "Other peers can connect to you — the best speeds are possible."],
+  connectable: ["Connectable", "Other peers can connect to you - the best speeds are possible."],
   checking: ["Checking connection…", "Magnetar is watching whether other peers can connect to you. This becomes clear a few minutes after a download starts."],
   firewalled: ["Port not reachable", "Peers are not connecting to you, so you can only reach peers that accept incoming connections themselves. Downloads still work but are usually slower."],
   offline: ["No network", "Magnetar cannot reach the BitTorrent network. Check your internet connection, VPN or the “Bind traffic to IP” setting."],
@@ -1351,7 +1351,7 @@ $("#dlg-cat").addEventListener("close", async () => {
     const c = state.cats.find((x) => x.name === name);
     if ($("#cat-move").checked && c && c.savePath) {
       await api("/api/actions", { method: "POST", body: { action: "move", hashes: catTargets, path: c.savePath } });
-      toast("Category set — moving files");
+      toast("Category set - moving files");
     } else toast(name ? `Category set to ${name}` : "Category removed");
   } catch (e) { fail(e); }
 });

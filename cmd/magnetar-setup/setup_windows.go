@@ -94,8 +94,8 @@ func install(silent, launch bool) error {
 		switch message("Install "+appName+" "+Version,
 			fmt.Sprintf("%s %s will be installed for your account in:\n%s\n\n"+
 				"Also open magnet links and .torrent files with Magnetar?\n\n"+
-				"Yes — install and use Magnetar for magnet links (recommended)\n"+
-				"No — install only\nCancel — do not install", appName, Version, dir),
+				"Yes - install and use Magnetar for magnet links (recommended)\n"+
+				"No - install only\nCancel - do not install", appName, Version, dir),
 			mbYesNoCancel|mbIconQ) {
 		case idYes:
 		case idNo:
@@ -136,7 +136,7 @@ func install(silent, launch bool) error {
 
 	done := appName + " is installed.\n\nLaunch it now?"
 	if associate {
-		done = appName + " is installed.\n\nThe first time you click a magnet link, Windows may ask which app to use — " +
+		done = appName + " is installed.\n\nThe first time you click a magnet link, Windows may ask which app to use - " +
 			"choose Magnetar and tick \"Always\".\n\nLaunch it now?"
 	}
 	if launch || (!silent && message(appName, done, mbYesNo|mbIconInfo) == idYes) {

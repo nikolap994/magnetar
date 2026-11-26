@@ -41,7 +41,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(flag.CommandLine.Output(), `Magnetar %s — fast, secure BitTorrent client
+	fmt.Fprintf(flag.CommandLine.Output(), `Magnetar %s - fast, secure BitTorrent client
 
 Usage:
   magnetar [flags] [magnet-link | file.torrent ...]

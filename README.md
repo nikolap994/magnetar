@@ -30,7 +30,7 @@ Windows installer · Ubuntu/Debian package · No ads · No telemetry
 - **Updates itself**: one click installs new releases, verified with Magnetar's signing key before anything runs
 
 **Everything you expect from a torrent client**
-- Magnet links, `.torrent` files and bare info hashes — paste anywhere, drag & drop, or click in the browser
+- Magnet links, `.torrent` files and bare info hashes - paste anywhere, drag & drop, or click in the browser
 - **Choose the download folder** per torrent with a built-in folder browser, plus a default folder
 - **Resumes like qBittorrent**: remove a torrent but keep its files, add it again later and Magnetar checks what is
   already on disk and downloads only what is missing
@@ -46,9 +46,9 @@ Windows installer · Ubuntu/Debian package · No ads · No telemetry
 - Tuned connection limits, parallel piece hashing and memory-mapped file storage
 - Fully static Go binary (~22 MB), starts in milliseconds, no runtime to install
 
-**Secure by default** — see [Security model](#security-model)
+**Secure by default** - see [Security model](#security-model)
 - Protocol encryption (MSE/PE) preferred, or **required** with one switch
-- Bind all peer, tracker and DHT traffic to one IP (e.g. your VPN) — traffic **stops** if the VPN drops
+- Bind all peer, tracker and DHT traffic to one IP (e.g. your VPN) - traffic **stops** if the VPN drops
 - IP blocklists (P2P/eMule format, `.gz` supported) and anonymous mode
 - Interface listens on `127.0.0.1` only, with signed sessions, CSRF and DNS-rebinding protection, a strict CSP and an
   isolated browser profile for the app window
@@ -63,13 +63,13 @@ Windows installer · Ubuntu/Debian package · No ads · No telemetry
 Download from the [latest release](https://github.com/nikolap994/magnetar/releases/latest).
 
 ### Windows 10 / 11
-1. Run **`magnetar_<version>_windows_amd64_setup.exe`** (`arm64` for ARM PCs). No administrator rights needed —
+1. Run **`magnetar_<version>_windows_amd64_setup.exe`** (`arm64` for ARM PCs). No administrator rights needed -
    Magnetar installs for your account in `%LOCALAPPDATA%\Programs\Magnetar`.
 2. Choose **Yes** to use Magnetar for magnet links and `.torrent` files.
 3. Start Magnetar from the Start Menu or desktop. It lives in the tray (bottom-right).
 
 > **First magnet click:** Windows protects your default apps, so the first time you click a magnet link it may ask
-> *"How do you want to open this?"* — pick **Magnetar** and tick **Always**. You can also set it in
+> *"How do you want to open this?"* - pick **Magnetar** and tick **Always**. You can also set it in
 > **Settings → Apps → Default apps → Magnetar**.
 
 Uninstall from **Settings → Apps → Installed apps → Magnetar**. Your downloads and settings are kept.
@@ -138,7 +138,7 @@ in **Settings → Web interface**.
 ### Updates
 
 Magnetar checks GitHub Releases once a day and shows **Update to x.y.z** in the toolbar when a new version is out.
-Click it to read the release notes and **Install & restart** — the download is verified against Magnetar's signing
+Click it to read the release notes and **Install & restart** - the download is verified against Magnetar's signing
 key and checksum before it is installed, and transfers resume after the restart. Turn automatic checks off in
 **Settings → About**. (Versions before 0.2.0 must be updated manually once.)
 
