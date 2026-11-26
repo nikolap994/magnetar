@@ -6,15 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## [0.1.1] — 2026-11-26
 
 ### Added
-- Speed-limit fields pick KiB/s, MiB/s or GiB/s automatically (10240 KiB/s is shown as 10 MiB/s).
 - Author credit and GitHub links in the sidebar, empty state and Settings → About.
 
 ### Changed
 - "No torrents yet" is now centred in the window.
-
-### Security
-- Built with Go 1.26.11 and updated dependencies; `govulncheck` reports no known vulnerabilities and now gates
-  every release.
 
 ## [0.1.0] — 2026-11-26
 
@@ -34,4 +29,6 @@ All notable changes to this project are documented here. The format follows
 - Re-adding a removed torrent verifies existing files and resumes instead of starting over.
 - Alternative ("turtle") speed limits with a one-click toggle, quick speed-limit dialog with presets.
 - `register`/`unregister` commands for magnet and `.torrent` handling on Windows and Linux.
-- Signed, reproducible release builds for Linux and Windows (amd64, arm64).
+- Speed-limit fields pick KiB/s, MiB/s or GiB/s automatically.
+- Signed, reproducible release builds for Linux and Windows (amd64, arm64), built with Go 1.26.11 and gated by
+  `govulncheck`.
