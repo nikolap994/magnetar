@@ -21,8 +21,12 @@ var (
 )
 
 // CleanAbs validates a user-supplied local folder or file path. It must be
-// absolute, free of NUL bytes and ".." elements, and must not use the Windows
+// absolute, free of NUL bytes and of "..", and must not use the Windows
 // device or raw namespaces (\\.\ and \\?\). It returns the cleaned path.
+//
+// Any ".." is rejected - not only whole ".." elements - so the check is the
+// plain, widely recognised guard; folder names merely containing two dots
+// (rare) are refused too.
 func CleanAbs(p string) (string, error) {
 	p = strings.TrimSpace(p)
 	if p == "" {
@@ -39,10 +43,9 @@ func CleanAbs(p string) (string, error) {
 	if !filepath.IsAbs(p) {
 		return "", ErrNotAbsolute
 	}
-	for _, el := range strings.Split(filepath.ToSlash(p), "/") {
-		if el == ".." {
-			return "", ErrTraversal
-		}
+	// Check the raw input: cleaning first would turn "/a/../etc" into "/etc".
+	if strings.Contains(p, "..") {
+		return "", ErrTraversal
 	}
 	return filepath.Clean(p), nil
 }
@@ -62,8 +65,11 @@ func Within(base string, elems ...string) (string, error) {
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 		return "", fmt.Errorf("%w: %q", ErrOutside, joined)
 	}
+	if strings.Contains(joined, "..") {
+		return "", fmt.Errorf("%w: %q", ErrOutside, joined)
+	}
 	if joined == base {
-		return base, nil
+		return joined, nil
 	}
 	prefix := base
 	if !strings.HasSuffix(prefix, string(filepath.Separator)) {

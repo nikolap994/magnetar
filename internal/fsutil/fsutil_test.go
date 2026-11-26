@@ -21,8 +21,11 @@ func TestCleanAbs(t *testing.T) {
 	if got, err := CleanAbs("  " + good + string(filepath.Separator) + " "); err != nil || got != good {
 		t.Fatalf("CleanAbs(good) = %q, %v", got, err)
 	}
-	if got, err := CleanAbs(abs(t, "a..b", "c")); err != nil || got != abs(t, "a..b", "c") {
-		t.Fatalf("names containing dots must be allowed: %q, %v", got, err)
+	if got, err := CleanAbs(abs(t, "a.b", "c.d.e")); err != nil || got != abs(t, "a.b", "c.d.e") {
+		t.Fatalf("names with single dots must be allowed: %q, %v", got, err)
+	}
+	if _, err := CleanAbs(abs(t, "a..b")); !errors.Is(err, ErrTraversal) {
+		t.Fatalf("names containing '..' must be refused, got %v", err)
 	}
 	cases := map[string]error{
 		"":                      ErrEmpty,
