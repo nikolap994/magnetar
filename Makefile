@@ -16,7 +16,7 @@ GOFLAGS := -trimpath
 WINRES  := go run github.com/tc-hib/go-winres@v0.3.3
 export CGO_ENABLED := 0
 
-.PHONY: all build run test lint vet fmt icons winres release binaries archives deb installer checksums sign-checksums clean
+.PHONY: all build run test lint vet fmt icons winres release binaries archives deb installer source-archive checksums sign-checksums clean
 
 all: test build
 
@@ -50,7 +50,7 @@ winres: ## Embed icon, manifest and version info into Windows executables
 		--file-description "Magnetar installer" --copyright "Magnetar contributors, MIT License" \
 		--file-version "$(VERSION)" --product-version "$(VERSION)" --out cmd/magnetar-setup/rsrc
 
-release: clean winres binaries archives deb installer checksums ## Build all release artifacts into ./dist
+release: clean winres binaries archives deb installer source-archive checksums ## Build all release artifacts into ./dist
 	@ls -lh dist
 
 binaries:
@@ -87,6 +87,15 @@ installer: ## Windows setup executables (embed magnetar.exe)
 		rm -f cmd/magnetar-setup/payload/magnetar.exe.gz cmd/magnetar-setup/payload/LICENSE.txt; \
 		echo "  setup  magnetar_$(VERSION)_windows_$${arch}_setup.exe"; \
 	done
+
+source-archive: ## Source tarball with vendored Go modules (offline builds, e.g. Flathub)
+	@rm -rf dist/.src && mkdir -p dist/.src
+	@git archive --format=tar --prefix=magnetar-$(VERSION)/ HEAD | tar -x -C dist/.src
+	@cd dist/.src/magnetar-$(VERSION) && GOFLAGS=-mod=mod go mod vendor
+	@tar --sort=name --mtime=@$$(git log -1 --format=%ct HEAD) --owner=0 --group=0 --numeric-owner \
+		-C dist/.src -cf - magnetar-$(VERSION) | gzip -9n > dist/magnetar_$(VERSION)_source.tar.gz
+	@rm -rf dist/.src
+	@echo "  source magnetar_$(VERSION)_source.tar.gz"
 
 checksums:
 	@rm -rf dist/bin

@@ -1,0 +1,39 @@
+# Flathub manifest for Magnetar. Generated per release by make-manifest.sh.
+id: io.github.nikolap994.magnetar
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.golang
+command: magnetar
+finish-args:
+  - --share=network
+  - --share=ipc
+  # Downloads go to ~/Downloads by default; users may pick other folders in their home.
+  - --filesystem=xdg-download
+  - --filesystem=home
+  # Tray icon (StatusNotifierItem) and desktop notifications.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=org.freedesktop.Notifications
+modules:
+  - name: magnetar
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/golang/bin
+      env:
+        CGO_ENABLED: '0'
+        GOFLAGS: -mod=vendor -trimpath
+        GOTOOLCHAIN: local
+        GOPROXY: 'off'
+    build-commands:
+      - go build -ldflags "-s -w -X github.com/nikolap994/magnetar/internal/engine.Version=@VERSION@" -o /app/bin/magnetar ./cmd/magnetar
+      - install -Dm644 packaging/linux/magnetar.desktop /app/share/applications/io.github.nikolap994.magnetar.desktop
+      - sed -i -e 's|^Exec=.*|Exec=magnetar %U|' -e 's|^TryExec=.*|TryExec=magnetar|' -e 's|^Icon=.*|Icon=io.github.nikolap994.magnetar|' /app/share/applications/io.github.nikolap994.magnetar.desktop
+      - install -Dm644 packaging/linux/io.github.nikolap994.magnetar.metainfo.xml /app/share/metainfo/io.github.nikolap994.magnetar.metainfo.xml
+      - sed -i 's|<launchable type="desktop-id">magnetar.desktop</launchable>|<launchable type="desktop-id">io.github.nikolap994.magnetar.desktop</launchable>|' /app/share/metainfo/io.github.nikolap994.magnetar.metainfo.xml
+      - install -Dm644 assets/logo.svg /app/share/icons/hicolor/scalable/apps/io.github.nikolap994.magnetar.svg
+      - for s in 16 24 32 48 64 128 256; do install -Dm644 packaging/linux/icons/hicolor/${s}x${s}/apps/magnetar.png /app/share/icons/hicolor/${s}x${s}/apps/io.github.nikolap994.magnetar.png; done
+    sources:
+      - type: archive
+        url: https://github.com/nikolap994/magnetar/releases/download/v@VERSION@/magnetar_@VERSION@_source.tar.gz
+        sha256: @SHA256@

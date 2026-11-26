@@ -5,16 +5,64 @@
   <summary>Fast, secure BitTorrent client</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
-  <developer id="io.github.nikolap994"><name>Magnetar contributors</name></developer>
+  <developer id="io.github.nikolap994">
+    <name>Nikola Pavlović</name>
+  </developer>
   <description>
-    <p>Magnetar is an open-source BitTorrent client with a modern interface. It supports magnet links,
-    .torrent files, file selection, sequential download, speed limits and strong privacy options such as
-    required encryption, VPN binding and IP blocklists.</p>
+    <p>Magnetar is an open-source BitTorrent client with a modern interface. Open magnet links straight from your
+    browser, choose which files to download, and organise torrents into categories with their own folders.</p>
+    <ul>
+      <li>File selection before downloading, with free-space check</li>
+      <li>Categories, moving files and automatic moving of completed downloads</li>
+      <li>Speed limits, alternative (turtle) limits and a speed schedule</li>
+      <li>Statistics with a 24-hour bandwidth chart</li>
+      <li>Protocol encryption, VPN/IP binding and IP blocklists</li>
+    </ul>
   </description>
   <launchable type="desktop-id">magnetar.desktop</launchable>
+  <icon type="remote" width="256" height="256">https://raw.githubusercontent.com/nikolap994/magnetar/main/assets/icon.png</icon>
   <url type="homepage">https://github.com/nikolap994/magnetar</url>
   <url type="bugtracker">https://github.com/nikolap994/magnetar/issues</url>
-  <provides><binary>magnetar</binary></provides>
-  <categories><category>Network</category><category>FileTransfer</category><category>P2P</category></categories>
+  <url type="vcs-browser">https://github.com/nikolap994/magnetar</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Torrent list with speeds, categories and connection status</caption>
+      <image>https://raw.githubusercontent.com/nikolap994/magnetar/main/docs/screenshot-list.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Torrent details with file priorities</caption>
+      <image>https://raw.githubusercontent.com/nikolap994/magnetar/main/docs/screenshot-detail.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Speed limits with alternative (turtle) mode</caption>
+      <image>https://raw.githubusercontent.com/nikolap994/magnetar/main/docs/screenshot-speed.png</image>
+    </screenshot>
+  </screenshots>
+  <branding>
+    <color type="primary" scheme_preference="light">#c4b5fd</color>
+    <color type="primary" scheme_preference="dark">#4c1d95</color>
+  </branding>
+  <releases>
+    <release version="0.3.0" date="2026-11-27">
+      <description><p>File selection before downloading, categories, moving files, connection status, notifications,
+      speed schedule and statistics.</p></description>
+    </release>
+    <release version="0.2.0" date="2026-11-26">
+      <description><p>Signed in-app updater and security hardening.</p></description>
+    </release>
+    <release version="0.1.0" date="2026-11-26">
+      <description><p>First public release.</p></description>
+    </release>
+  </releases>
+  <provides>
+    <binary>magnetar</binary>
+    <mediatype>application/x-bittorrent</mediatype>
+    <mediatype>x-scheme-handler/magnet</mediatype>
+  </provides>
+  <categories>
+    <category>Network</category>
+    <category>FileTransfer</category>
+    <category>P2P</category>
+  </categories>
   <content_rating type="oars-1.1"/>
 </component>

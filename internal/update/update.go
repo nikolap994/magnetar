@@ -47,6 +47,7 @@ const (
 	MethodWindowsPortable = "windows-portable" // unpacked .zip
 	MethodDeb             = "deb"              // installed from the .deb package
 	MethodLinuxPortable   = "linux-portable"   // unpacked .tar.gz
+	MethodFlatpak         = "flatpak"          // updated by Flathub / the software center
 	MethodUnsupported     = "unsupported"
 )
 
@@ -150,6 +151,9 @@ func (u *Updater) Run(ctx context.Context) {
 		u.log.Info("update checks disabled for development build", "version", u.current)
 		return
 	}
+	if u.method == MethodFlatpak {
+		return // Flathub delivers updates
+	}
 	t := time.NewTimer(firstCheck)
 	defer t.Stop()
 	for {
@@ -173,7 +177,7 @@ func (u *Updater) Status() Status {
 	defer u.mu.Unlock()
 	s := u.status
 	s.AutoCheck = u.auto()
-	s.CanInstall = s.Available && u.method != MethodUnsupported && len(u.pubKey) == ed25519.PublicKeySize &&
+	s.CanInstall = s.Available && u.method != MethodUnsupported && u.method != MethodFlatpak && len(u.pubKey) == ed25519.PublicKeySize &&
 		s.State != "downloading" && s.State != "installing"
 	return s
 }
@@ -256,6 +260,9 @@ func (u *Updater) Install(ctx context.Context) error {
 	}
 	if len(u.pubKey) != ed25519.PublicKeySize {
 		return errors.New("this build cannot verify updates; download the new version from GitHub")
+	}
+	if u.method == MethodFlatpak {
+		return errors.New("Magnetar is installed from Flathub; update it in your software center")
 	}
 	if u.method == MethodUnsupported {
 		return errors.New("automatic updates are not supported for this installation; download the new version from GitHub")

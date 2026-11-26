@@ -17,6 +17,9 @@ func detectMethod(exe string) string {
 	if runtime.GOOS != "linux" {
 		return MethodUnsupported
 	}
+	if _, err := os.Stat("/.flatpak-info"); err == nil {
+		return MethodFlatpak
+	}
 	if exe == "/usr/bin/magnetar" {
 		if _, err := os.Stat("/var/lib/dpkg/info/magnetar.list"); err == nil {
 			return MethodDeb
