@@ -399,7 +399,14 @@ func setupLogging(dataDir string, verbose bool) (*slog.Logger, func()) {
 		} else {
 			w = f
 		}
-		closer = func() { f.Close() }
+		closer = func() {
+			if err := f.Sync(); err != nil {
+				fmt.Fprintln(os.Stderr, "magnetar: flush log:", err)
+			}
+			if err := f.Close(); err != nil {
+				fmt.Fprintln(os.Stderr, "magnetar: close log:", err)
+			}
+		}
 	}
 	h := slog.NewTextHandler(w, &slog.HandlerOptions{Level: level})
 	return slog.New(&levelFilter{Handler: h, min: level}), closer
