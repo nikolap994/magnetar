@@ -198,6 +198,8 @@ function connect() {
   es.addEventListener("notify", (ev) => {
     const n = JSON.parse(ev.data);
     if (n.type === "shutdown") { showStopped(); return; }
+    if (n.type === "ui-add") { openAdd(n.message, true); window.focus(); return; }
+    if (n.type === "ui-focus") { window.focus(); return; }
     if (n.type === "completed") {
       toast("Download complete: " + n.name); // the desktop notification comes from Magnetar itself
     } else if (n.type === "error") toast(n.name + ": " + n.message, "err");
@@ -681,10 +683,11 @@ async function setPrio(hash, indices, priority) {
 }
 
 /* ---------- add torrents ---------- */
-async function openAdd(prefill = "") {
+async function openAdd(prefill = "", fromLink = false) {
   if (!state.settings) { try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); } }
   const dlg = $("#dlg-add");
   if (!dlg.open) {
+    setLinkMode(fromLink && /^magnet:\?/i.test(prefill), prefill);
     $("#add-magnets").value = prefill;
     $("#add-path").value = state.settings.downloadDir;
     state.pendingFiles = [];
@@ -692,16 +695,42 @@ async function openAdd(prefill = "") {
     dlg.showModal();
     (prefill ? $("#add-submit") : $("#add-magnets")).focus();
   } else if (prefill) {
+    setLinkMode(false);
     $("#add-magnets").value = ($("#add-magnets").value.trim() + "\n" + prefill).trim();
   }
   startPreview(); // no debounce when opening: show the file list as soon as possible
   updateFree(true);
 }
-// Magnet links opened from the browser get their own small window; close it when done.
-$("#dlg-add").addEventListener("close", () => {
-  if (!state.popup) return;
-  state.popup = false;
-  setTimeout(() => window.close(), 150);
+/* ---------- add dialog opened from a magnet link ---------- */
+// Like qBittorrent: show what will be downloaded, not the raw magnet link.
+function magnetName(link) {
+  try { return new URLSearchParams(link.replace(/^magnet:\?/i, "")).get("dn") || ""; } catch { return ""; }
+}
+function setLinkMode(on, link) {
+  const dlg = $("#dlg-add");
+  dlg.classList.toggle("link-mode", on);
+  dlg.classList.remove("show-link");
+  $("#add-summary").hidden = !on;
+  $("#add-title").textContent = on ? "Add torrent" : "Add torrents";
+  $("#as-show-link").textContent = "Show magnet link";
+  if (on) {
+    $("#as-name").textContent = magnetName(link) || "Torrent";
+    $("#as-meta").textContent = "Loading details…";
+  }
+}
+function updateLinkSummary() {
+  if (!$("#dlg-add").classList.contains("link-mode")) return;
+  const i = pv.info;
+  if (!i) return;
+  if (i.name) $("#as-name").textContent = i.name;
+  $("#as-meta").textContent = i.ready
+    ? `${bytes(i.size)} in ${i.files.length} file${i.files.length === 1 ? "" : "s"}`
+    : i.error ? i.error : (i.peers ? `Fetching details from ${i.peers} peers…` : "Looking for peers…");
+}
+$("#as-show-link").addEventListener("click", () => {
+  const dlg = $("#dlg-add");
+  dlg.classList.toggle("show-link");
+  $("#as-show-link").textContent = dlg.classList.contains("show-link") ? "Hide magnet link" : "Show magnet link";
 });
 
 function recentPaths() { try { return JSON.parse(localStorage.getItem("mg.paths") || "[]"); } catch { return []; } }
@@ -805,6 +834,7 @@ function renderPreview(mode, msg) {
   if (mode === "loading") { $("#ap-summary").textContent = ""; return waiting("Preparing…"); }
   if (mode === "exists") { $("#ap-summary").textContent = ""; return list.replaceChildren(h("div", { class: "ap-wait", text: "This torrent is already in your list." })); }
   if (mode === "error" || (i && i.error)) { $("#ap-summary").textContent = ""; return list.replaceChildren(h("div", { class: "ap-wait error", text: msg || i.error })); }
+  updateLinkSummary();
   if (!i.ready) {
     $("#ap-summary").textContent = i.name || "";
     return waiting(i.peers ? `Fetching the file list from ${i.peers} peers… You can also add it right away.` : "Looking for peers to fetch the file list… You can also add it right away.");
@@ -859,7 +889,7 @@ $("#ap-all").addEventListener("click", () => { pv.skip.clear(); renderPreview();
 $("#ap-none").addEventListener("click", () => { pv.info.files.forEach((f) => pv.skip.add(f.index)); renderPreview(); });
 $("#add-magnets").addEventListener("input", schedulePreview);
 $("#add-path").addEventListener("input", () => updateFree());
-$("#dlg-add").addEventListener("close", () => { clearTimeout(pv.timer); dropPreview(); renderPreview(); $("#add-submit").disabled = false; });
+$("#dlg-add").addEventListener("close", () => { clearTimeout(pv.timer); dropPreview(); renderPreview(); $("#add-submit").disabled = false; setLinkMode(false); });
 
 $("#add-form").addEventListener("submit", async (ev) => {
   if (ev.submitter && ev.submitter.value === "cancel") return;
@@ -931,8 +961,7 @@ function handleIncomingLinks() {
   history.replaceState(null, "", "/");
   if (link && /^magnet:\?/i.test(link)) openAdd(link);
   else if (hash.startsWith("#popup-add=")) {
-    state.popup = true;
-    openAdd(decodeURIComponent(hash.slice(11)));
+    openAdd(decodeURIComponent(hash.slice(11)), true);
   }
   else if (/^#t=[0-9a-f]{40}(:\w+)?$/i.test(hash)) {
     const [h, tab] = hash.slice(3).toLowerCase().split(":");

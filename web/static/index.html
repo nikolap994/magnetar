@@ -165,8 +165,16 @@
   <!-- Add dialog -->
   <dialog id="dlg-add" class="dialog">
     <form method="dialog" id="add-form">
-      <header><h2>Add torrents</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
-      <label class="field">
+      <header><h2 id="add-title">Add torrents</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div class="add-summary" id="add-summary" hidden>
+        <img src="/logo.svg" alt="" class="as-icon">
+        <div class="as-text">
+          <div class="as-name" id="as-name"></div>
+          <div class="as-meta" id="as-meta"></div>
+        </div>
+        <button type="button" class="link-btn" id="as-show-link">Show magnet link</button>
+      </div>
+      <label class="field" id="add-magnets-field">
         <span>Magnet links or info hashes <em>(one per line)</em></span>
         <textarea id="add-magnets" rows="4" placeholder="magnet:?xt=urn:btih:…" spellcheck="false"></textarea>
       </label>
