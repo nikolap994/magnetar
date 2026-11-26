@@ -1,0 +1,908 @@
+// Magnetar web UI. No dependencies; all untrusted text is rendered via textContent.
+"use strict";
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+
+/* ---------- helpers ---------- */
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "dataset") Object.assign(el.dataset, v);
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of children.flat()) if (c != null) el.append(c);
+  return el;
+}
+function icon(name) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", "#i-" + name);
+  svg.append(use);
+  return svg;
+}
+const UNITS = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+function bytes(n) {
+  if (!n || n < 0) return "0 B";
+  const i = Math.min(Math.floor(Math.log(n) / Math.log(1024)), UNITS.length - 1);
+  const v = n / 1024 ** i;
+  return (v >= 100 || i === 0 ? v.toFixed(0) : v.toFixed(1)) + " " + UNITS[i];
+}
+const rate = (n) => (n > 0 ? bytes(n) + "/s" : "–");
+function eta(s) {
+  if (s == null || s < 0) return "∞";
+  if (s < 60) return s + "s";
+  if (s < 3600) return Math.floor(s / 60) + "m " + (s % 60) + "s";
+  if (s < 86400) return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+  return Math.floor(s / 86400) + "d " + Math.floor((s % 86400) / 3600) + "h";
+}
+const pct = (p) => (p >= 1 ? "100%" : (Math.floor(p * 1000) / 10).toFixed(1) + "%");
+const fmtDate = (d) => (d ? new Date(d).toLocaleString() : "–");
+
+/* ---------- API ---------- */
+class ApiError extends Error { constructor(msg, status) { super(msg); this.status = status; } }
+async function api(path, { method = "GET", body, form } = {}) {
+  const opts = { method, credentials: "same-origin", headers: { "X-Magnetar-Request": "1" } };
+  if (form) opts.body = form;
+  else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers["Content-Type"] = "application/json"; }
+  const res = await fetch(path, opts);
+  const isJSON = (res.headers.get("Content-Type") || "").includes("json");
+  const data = isJSON ? await res.json() : null;
+  if (res.status === 401 && path !== "/api/login") { showLogin(); }
+  if (!res.ok) throw new ApiError((data && data.error) || res.statusText, res.status);
+  return data;
+}
+
+/* ---------- state ---------- */
+const state = {
+  torrents: [],
+  stats: {},
+  filter: "all",
+  query: "",
+  sort: JSON.parse(localStorage.getItem("mg.sort") || '{"key":"addedAt","dir":-1}'),
+  selected: new Set(),
+  focused: null,
+  detail: null,
+  tab: "overview",
+  history: [],
+  settings: null,
+  pendingFiles: [],
+};
+
+const FILTERS = [
+  { id: "all", label: "All", icon: "all", match: () => true },
+  { id: "downloading", label: "Downloading", icon: "down", match: (t) => ["downloading", "metadata", "stalled", "checking"].includes(t.state) },
+  { id: "seeding", label: "Seeding", icon: "up", match: (t) => t.state === "seeding" },
+  { id: "completed", label: "Completed", icon: "check", match: (t) => t.progress >= 1 },
+  { id: "paused", label: "Paused", icon: "pause", match: (t) => t.state === "paused" },
+  { id: "stalled", label: "Stalled", icon: "clock", match: (t) => t.state === "stalled" },
+  { id: "error", label: "Errors", icon: "alert", match: (t) => t.state === "error" },
+];
+
+/* ---------- toasts ---------- */
+function toast(msg, kind = "ok") {
+  const el = h("div", { class: "toast " + kind }, icon(kind === "ok" ? "check" : "alert"), h("span", { class: "t", text: msg }));
+  $("#toasts").append(el);
+  setTimeout(() => el.remove(), kind === "ok" ? 3500 : 6000);
+}
+const fail = (e) => toast(e.message || String(e), "err");
+
+/* ---------- theme ---------- */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem("mg.theme", t);
+}
+applyTheme(localStorage.getItem("mg.theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"));
+
+/* ---------- auth ---------- */
+async function boot() {
+  let s;
+  try { s = await api("/api/session"); } catch (e) { return showFatal(e); }
+  if (!s.authenticated) return showLogin(s);
+  $("#login").hidden = true;
+  $("#app").hidden = false;
+  $("#about-ver").textContent = s.version;
+  connect();
+  handleIncomingLinks();
+}
+function showFatal(e) {
+  document.body.textContent = "Magnetar is not reachable: " + e.message;
+}
+let loginShown = false;
+async function showLogin(s) {
+  if (loginShown) return;
+  loginShown = true;
+  closeStream();
+  if (!s) { try { s = await api("/api/session"); } catch { s = {}; } }
+  $("#app").hidden = true;
+  $("#login").hidden = false;
+  const pwInput = $("#login-pw");
+  const submit = $("#login-form button");
+  if (s.passwordSet) {
+    $("#login-msg").textContent = location.hash === "#expired" ? "That sign-in link has expired. Enter your password." : "Enter your password to continue.";
+    pwInput.hidden = false; submit.hidden = false; pwInput.focus();
+  } else {
+    $("#login-msg").textContent = location.hash === "#expired"
+      ? "That sign-in link has expired. Start Magnetar again (or run it once more) to get a fresh link."
+      : "Open Magnetar from your computer to sign in — it opens this page with a one-time link. Set a password in Settings to sign in from anywhere.";
+    pwInput.hidden = true; submit.hidden = true;
+  }
+}
+$("#login-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const err = $("#login-err");
+  err.hidden = true;
+  try {
+    await api("/api/login", { method: "POST", body: { password: $("#login-pw").value } });
+    $("#login-pw").value = "";
+    loginShown = false;
+    history.replaceState(null, "", "/");
+    boot();
+  } catch (e) { err.textContent = e.message; err.hidden = false; }
+});
+
+/* ---------- live updates ---------- */
+let es = null;
+function connect() {
+  closeStream();
+  es = new EventSource("/api/events");
+  es.addEventListener("snapshot", (ev) => {
+    const d = JSON.parse(ev.data);
+    state.torrents = d.torrents || [];
+    state.stats = d.stats || {};
+    state.history.push([state.stats.downRate || 0, state.stats.upRate || 0]);
+    if (state.history.length > 90) state.history.shift();
+    const known = new Set(state.torrents.map((t) => t.hash));
+    for (const hsh of state.selected) if (!known.has(hsh)) state.selected.delete(hsh);
+    if (state.detail && !known.has(state.detail)) closeDetail();
+    render();
+    if (state.detail) loadDetail();
+  });
+  es.addEventListener("notify", (ev) => {
+    const n = JSON.parse(ev.data);
+    if (n.type === "completed") {
+      toast("Download complete: " + n.name);
+      if (document.hidden && "Notification" in window && Notification.permission === "granted") {
+        new Notification("Download complete", { body: n.name, icon: "/logo.svg" });
+      }
+    } else if (n.type === "error") toast(n.name + ": " + n.message, "err");
+  });
+  es.onerror = async () => {
+    if (es && es.readyState === EventSource.CLOSED) {
+      setTimeout(async () => {
+        try { const s = await api("/api/session"); if (s.authenticated) connect(); else showLogin(s); }
+        catch { setTimeout(connect, 3000); }
+      }, 1500);
+    }
+  };
+}
+function closeStream() { if (es) { es.close(); es = null; } }
+
+/* ---------- rendering ---------- */
+function visible() {
+  const f = FILTERS.find((x) => x.id === state.filter) || FILTERS[0];
+  const q = state.query.trim().toLowerCase();
+  const list = state.torrents.filter((t) => f.match(t) && (!q || t.name.toLowerCase().includes(q) || t.hash.includes(q)));
+  const { key, dir } = state.sort;
+  list.sort((a, b) => {
+    let x = a[key], y = b[key];
+    if (key === "eta") { x = x < 0 ? Infinity : x; y = y < 0 ? Infinity : y; }
+    if (typeof x === "string") return x.localeCompare(y) * dir;
+    return ((x > y) - (x < y)) * dir;
+  });
+  return list;
+}
+
+function render() {
+  renderFilters();
+  renderStats();
+  renderList();
+  renderBulk();
+}
+
+function renderFilters() {
+  const nav = $("#filters");
+  if (!nav.childElementCount) {
+    for (const f of FILTERS) {
+      nav.append(h("button", { dataset: { f: f.id }, onclick: () => { state.filter = f.id; render(); } },
+        icon(f.icon), h("span", { text: f.label }), h("span", { class: "count" })));
+    }
+  }
+  for (const btn of nav.children) {
+    const f = FILTERS.find((x) => x.id === btn.dataset.f);
+    btn.classList.toggle("active", f.id === state.filter);
+    btn.querySelector(".count").textContent = state.torrents.filter(f.match).length || "";
+  }
+}
+
+function renderStats() {
+  const s = state.stats;
+  $("#g-down").textContent = bytes(s.downRate) + "/s";
+  $("#g-up").textContent = bytes(s.upRate) + "/s";
+  const lim = (n) => (n ? bytes(n) + "/s" : "∞");
+  $("#g-limits").textContent = (s.altSpeed ? "🐢 " : "") + "↓ " + lim(s.downLimit) + "  ↑ " + lim(s.upLimit);
+  $("#alt-toggle").classList.toggle("on", !!s.altSpeed);
+  $("#g-peers").textContent = s.peers ?? 0;
+  $("#g-dht").textContent = s.dhtNodes ?? 0;
+  $("#g-port").textContent = s.listenPort || "–";
+  const sec = $("#g-security");
+  const parts = [];
+  parts.push(s.encryption === "require" ? "Encryption required" : s.encryption === "allow" ? "Encryption optional" : "Encryption preferred");
+  if (s.bindAddress) parts.push("bound to " + s.bindAddress);
+  if (s.blocklistSize) parts.push(s.blocklistSize.toLocaleString() + " blocked ranges");
+  sec.querySelector("span").textContent = parts.join(" · ");
+  sec.classList.toggle("warn", s.encryption === "allow" || s.online === false);
+  drawSpark();
+  document.title = s.downRate > 0 ? `↓ ${bytes(s.downRate)}/s · Magnetar` : "Magnetar";
+}
+
+function drawSpark() {
+  const c = $("#spark");
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, hgt = c.clientHeight;
+  if (c.width !== w * dpr) { c.width = w * dpr; c.height = hgt * dpr; }
+  const ctx = c.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, hgt);
+  const hist = state.history;
+  if (hist.length < 2) return;
+  const max = Math.max(1024, ...hist.flat());
+  const line = (idx, color, fill) => {
+    ctx.beginPath();
+    hist.forEach((p, i) => {
+      const x = (i / (90 - 1)) * w, y = hgt - 2 - (p[idx] / max) * (hgt - 6);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    });
+    ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.lineTo(((hist.length - 1) / 89) * w, hgt); ctx.lineTo(0, hgt); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+  };
+  line(1, "#38bdf8", "rgba(56,189,248,.08)");
+  line(0, "#22c55e", "rgba(34,197,94,.12)");
+}
+
+const rowCache = new Map();
+function renderList() {
+  const list = $("#list");
+  const items = visible();
+  $("#empty").hidden = state.torrents.length > 0;
+  $(".list-head").hidden = state.torrents.length === 0;
+  const seen = new Set();
+  let prev = null;
+  for (const t of items) {
+    seen.add(t.hash);
+    let row = rowCache.get(t.hash);
+    if (!row) { row = buildRow(t.hash); rowCache.set(t.hash, row); }
+    updateRow(row, t);
+    const next = prev ? prev.nextSibling : list.firstChild;
+    if (next !== row) list.insertBefore(row, next);
+    prev = row;
+  }
+  for (const [hash, row] of rowCache) {
+    if (!seen.has(hash)) { row.remove(); if (!state.torrents.some((t) => t.hash === hash)) rowCache.delete(hash); }
+  }
+  for (const b of $$(".list-head .col[data-sort]")) {
+    b.classList.toggle("sorted", b.dataset.sort === state.sort.key);
+    b.classList.toggle("asc", state.sort.dir === 1);
+  }
+  const all = $("#select-all");
+  const vis = items.map((t) => t.hash);
+  const n = vis.filter((x) => state.selected.has(x)).length;
+  all.checked = n > 0 && n === vis.length;
+  all.indeterminate = n > 0 && n < vis.length;
+}
+
+function buildRow(hash) {
+  const cb = h("input", { type: "checkbox", "aria-label": "Select" });
+  cb.addEventListener("click", (e) => { e.stopPropagation(); toggleSelect(hash, cb.checked); });
+  const r = {
+    cb,
+    name: h("div", { class: "n" }),
+    pill: h("span", { class: "pill" }),
+    sub: h("span"),
+    size: h("div", { class: "cell c-size" }),
+    bar: h("div", { class: "bar" }, h("i")),
+    pct: h("div", { class: "pct" }),
+    down: h("div", { class: "cell down c-rate" }),
+    up: h("div", { class: "cell up c-rate" }),
+    eta: h("div", { class: "cell c-eta" }),
+    peers: h("div", { class: "cell c-peers" }),
+    ratio: h("div", { class: "cell c-ratio" }),
+    toggle: h("button", { class: "btn icon", title: "Pause" }),
+  };
+  r.toggle.addEventListener("click", (e) => { e.stopPropagation(); const t = byHash(hash); act(t.state === "paused" ? "resume" : "pause", [hash]); });
+  const rm = h("button", { class: "btn icon", title: "Remove", onclick: (e) => { e.stopPropagation(); confirmRemove([hash]); } }, icon("trash"));
+  const row = h("div", { class: "row-t", role: "listitem", dataset: { hash } },
+    h("label", { class: "check", onclick: (e) => e.stopPropagation() }, cb, h("span")),
+    h("div", { class: "t-name" }, r.name, h("div", { class: "s" }, r.pill, r.sub)),
+    r.size,
+    h("div", { class: "progress" }, r.bar, r.pct),
+    r.down, r.up, r.eta, r.peers, r.ratio,
+    h("div", { class: "row-actions" }, r.toggle, rm),
+  );
+  row._r = r;
+  row.addEventListener("click", (e) => {
+    if (e.ctrlKey || e.metaKey) return toggleSelect(hash, !state.selected.has(hash));
+    if (e.shiftKey && state.focused) return rangeSelect(state.focused, hash);
+    openDetail(hash);
+  });
+  row.addEventListener("dblclick", () => { const t = byHash(hash); act(t.state === "paused" ? "resume" : "pause", [hash]); });
+  row.addEventListener("contextmenu", (e) => { e.preventDefault(); contextMenu(e, hash); });
+  return row;
+}
+
+function updateRow(row, t) {
+  const r = row._r;
+  set(r.name, t.name);
+  r.name.title = t.name;
+  r.pill.className = "pill " + t.state;
+  set(r.pill, t.state === "metadata" ? "fetching metadata" : t.state);
+  set(r.sub, subtitle(t));
+  set(r.size, t.size ? bytes(t.size) : "–");
+  r.bar.className = "bar " + t.state;
+  r.bar.firstChild.style.width = (t.progress * 100).toFixed(2) + "%";
+  set(r.pct, t.state === "metadata" ? "Waiting for peers…" : pct(t.progress) + (t.size && t.progress < 1 ? " of " + bytes(t.size) : ""));
+  set(r.down, rate(t.downRate));
+  set(r.up, rate(t.upRate));
+  set(r.eta, t.state === "downloading" ? eta(t.eta) : "–");
+  set(r.peers, t.peers + (t.knownPeers > t.peers ? " / " + t.knownPeers : ""));
+  set(r.ratio, t.ratio.toFixed(2));
+  const paused = t.state === "paused";
+  if (r.toggle.dataset.p !== String(paused)) {
+    r.toggle.replaceChildren(icon(paused ? "play" : "pause"));
+    r.toggle.title = paused ? "Resume" : "Pause";
+    r.toggle.dataset.p = String(paused);
+  }
+  r.cb.checked = state.selected.has(t.hash);
+  row.classList.toggle("selected", state.selected.has(t.hash));
+  row.classList.toggle("focused", state.detail === t.hash);
+}
+function subtitle(t) {
+  switch (t.state) {
+    case "error": return t.error;
+    case "downloading": case "stalled": return `${t.seeds} seeds · ${t.peers} peers` + (t.sequential ? " · sequential" : "");
+    case "checking": return "Checking existing files…";
+    case "metadata": return t.knownPeers ? `Fetching metadata from ${t.knownPeers} peers` : "Searching for peers";
+    case "seeding": return `${t.peers} peers · ratio ${t.ratio.toFixed(2)}`;
+    case "paused": return t.size ? `${bytes(t.completed)} of ${bytes(t.size)}` : "Paused";
+    default: return t.completedAt ? "Finished " + new Date(t.completedAt).toLocaleDateString() : "";
+  }
+}
+function set(el, text) { if (el.textContent !== String(text)) el.textContent = text; }
+const byHash = (hash) => state.torrents.find((t) => t.hash === hash);
+
+/* ---------- selection ---------- */
+function toggleSelect(hash, on) {
+  on ? state.selected.add(hash) : state.selected.delete(hash);
+  state.focused = hash;
+  render();
+}
+function rangeSelect(a, b) {
+  const items = visible().map((t) => t.hash);
+  let i = items.indexOf(a), j = items.indexOf(b);
+  if (i < 0 || j < 0) return;
+  if (i > j) [i, j] = [j, i];
+  items.slice(i, j + 1).forEach((x) => state.selected.add(x));
+  render();
+}
+function renderBulk() {
+  const n = state.selected.size;
+  $("#bulk").hidden = n === 0;
+  $("#bulk-count").textContent = n + " selected";
+}
+$("#select-all").addEventListener("change", (e) => {
+  const vis = visible().map((t) => t.hash);
+  if (e.target.checked) vis.forEach((x) => state.selected.add(x));
+  else vis.forEach((x) => state.selected.delete(x));
+  render();
+});
+for (const b of $$("#bulk [data-bulk]")) {
+  b.addEventListener("click", () => {
+    const hashes = [...state.selected];
+    if (b.dataset.bulk === "remove") confirmRemove(hashes);
+    else act(b.dataset.bulk, hashes);
+  });
+}
+for (const b of $$(".list-head .col[data-sort]")) {
+  b.addEventListener("click", () => {
+    const key = b.dataset.sort;
+    state.sort = state.sort.key === key ? { key, dir: -state.sort.dir } : { key, dir: key === "name" ? 1 : -1 };
+    localStorage.setItem("mg.sort", JSON.stringify(state.sort));
+    renderList();
+  });
+}
+$("#search").addEventListener("input", (e) => { state.query = e.target.value; renderList(); });
+
+/* ---------- actions ---------- */
+async function act(action, hashes, extra = {}) {
+  try {
+    await api("/api/actions", { method: "POST", body: { action, hashes, ...extra } });
+    if (action === "recheck") toast("Verifying data…");
+  } catch (e) { fail(e); }
+}
+function confirmRemove(hashes) {
+  const dlg = $("#dlg-remove");
+  const names = hashes.map((x) => byHash(x)?.name).filter(Boolean);
+  $("#rm-title").textContent = hashes.length > 1 ? `Remove ${hashes.length} torrents?` : "Remove torrent?";
+  $("#rm-text").textContent = names.length === 1 ? names[0] : names.slice(0, 3).join(", ") + (names.length > 3 ? "…" : "");
+  $("#rm-data").checked = false;
+  dlg.returnValue = "";
+  dlg.onclose = async () => {
+    if (dlg.returnValue !== "ok") return;
+    await act("remove", hashes, { deleteData: $("#rm-data").checked });
+    hashes.forEach((x) => state.selected.delete(x));
+    toast(hashes.length > 1 ? `Removed ${hashes.length} torrents` : "Torrent removed");
+  };
+  dlg.showModal();
+}
+
+function contextMenu(e, hash) {
+  const t = byHash(hash);
+  const menu = $("#ctx");
+  const targets = state.selected.has(hash) ? [...state.selected] : [hash];
+  const item = (label, ic, fn, cls) => h("button", { class: cls, onclick: () => { hideMenu(); fn(); } }, icon(ic), h("span", { text: label }));
+  menu.replaceChildren(
+    t.state === "paused" ? item("Resume", "play", () => act("resume", targets)) : item("Pause", "pause", () => act("pause", targets)),
+    item("Verify data", "refresh", () => act("recheck", targets)),
+    item(t.sequential ? "Disable sequential" : "Download sequentially", "down", () => setSequential(hash, !t.sequential)),
+    item("Copy magnet link", "copy", () => copyMagnet(hash)),
+    item("Details", "file", () => openDetail(hash)),
+    h("hr"),
+    item("Remove…", "trash", () => confirmRemove(targets), "danger"),
+  );
+  menu.hidden = false;
+  const { innerWidth: W, innerHeight: H } = window;
+  const r = menu.getBoundingClientRect();
+  menu.style.left = Math.min(e.clientX, W - r.width - 8) + "px";
+  menu.style.top = Math.min(e.clientY, H - r.height - 8) + "px";
+}
+function hideMenu() { $("#ctx").hidden = true; }
+document.addEventListener("click", (e) => { if (!$("#ctx").contains(e.target)) hideMenu(); });
+window.addEventListener("blur", hideMenu);
+
+async function setSequential(hash, enabled) {
+  try { await api(`/api/torrents/${hash}/sequential`, { method: "POST", body: { enabled } }); toast(enabled ? "Sequential download on" : "Sequential download off"); }
+  catch (e) { fail(e); }
+}
+async function copyMagnet(hash) {
+  try {
+    const d = await api(`/api/torrents/${hash}`);
+    await navigator.clipboard.writeText(d.magnet || `magnet:?xt=urn:btih:${hash}`);
+    toast("Magnet link copied");
+  } catch (e) { fail(e); }
+}
+
+/* ---------- detail panel ---------- */
+function openDetail(hash) {
+  state.detail = hash;
+  state.focused = hash;
+  $("#detail").hidden = false;
+  $("#app").classList.add("with-detail");
+  renderList();
+  loadDetail(true);
+}
+function closeDetail() {
+  state.detail = null;
+  $("#detail").hidden = true;
+  $("#app").classList.remove("with-detail");
+  renderList();
+}
+$("#d-close").addEventListener("click", closeDetail);
+for (const b of $$(".tabs button")) {
+  b.addEventListener("click", () => {
+    state.tab = b.dataset.tab;
+    $$(".tabs button").forEach((x) => x.classList.toggle("active", x === b));
+    loadDetail(true);
+  });
+}
+
+let detailBusy = false;
+async function loadDetail(force) {
+  if (detailBusy && !force) return;
+  const hash = state.detail;
+  if (!hash) return;
+  detailBusy = true;
+  try {
+    const d = await api(`/api/torrents/${hash}`);
+    if (state.detail !== hash) return;
+    renderDetail(d, force);
+  } catch (e) { if (e.status === 404) closeDetail(); }
+  finally { detailBusy = false; }
+}
+
+function renderDetail(d, force) {
+  set($("#d-name"), d.name);
+  set($("#d-sub"), `${d.size ? bytes(d.size) : "Size unknown"} · ${pct(d.progress)} · ${d.state}`);
+  const pm = $("#d-pieces");
+  pm.replaceChildren(...(d.pieceMap || []).map((v) => {
+    const i = h("i");
+    i.style.background = v === 255 ? "var(--amber)" : v === 0 ? "transparent" : `color-mix(in srgb, var(--accent) ${Math.max(25, v)}%, transparent)`;
+    return i;
+  }));
+  pm.hidden = !(d.pieceMap && d.pieceMap.length);
+
+  const paused = d.state === "paused";
+  $("#d-actions").replaceChildren(
+    h("button", { class: "btn ghost sm", onclick: () => act(paused ? "resume" : "pause", [d.hash]) }, icon(paused ? "play" : "pause"), h("span", { text: paused ? "Resume" : "Pause" })),
+    h("button", { class: "btn ghost sm", onclick: () => act("recheck", [d.hash]) }, icon("refresh"), h("span", { text: "Verify" })),
+    h("button", { class: "btn ghost sm", onclick: () => copyMagnet(d.hash) }, icon("copy"), h("span", { text: "Magnet" })),
+    h("button", { class: "btn ghost sm danger", onclick: () => confirmRemove([d.hash]) }, icon("trash"), h("span", { text: "Remove" })),
+  );
+
+  const body = $("#d-body");
+  // Avoid clobbering focused controls (e.g. a select being changed) during live refresh.
+  if (!force && body.contains(document.activeElement) && document.activeElement !== body) return;
+  const scroll = body.scrollTop;
+  body.replaceChildren(TABS[state.tab](d));
+  body.scrollTop = scroll;
+}
+
+const kv = (pairs) => h("dl", { class: "kv" }, pairs.filter(Boolean).flatMap(([k, v, cls]) => [h("dt", { text: k }), h("dd", { class: cls, text: v ?? "–" })]));
+const stat = (v, label) => h("div", { class: "stat" }, h("b", { text: v }), h("span", { text: label }));
+
+const TABS = {
+  overview(d) {
+    return h("div", {},
+      h("div", { class: "stat-grid" },
+        stat(rate(d.downRate), "Download"), stat(rate(d.upRate), "Upload"), stat(d.state === "downloading" ? eta(d.eta) : "–", "ETA"),
+        stat(bytes(d.downloaded), "Downloaded"), stat(bytes(d.uploaded), "Uploaded"), stat(d.ratio.toFixed(2), "Ratio"),
+      ),
+      h("label", { class: "switch" },
+        h("input", { type: "checkbox", checked: d.sequential, onchange: (e) => setSequential(d.hash, e.target.checked) }), h("span"),
+        "Sequential download (preview while downloading)"),
+      kv([
+        ["Save path", d.savePath, "mono"],
+        ["Info hash", d.hash, "mono"],
+        ["Pieces", d.numPieces ? `${d.numPieces.toLocaleString()} × ${bytes(d.pieceSize)}` : "–"],
+        ["Peers", `${d.peers} connected · ${d.seeds} seeds · ${d.knownPeers} known`],
+        ["Added", fmtDate(d.addedAt)],
+        ["Completed", fmtDate(d.completedAt)],
+        d.createdAt && ["Created", fmtDate(d.createdAt)],
+        d.createdBy && ["Created by", d.createdBy],
+        d.comment && ["Comment", d.comment],
+        ["Private", d.private ? "Yes (DHT/PEX disabled)" : "No"],
+        d.error && ["Error", d.error],
+      ]),
+    );
+  },
+  files(d) {
+    if (!d.files.length) return h("p", { class: "muted", text: d.state === "paused" ? "Resume the torrent to see its files." : "Waiting for metadata…" });
+    const wrap = h("div", { class: "files" });
+    const all = h("div", { class: "row" },
+      h("button", { class: "btn ghost sm", onclick: () => setPrio(d.hash, d.files.map((f) => f.index), 1) }, h("span", { text: "Download all" })),
+      h("button", { class: "btn ghost sm", onclick: () => setPrio(d.hash, d.files.map((f) => f.index), 0) }, h("span", { text: "Skip all" })),
+    );
+    for (const f of d.files) {
+      const sel = h("select", { class: "sm", "aria-label": "Priority" },
+        h("option", { value: "0", text: "Skip" }), h("option", { value: "1", text: "Normal" }), h("option", { value: "2", text: "High" }));
+      sel.value = String(f.priority);
+      sel.addEventListener("change", () => { setPrio(d.hash, [f.index], +sel.value); sel.blur(); });
+      const bar = h("div", { class: "bar" }, h("i"));
+      bar.firstChild.style.width = (f.progress * 100).toFixed(1) + "%";
+      wrap.append(h("div", { class: "file" + (f.priority === 0 ? " skip" : "") },
+        h("div", { class: "fp", text: f.path }), sel,
+        h("div", { class: "fm", text: `${bytes(f.completed)} / ${bytes(f.size)} · ${pct(f.progress)}` }), bar));
+    }
+    return h("div", {}, all, h("div", { class: "spacer-8" }), wrap);
+  },
+  peers(d) {
+    if (!d.peerList.length) return h("p", { class: "muted", text: d.state === "paused" ? "Torrent is paused." : "No connected peers yet." });
+    return h("table", { class: "table" },
+      h("thead", {}, h("tr", {}, ["Address", "Client", "Progress", "Down", "Up", "Via"].map((x) => h("th", { text: x })))),
+      h("tbody", {}, d.peerList.map((p) => h("tr", {},
+        h("td", { class: "mono", text: p.addr, title: p.addr + " (" + p.network + ")" }),
+        h("td", { text: p.client || "–", title: p.client || "" }),
+        h("td", { text: pct(p.progress) }),
+        h("td", { text: rate(p.downRate) }),
+        h("td", { text: rate(p.upRate) }),
+        h("td", { text: p.source + (p.network.startsWith("udp") ? " · µTP" : "") }),
+      ))));
+  },
+  trackers(d) {
+    const ta = h("textarea", { rows: 3, placeholder: "udp://tracker.example:1337/announce", spellcheck: "false" });
+    return h("div", {},
+      d.trackers.length ? h("ul", { class: "trackers" }, d.trackers.map((t) => h("li", { text: t }))) : h("p", { class: "muted", text: "No trackers — peers are found through DHT and PEX." }),
+      h("label", { class: "field" }, h("span", { text: "Add trackers (one per line)" }), ta),
+      h("button", {
+        class: "btn ghost sm", onclick: async () => {
+          const urls = ta.value.split("\n").map((s) => s.trim()).filter(Boolean);
+          if (!urls.length) return;
+          try { await api(`/api/torrents/${d.hash}/trackers`, { method: "POST", body: { urls } }); toast("Trackers added"); loadDetail(true); }
+          catch (e) { fail(e); }
+        },
+      }, h("span", { text: "Add trackers" })),
+    );
+  },
+};
+async function setPrio(hash, indices, priority) {
+  try { await api(`/api/torrents/${hash}/files`, { method: "POST", body: { indices, priority } }); loadDetail(true); }
+  catch (e) { fail(e); }
+}
+
+/* ---------- add torrents ---------- */
+async function openAdd(prefill = "") {
+  if (!state.settings) { try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); } }
+  const dlg = $("#dlg-add");
+  if (!dlg.open) {
+    $("#add-magnets").value = prefill;
+    $("#add-path").value = state.settings.downloadDir;
+    state.pendingFiles = [];
+    renderPending();
+    dlg.showModal();
+    (prefill ? $("#add-submit") : $("#add-magnets")).focus();
+  } else if (prefill) {
+    $("#add-magnets").value = ($("#add-magnets").value.trim() + "\n" + prefill).trim();
+  }
+}
+// Magnet links opened from the browser get their own small window; close it when done.
+$("#dlg-add").addEventListener("close", () => {
+  if (!state.popup) return;
+  state.popup = false;
+  setTimeout(() => window.close(), 150);
+});
+
+function recentPaths() { try { return JSON.parse(localStorage.getItem("mg.paths") || "[]"); } catch { return []; } }
+function rememberPath(p) {
+  if (!p) return;
+  const list = [p, ...recentPaths().filter((x) => x !== p)].slice(0, 8);
+  localStorage.setItem("mg.paths", JSON.stringify(list));
+  fillRecent();
+}
+function fillRecent() {
+  $("#recent-paths").replaceChildren(...recentPaths().map((p) => h("option", { value: p })));
+}
+fillRecent();
+
+function renderPending() {
+  $("#add-file-list").replaceChildren(...state.pendingFiles.map((f) => h("li", { text: "📄 " + f.name })));
+}
+function addFiles(files) {
+  for (const f of files) {
+    if (f.name.toLowerCase().endsWith(".torrent") || f.type === "application/x-bittorrent") state.pendingFiles.push(f);
+  }
+  renderPending();
+}
+$("#btn-add").addEventListener("click", () => openAdd());
+$("#btn-add-empty").addEventListener("click", () => openAdd());
+const dz = $("#dropzone");
+dz.addEventListener("click", () => $("#add-files").click());
+dz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#add-files").click(); } });
+$("#add-files").addEventListener("change", (e) => { addFiles(e.target.files); e.target.value = ""; });
+dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+dz.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); dz.classList.remove("over"); addFiles(e.dataTransfer.files); });
+
+$("#add-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  const magnets = $("#add-magnets").value.trim();
+  if (!magnets && !state.pendingFiles.length) { toast("Add a magnet link or a .torrent file", "err"); return; }
+  const fd = new FormData();
+  fd.append("magnets", magnets);
+  fd.append("savePath", $("#add-path").value.trim());
+  fd.append("paused", $("#add-paused").checked);
+  fd.append("sequential", $("#add-seq").checked);
+  state.pendingFiles.forEach((f) => fd.append("torrents", f, f.name));
+  $("#add-submit").disabled = true;
+  try {
+    const res = await api("/api/torrents", { method: "POST", form: fd });
+    const ok = res.filter((r) => !r.error).length;
+    res.filter((r) => r.error).forEach((r) => toast(r.error.includes("already") ? "Already added" : r.error, "err"));
+    if (ok) toast(ok === 1 ? "Torrent added" : `${ok} torrents added`);
+    rememberPath($("#add-path").value.trim());
+    $("#dlg-add").close();
+    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  } catch (e) { fail(e); }
+  finally { $("#add-submit").disabled = false; }
+});
+
+// Paste a magnet anywhere.
+document.addEventListener("paste", (e) => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea") return;
+  const text = e.clipboardData.getData("text").trim();
+  if (/^magnet:\?/i.test(text) || /^[a-f0-9]{40}$/i.test(text)) { e.preventDefault(); openAdd(text); }
+});
+
+// Drop .torrent files anywhere.
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+window.addEventListener("dragenter", (e) => { if (!hasFiles(e) || $("#dlg-add").open) return; dragDepth++; $("#drop-overlay").hidden = false; });
+window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("#drop-overlay").hidden = true; } });
+window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+window.addEventListener("drop", (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0; $("#drop-overlay").hidden = true;
+  openAdd().then(() => addFiles(e.dataTransfer.files));
+});
+
+// Magnet links handed over via URL (?add= from protocol handler, #add= from launch).
+function handleIncomingLinks() {
+  const q = new URLSearchParams(location.search).get("add");
+  const hash = location.hash;
+  const hm = hash.startsWith("#add=") ? decodeURIComponent(hash.slice(5)) : null;
+  const link = q || hm;
+  history.replaceState(null, "", "/");
+  if (link && /^magnet:\?/i.test(link)) openAdd(link);
+  else if (hash.startsWith("#popup-add=")) {
+    state.popup = true;
+    openAdd(decodeURIComponent(hash.slice(11)));
+  }
+  else if (/^#t=[0-9a-f]{40}(:\w+)?$/i.test(hash)) {
+    const [h, tab] = hash.slice(3).toLowerCase().split(":");
+    if (tab && TABS[tab]) { state.tab = tab; $$(".tabs button").forEach((x) => x.classList.toggle("active", x.dataset.tab === tab)); }
+    openDetail(h);
+  }
+  else if (hash === "#settings") openSettings();
+  else if (hash === "#speed") openSpeed();
+  else if (hash === "#add") openAdd();
+}
+
+/* ---------- settings ---------- */
+const NUMERIC = new Set(["listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit"]);
+async function openSettings() {
+  try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
+  const form = $("#settings-form");
+  for (const el of form.elements) {
+    if (!el.name || !(el.name in state.settings)) continue;
+    if (el.type === "checkbox") el.checked = !!state.settings[el.name];
+    else el.value = state.settings[el.name] ?? "";
+  }
+  $("#pw-state").textContent = state.settings.passwordSet ? "A password is set." : "No password set — the UI only accepts one-time links from this computer.";
+  $("#pw-current").hidden = !state.settings.passwordSet;
+  $("#pw-remove").hidden = !state.settings.passwordSet;
+  $("#settings-err").textContent = "";
+  $("#dlg-settings").showModal();
+}
+$("#btn-settings").addEventListener("click", openSettings);
+for (const b of $$(".settings-nav button")) {
+  b.addEventListener("click", () => {
+    $$(".settings-nav button").forEach((x) => x.classList.toggle("active", x === b));
+    $$(".settings-body section").forEach((s) => s.classList.toggle("active", s.dataset.sec === b.dataset.sec));
+  });
+}
+$("#settings-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  const body = {};
+  for (const el of ev.target.elements) {
+    if (!el.name || !(el.name in state.settings)) continue;
+    body[el.name] = el.type === "checkbox" ? el.checked : NUMERIC.has(el.name) ? Number(el.value || 0) : el.value.trim();
+  }
+  try {
+    const res = await api("/api/settings", { method: "PUT", body });
+    $("#dlg-settings").close();
+    state.settings = null;
+    toast(res.restartRequired ? "Saved — restart Magnetar to apply web interface changes" : "Settings saved");
+  } catch (e) { $("#settings-err").textContent = e.message; }
+});
+$("#pw-save").addEventListener("click", async () => {
+  try {
+    await api("/api/password", { method: "POST", body: { current: $("#pw-current").value, new: $("#pw-new").value } });
+    $("#pw-current").value = $("#pw-new").value = "";
+    toast("Password saved");
+    openSettings();
+  } catch (e) { fail(e); }
+});
+$("#pw-remove").addEventListener("click", async () => {
+  try {
+    await api("/api/password", { method: "POST", body: { current: $("#pw-current").value, remove: true } });
+    $("#pw-current").value = "";
+    toast("Password removed");
+    openSettings();
+  } catch (e) { fail(e); }
+});
+$("#btn-handler").addEventListener("click", () => {
+  try {
+    navigator.registerProtocolHandler("magnet", location.origin + "/?add=%s");
+    toast("Your browser will ask to confirm");
+  } catch (e) { fail(e); }
+});
+$("#btn-register").addEventListener("click", async () => {
+  try { await api("/api/system/register", { method: "POST" }); toast("Magnetar now opens magnet links and .torrent files"); }
+  catch (e) { fail(e); }
+});
+
+/* ---------- folder picker ---------- */
+let folderTarget = null;
+async function browse(path) {
+  $("#folder-err").textContent = "";
+  try {
+    const d = await api("/api/fs/dirs?path=" + encodeURIComponent(path || ""));
+    $("#folder-path").value = d.path;
+    $("#folder-roots").replaceChildren(...d.roots.map((r) => h("button", { type: "button", title: r, text: r, onclick: () => browse(r) })));
+    const items = [];
+    if (d.parent) items.push(h("button", { type: "button", class: "up", onclick: () => browse(d.parent) }, icon("up"), h("span", { text: ".." })));
+    for (const name of d.dirs) {
+      items.push(h("button", { type: "button", onclick: () => browse(d.path + (d.path.endsWith(d.sep) ? "" : d.sep) + name) }, icon("folder"), h("span", { text: name })));
+    }
+    if (!d.dirs.length) items.push(h("p", { class: "muted", text: "No sub-folders. Use this folder, or type a new path — it will be created." }));
+    $("#folder-list").replaceChildren(...items);
+  } catch (e) { $("#folder-err").textContent = e.message; }
+}
+for (const b of $$("[data-browse]")) {
+  b.addEventListener("click", () => {
+    folderTarget = $(b.dataset.browse);
+    const dlg = $("#dlg-folder");
+    dlg.returnValue = "";
+    dlg.showModal();
+    browse(folderTarget.value.trim());
+  });
+}
+$("#folder-go").addEventListener("click", () => browse($("#folder-path").value.trim()));
+$("#folder-path").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); browse(e.target.value.trim()); } });
+$("#dlg-folder").addEventListener("close", () => {
+  if ($("#dlg-folder").returnValue === "ok" && folderTarget) folderTarget.value = $("#folder-path").value.trim();
+});
+
+/* ---------- speed limits ---------- */
+let speedMode = "normal";
+async function openSpeed() {
+  try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
+  setSpeedMode(state.settings.altSpeedEnabled ? "alt" : "normal");
+  $("#dlg-speed").returnValue = "";
+  $("#dlg-speed").showModal();
+}
+function setSpeedMode(mode) {
+  speedMode = mode;
+  const s = state.settings;
+  $$("#speed-mode button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+  $("#sp-down").value = mode === "alt" ? s.altDownloadLimitKBps : s.downloadLimitKBps;
+  $("#sp-up").value = mode === "alt" ? s.altUploadLimitKBps : s.uploadLimitKBps;
+}
+$$("#speed-mode button").forEach((b) => b.addEventListener("click", () => setSpeedMode(b.dataset.mode)));
+const PRESETS = [["Unlimited", 0, 0], ["10 MiB/s ↓", 10240, null], ["5 MiB/s ↓", 5120, null], ["1 MiB/s ↓", 1024, null], ["500 KiB/s ↑", null, 500], ["100 KiB/s ↑", null, 100]];
+$("#sp-presets").replaceChildren(...PRESETS.map(([label, d, u]) => h("button", {
+  type: "button", text: label, onclick: () => { if (d !== null) $("#sp-down").value = d; if (u !== null) $("#sp-up").value = u; },
+})));
+$("#speed-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  const down = Math.max(0, Number($("#sp-down").value || 0)), up = Math.max(0, Number($("#sp-up").value || 0));
+  const body = speedMode === "alt"
+    ? { altSpeedEnabled: true, altDownloadLimitKBps: down, altUploadLimitKBps: up }
+    : { altSpeedEnabled: false, downloadLimitKBps: down, uploadLimitKBps: up };
+  try { await api("/api/settings", { method: "PUT", body }); $("#dlg-speed").close(); toast("Speed limits updated"); }
+  catch (e) { fail(e); }
+});
+$("#speed-card").addEventListener("click", openSpeed);
+$("#speed-card").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openSpeed(); } });
+$("#alt-toggle").addEventListener("click", async () => {
+  const on = !state.stats.altSpeed;
+  try { await api("/api/settings", { method: "PUT", body: { altSpeedEnabled: on } }); toast(on ? "Alternative speed limits on" : "Normal speed limits"); }
+  catch (e) { fail(e); }
+});
+
+$("#btn-quit").addEventListener("click", async () => {
+  if (!confirm("Quit Magnetar? All transfers will stop.")) return;
+  try { await api("/api/shutdown", { method: "POST" }); } catch { /* server exits */ }
+  closeStream();
+  document.body.replaceChildren(h("div", { class: "login" }, h("div", { class: "login-card" },
+    h("h1", { text: "Magnetar has stopped" }), h("p", { class: "muted", text: "You can close this tab." }))));
+});
+$("#btn-theme").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light"));
+
+/* ---------- keyboard ---------- */
+document.addEventListener("keydown", (e) => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select" || document.querySelector("dialog[open]")) return;
+  const items = visible();
+  if (e.key === "/") { e.preventDefault(); $("#search").focus(); }
+  else if (e.key === "n" || e.key === "N") { e.preventDefault(); openAdd(); }
+  else if (e.key === "Escape") { if (state.selected.size) { state.selected.clear(); render(); } else closeDetail(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key === "a") { e.preventDefault(); items.forEach((t) => state.selected.add(t.hash)); render(); }
+  else if (e.key === "Delete") { const t = state.selected.size ? [...state.selected] : state.detail ? [state.detail] : []; if (t.length) confirmRemove(t); }
+  else if (e.key === " " && state.detail) { e.preventDefault(); const t = byHash(state.detail); act(t.state === "paused" ? "resume" : "pause", [t.hash]); }
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const idx = items.findIndex((t) => t.hash === state.detail);
+    const next = items[Math.max(0, Math.min(items.length - 1, idx + (e.key === "ArrowDown" ? 1 : -1)))];
+    if (next) { openDetail(next.hash); rowCache.get(next.hash)?.scrollIntoView({ block: "nearest" }); }
+  }
+});
+
+boot();

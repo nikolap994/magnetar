@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="referrer" content="no-referrer">
+  <title>Magnetar</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true">
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v15m0 0-6-6m6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 20V5m0 0-6 6m6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v6c0 4.4 3 8 7 9 4-1 7-4.6 7-9V6z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V6a2 2 0 0 1 2-2h8" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-power" viewBox="0 0 24 24"><path d="M12 3v8M7 6a7 7 0 1 0 10 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-all" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-turtle" viewBox="0 0 24 24"><path d="M5 15c0-4 3-7 7-7s7 3 7 7H5zM19 15h2l-1-3M5 15l-2 2M9 15v3M15 15v3M12 8V6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0M12 16l4-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <div id="app" class="app" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="/logo.svg" alt="">
+        <span>Magnetar</span>
+      </div>
+      <nav id="filters" class="filters" aria-label="Filters"></nav>
+      <div class="side-stats">
+        <div class="speed-card" id="speed-card" role="button" tabindex="0" title="Speed limits">
+          <div class="speed-head"><span>Speed</span><span id="g-limits" class="limits"></span></div>
+          <div class="speed down"><svg><use href="#i-down"/></svg><span id="g-down">0 B/s</span></div>
+          <div class="speed up"><svg><use href="#i-up"/></svg><span id="g-up">0 B/s</span></div>
+          <canvas id="spark" width="220" height="56" aria-hidden="true"></canvas>
+        </div>
+        <button class="alt-toggle" id="alt-toggle" title="Alternative speed limits"><svg><use href="#i-turtle"/></svg><span>Alternative speed</span><i></i></button>
+        <dl class="net">
+          <div><dt>Peers</dt><dd id="g-peers">0</dd></div>
+          <div><dt>DHT nodes</dt><dd id="g-dht">0</dd></div>
+          <div><dt>Port</dt><dd id="g-port">–</dd></div>
+        </dl>
+        <div id="g-security" class="security-pill"><svg><use href="#i-shield"/></svg><span>Encrypted</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="toolbar">
+        <label class="search">
+          <svg><use href="#i-search"/></svg>
+          <input id="search" type="search" placeholder="Search torrents…  ( / )" autocomplete="off" spellcheck="false">
+        </label>
+        <div class="bulk" id="bulk" hidden>
+          <span id="bulk-count"></span>
+          <button class="btn ghost" data-bulk="resume" title="Resume"><svg><use href="#i-play"/></svg></button>
+          <button class="btn ghost" data-bulk="pause" title="Pause"><svg><use href="#i-pause"/></svg></button>
+          <button class="btn ghost" data-bulk="recheck" title="Verify data"><svg><use href="#i-refresh"/></svg></button>
+          <button class="btn ghost danger" data-bulk="remove" title="Remove"><svg><use href="#i-trash"/></svg></button>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn icon" id="btn-theme" title="Toggle theme"><svg><use href="#i-moon"/></svg></button>
+        <button class="btn icon" id="btn-settings" title="Settings"><svg><use href="#i-gear"/></svg></button>
+        <button class="btn primary" id="btn-add"><svg><use href="#i-plus"/></svg><span>Add torrent</span></button>
+      </header>
+
+      <section class="list-wrap">
+        <div class="list-head">
+          <label class="check"><input type="checkbox" id="select-all" aria-label="Select all"><span></span></label>
+          <button class="col name" data-sort="name">Name</button>
+          <button class="col size" data-sort="size">Size</button>
+          <button class="col prog" data-sort="progress">Progress</button>
+          <button class="col rate" data-sort="downRate">Down</button>
+          <button class="col rate" data-sort="upRate">Up</button>
+          <button class="col eta" data-sort="eta">ETA</button>
+          <button class="col peers" data-sort="peers">Peers</button>
+          <button class="col ratio" data-sort="ratio">Ratio</button>
+          <span class="col actions"></span>
+        </div>
+        <div id="list" class="list" role="list"></div>
+        <div id="empty" class="empty" hidden>
+          <img class="empty-logo" src="/logo.svg" alt="">
+          <h2>No torrents yet</h2>
+          <p>Paste a magnet link anywhere, drop a <code>.torrent</code> file on this window, or click <b>Add torrent</b>.</p>
+          <button class="btn primary" id="btn-add-empty"><svg><use href="#i-plus"/></svg><span>Add torrent</span></button>
+        </div>
+      </section>
+    </main>
+
+    <aside id="detail" class="detail" hidden aria-label="Torrent details">
+      <header class="detail-head">
+        <div class="detail-title">
+          <h2 id="d-name"></h2>
+          <div id="d-sub" class="muted"></div>
+        </div>
+        <button class="btn icon" id="d-close" title="Close"><svg><use href="#i-x"/></svg></button>
+      </header>
+      <div id="d-pieces" class="pieces" aria-label="Piece map"></div>
+      <div class="detail-actions" id="d-actions"></div>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="overview" class="active">Overview</button>
+        <button role="tab" data-tab="files">Files</button>
+        <button role="tab" data-tab="peers">Peers</button>
+        <button role="tab" data-tab="trackers">Trackers</button>
+      </nav>
+      <div id="d-body" class="detail-body"></div>
+    </aside>
+  </div>
+
+  <!-- Login -->
+  <div id="login" class="login" hidden>
+    <form id="login-form" class="login-card">
+      <img class="login-logo" src="/logo.svg" alt="">
+      <h1>Magnetar</h1>
+      <p id="login-msg" class="muted">Enter your password to continue.</p>
+      <input id="login-pw" type="password" placeholder="Password" autocomplete="current-password">
+      <button class="btn primary wide" type="submit">Sign in</button>
+      <p id="login-err" class="error" hidden></p>
+    </form>
+  </div>
+
+  <!-- Add dialog -->
+  <dialog id="dlg-add" class="dialog">
+    <form method="dialog" id="add-form">
+      <header><h2>Add torrents</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <label class="field">
+        <span>Magnet links or info hashes <em>(one per line)</em></span>
+        <textarea id="add-magnets" rows="4" placeholder="magnet:?xt=urn:btih:…" spellcheck="false"></textarea>
+      </label>
+      <div id="dropzone" class="dropzone" tabindex="0">
+        <svg><use href="#i-file"/></svg>
+        <div><b>Drop .torrent files</b> or <u>browse</u></div>
+        <input id="add-files" type="file" accept=".torrent,application/x-bittorrent" multiple hidden>
+        <ul id="add-file-list"></ul>
+      </div>
+      <div class="field">
+        <span>Save to</span>
+        <div class="path-row">
+          <input id="add-path" type="text" spellcheck="false" list="recent-paths" aria-label="Save to">
+          <button type="button" class="btn ghost" data-browse="#add-path"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
+        </div>
+        <datalist id="recent-paths"></datalist>
+      </div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="add-paused"><span></span>Start paused</label>
+        <label class="switch"><input type="checkbox" id="add-seq"><span></span>Sequential (stream-friendly)</label>
+      </div>
+      <footer>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" id="add-submit" value="default">Add</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Remove dialog -->
+  <dialog id="dlg-remove" class="dialog small">
+    <form method="dialog">
+      <header><h2 id="rm-title">Remove torrent?</h2></header>
+      <p id="rm-text" class="muted"></p>
+      <label class="switch"><input type="checkbox" id="rm-data"><span></span>Also delete downloaded files</label>
+      <footer>
+        <button class="btn ghost" value="cancel">Cancel</button>
+        <button class="btn danger-solid" value="ok">Remove</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Settings dialog -->
+  <dialog id="dlg-settings" class="dialog wide">
+    <form id="settings-form" method="dialog">
+      <header><h2>Settings</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div class="settings">
+        <nav class="settings-nav">
+          <button type="button" data-sec="downloads" class="active">Downloads</button>
+          <button type="button" data-sec="speed">Speed</button>
+          <button type="button" data-sec="connection">Connection</button>
+          <button type="button" data-sec="privacy">Privacy &amp; security</button>
+          <button type="button" data-sec="desktop">Desktop</button>
+          <button type="button" data-sec="webui">Web interface</button>
+          <button type="button" data-sec="about">About</button>
+        </nav>
+        <div class="settings-body">
+          <section data-sec="downloads" class="active">
+            <div class="field"><span>Default download folder</span>
+              <div class="path-row">
+                <input name="downloadDir" id="set-dl" type="text" spellcheck="false" aria-label="Default download folder">
+                <button type="button" class="btn ghost" data-browse="#set-dl"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
+              </div>
+            </div>
+            <label class="switch"><input type="checkbox" name="showAddDialog"><span></span>Ask where to save when opening magnet links</label>
+            <label class="switch"><input type="checkbox" name="seedAfterComplete"><span></span>Keep seeding after download completes</label>
+            <label class="field"><span>Stop seeding at ratio <em>(0 = never)</em></span><input name="seedRatioLimit" type="number" min="0" step="0.1"></label>
+          </section>
+          <section data-sec="speed">
+            <h4 class="sub">Global limits</h4>
+            <div class="two">
+              <label class="field"><span>Download, KiB/s <em>(0 = ∞)</em></span><input name="downloadLimitKBps" type="number" min="0"></label>
+              <label class="field"><span>Upload, KiB/s <em>(0 = ∞)</em></span><input name="uploadLimitKBps" type="number" min="0"></label>
+            </div>
+            <h4 class="sub">Alternative limits <em>(turtle mode)</em></h4>
+            <div class="two">
+              <label class="field"><span>Download, KiB/s <em>(0 = ∞)</em></span><input name="altDownloadLimitKBps" type="number" min="0"></label>
+              <label class="field"><span>Upload, KiB/s <em>(0 = ∞)</em></span><input name="altUploadLimitKBps" type="number" min="0"></label>
+            </div>
+            <label class="switch"><input type="checkbox" name="altSpeedEnabled"><span></span>Use alternative limits now</label>
+            <h4 class="sub">Connections</h4>
+            <label class="field"><span>Max connections per torrent</span><input name="maxConnsPerTorrent" type="number" min="1" max="2000"></label>
+            <label class="field"><span>Max simultaneous connection attempts</span><input name="maxHalfOpenConns" type="number" min="1" max="5000"></label>
+            <label class="field"><span>Hashing threads per torrent</span><input name="pieceHashers" type="number" min="1" max="64"></label>
+          </section>
+          <section data-sec="connection">
+            <label class="field"><span>Listening port <em>(0 = random)</em></span><input name="listenPort" type="number" min="0" max="65535"></label>
+            <label class="switch"><input type="checkbox" name="enableUPnP"><span></span>Forward port with UPnP / NAT-PMP</label>
+            <label class="switch"><input type="checkbox" name="enableUTP"><span></span>Enable µTP (uTorrent transport)</label>
+            <label class="switch"><input type="checkbox" name="enableDHT"><span></span>DHT (find peers without trackers)</label>
+            <label class="switch"><input type="checkbox" name="enablePEX"><span></span>Peer exchange (PEX)</label>
+            <label class="switch"><input type="checkbox" name="enableLSD"><span></span>Local peer discovery</label>
+            <label class="switch"><input type="checkbox" name="disableIPv6"><span></span>Disable IPv6</label>
+          </section>
+          <section data-sec="privacy">
+            <label class="field"><span>Protocol encryption</span>
+              <select name="encryption">
+                <option value="prefer">Prefer encrypted connections (recommended)</option>
+                <option value="require">Require encryption — reject plaintext peers</option>
+                <option value="allow">Allow encryption — prefer plaintext</option>
+              </select>
+            </label>
+            <label class="field"><span>Bind traffic to IP address <em>(e.g. your VPN interface — traffic stops if it goes down)</em></span><input name="bindAddress" type="text" placeholder="All interfaces" spellcheck="false"></label>
+            <label class="switch"><input type="checkbox" name="anonymousMode"><span></span>Anonymous mode — hide client name and version</label>
+            <label class="field"><span>IP blocklist file <em>(P2P/eMule format, .gz supported)</em></span><input name="blocklistPath" type="text" placeholder="/path/to/blocklist.p2p" spellcheck="false"></label>
+          </section>
+          <section data-sec="desktop">
+            <label class="switch"><input type="checkbox" name="appWindow"><span></span>Open Magnetar in its own window (instead of a browser tab)</label>
+            <label class="switch"><input type="checkbox" name="trayIcon"><span></span>Show tray icon <em class="muted">(applies after restart)</em></label>
+            <label class="switch"><input type="checkbox" name="openBrowser"><span></span>Open the window when Magnetar starts</label>
+            <label class="switch"><input type="checkbox" name="autoStart"><span></span>Start Magnetar when I sign in (in the background)</label>
+            <div class="card">
+              <h3>Magnet links &amp; .torrent files</h3>
+              <p class="muted">Make Magnetar open magnet links clicked in any browser, and .torrent files.</p>
+              <div class="row">
+                <button type="button" class="btn primary" id="btn-register">Make Magnetar the default</button>
+                <button type="button" class="btn ghost" id="btn-handler">Only this browser</button>
+              </div>
+            </div>
+          </section>
+          <section data-sec="webui">
+            <label class="field"><span>Listen address <em>(127.0.0.1 = this computer only)</em></span><input name="webHost" type="text" spellcheck="false"></label>
+            <label class="field"><span>Port</span><input name="webPort" type="number" min="1" max="65535"></label>
+            <div class="card">
+              <h3>Password</h3>
+              <p class="muted" id="pw-state"></p>
+              <input id="pw-current" type="password" placeholder="Current password" autocomplete="current-password">
+              <input id="pw-new" type="password" placeholder="New password (min 8 characters)" autocomplete="new-password">
+              <div class="row">
+                <button type="button" class="btn ghost" id="pw-save">Save password</button>
+                <button type="button" class="btn ghost danger" id="pw-remove">Remove password</button>
+              </div>
+            </div>
+          </section>
+          <section data-sec="about">
+            <div class="about">
+              <img class="about-logo" src="/logo.svg" alt="">
+              <h3>Magnetar <span id="about-ver"></span></h3>
+              <p class="muted">Fast, secure, open-source BitTorrent client written in Go.</p>
+              <p><a href="https://github.com/nikolap994/magnetar" target="_blank" rel="noopener noreferrer">github.com/nikolap994/magnetar</a></p>
+              <button type="button" class="btn ghost danger" id="btn-quit"><svg><use href="#i-power"/></svg><span>Quit Magnetar</span></button>
+            </div>
+          </section>
+        </div>
+      </div>
+      <footer>
+        <span id="settings-err" class="error"></span>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" id="settings-save" value="default">Save</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Folder picker -->
+  <dialog id="dlg-folder" class="dialog">
+    <form method="dialog" id="folder-form">
+      <header><h2>Choose folder</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div class="path-row">
+        <input id="folder-path" type="text" spellcheck="false" aria-label="Folder path">
+        <button type="button" class="btn ghost" id="folder-go">Go</button>
+      </div>
+      <div class="folder-roots" id="folder-roots"></div>
+      <div class="folder-list" id="folder-list"></div>
+      <footer>
+        <span id="folder-err" class="error"></span>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" value="ok">Use this folder</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Speed limits -->
+  <dialog id="dlg-speed" class="dialog small">
+    <form method="dialog" id="speed-form">
+      <header><h2>Speed limits</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div class="seg" id="speed-mode">
+        <button type="button" data-mode="normal"><svg><use href="#i-gauge"/></svg>Normal</button>
+        <button type="button" data-mode="alt"><svg><use href="#i-turtle"/></svg>Alternative</button>
+      </div>
+      <div class="two">
+        <label class="field"><span>Download, KiB/s <em>(0 = ∞)</em></span><input id="sp-down" type="number" min="0"></label>
+        <label class="field"><span>Upload, KiB/s <em>(0 = ∞)</em></span><input id="sp-up" type="number" min="0"></label>
+      </div>
+      <div class="presets" id="sp-presets"></div>
+      <footer>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" value="ok">Apply</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div id="drop-overlay" class="drop-overlay" hidden><div><svg><use href="#i-file"/></svg><p>Drop to add torrents</p></div></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <div id="ctx" class="ctx-menu" hidden></div>
+</body>
+</html>
