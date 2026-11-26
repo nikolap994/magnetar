@@ -17,8 +17,17 @@ All notable changes to this project are documented here. The format follows
 - Statistics: all-time and session totals and a 24-hour bandwidth chart with a table view.
 - Alternative limits can be edited right under the turtle switch; speed-limit fields pick KiB/s, MiB/s or GiB/s.
 
+### Changed
+- Magnet links open a qBittorrent-style preview in the main window (name, size and files; the raw link is one
+  click away), and Magnetar stays open after adding.
+- Only one window: tray Open and magnet links bring the existing window to the front instead of opening another.
+
 ### Fixed
 - Quitting from the tray now also closes the app window.
+
+### Distribution
+- Releases include a source archive with vendored Go modules for offline builds (Flathub).
+- winget manifests and an optional automatic winget submission; a Flathub manifest; a project website.
 
 ## [0.2.0] - 2026-11-26
 
