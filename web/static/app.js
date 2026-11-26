@@ -946,7 +946,7 @@ function handleIncomingLinks() {
 }
 
 /* ---------- settings ---------- */
-const NUMERIC = new Set(["listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit"]);
+const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit"]);
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
   const form = $("#settings-form");
@@ -961,6 +961,7 @@ async function openSettings() {
   $("#settings-err").textContent = "";
   refreshRates($("#settings-form"));
   renderCatEditor(state.settings.categories || []);
+  renderDays();
   $("#dlg-settings").showModal();
 }
 $("#btn-settings").addEventListener("click", openSettings);
@@ -1120,6 +1121,18 @@ $("#dlg-folder").addEventListener("close", () => {
   if (folderCallback) { const cb = folderCallback; folderCallback = null; cb(picked); return; }
   if (folderTarget) { folderTarget.value = picked; folderTarget.dispatchEvent(new Event("input")); }
 });
+
+/* ---------- speed schedule days ---------- */
+const dayButtons = () => document.querySelectorAll("#sched-days button");
+function renderDays() {
+  const mask = Number(document.getElementById("sched-days-value").value || 0);
+  dayButtons().forEach((b) => b.classList.toggle("on", (mask & (1 << Number(b.dataset.day))) !== 0));
+}
+dayButtons().forEach((b) => b.addEventListener("click", () => {
+  const v = document.getElementById("sched-days-value");
+  v.value = String(Number(v.value || 0) ^ (1 << Number(b.dataset.day)));
+  renderDays();
+}));
 
 /* ---------- connection health ---------- */
 const CONN = {

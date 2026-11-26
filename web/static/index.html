@@ -258,7 +258,10 @@
               <div id="cat-editor" class="cat-editor"></div>
               <div class="row"><button type="button" class="btn ghost" id="cat-add"><svg><use href="#i-plus"/></svg><span>Add category</span></button></div>
             </div>
-            <label class="field"><span>Stop seeding at ratio <em>(0 = never)</em></span><input name="seedRatioLimit" type="number" min="0" step="0.1"></label>
+            <div class="two">
+              <label class="field"><span>Stop seeding at ratio <em>(0 = never)</em></span><input name="seedRatioLimit" type="number" min="0" step="0.1"></label>
+              <label class="field"><span>Stop seeding after, minutes <em>(0 = never)</em></span><input name="seedTimeLimitMin" type="number" min="0" step="1"></label>
+            </div>
           </section>
           <section data-sec="speed">
             <h4 class="sub">Global limits</h4>
@@ -272,6 +275,17 @@
               <label class="field"><span>Upload <em>(0 = unlimited)</em></span><input name="altUploadLimitKBps" class="rate" type="number" min="0"></label>
             </div>
             <label class="switch"><input type="checkbox" name="altSpeedEnabled"><span></span>Use alternative limits now</label>
+            <label class="switch"><input type="checkbox" name="altScheduleEnabled"><span></span>Use alternative limits on a schedule</label>
+            <div class="schedule">
+              <label class="field"><span>From</span><input name="altScheduleFrom" type="time"></label>
+              <label class="field"><span>To</span><input name="altScheduleTo" type="time"></label>
+              <div class="field"><span>Days</span>
+                <div class="days" id="sched-days">
+                  <button type="button" data-day="1">Mon</button><button type="button" data-day="2">Tue</button><button type="button" data-day="3">Wed</button><button type="button" data-day="4">Thu</button><button type="button" data-day="5">Fri</button><button type="button" data-day="6">Sat</button><button type="button" data-day="0">Sun</button>
+                </div>
+                <input type="hidden" name="altScheduleDays" id="sched-days-value">
+              </div>
+            </div>
             <h4 class="sub">Connections</h4>
             <label class="field"><span>Max connections per torrent</span><input name="maxConnsPerTorrent" type="number" min="1" max="2000"></label>
             <label class="field"><span>Max simultaneous connection attempts</span><input name="maxHalfOpenConns" type="number" min="1" max="5000"></label>
