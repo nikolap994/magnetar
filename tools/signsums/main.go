@@ -60,11 +60,10 @@ func keygen(args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := f.WriteString(base64.StdEncoding.EncodeToString(priv.Seed())); err != nil {
-		f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
+	_, werr := f.WriteString(base64.StdEncoding.EncodeToString(priv.Seed()))
+	cerr := f.Close()
+	if err := errors.Join(werr, cerr); err != nil {
+		os.Remove(*out)
 		return err
 	}
 	fmt.Println(base64.StdEncoding.EncodeToString(pub))
