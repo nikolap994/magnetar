@@ -13,8 +13,7 @@ import (
 
 // Window sizes for the main UI and the "add torrent" popup used for magnet links.
 const (
-	MainSize  = "1320,840"
-	PopupSize = "720,700"
+	MainSize = "1320,840"
 )
 
 // OpenWindow shows url in a standalone app window (Edge/Chromium "app" mode,
@@ -107,6 +106,19 @@ func track(cmd *exec.Cmd) {
 		delete(windows, cmd)
 		windowsMu.Unlock()
 	}()
+}
+
+// windowPIDs returns the process IDs of running app-window browsers.
+func windowPIDs() map[uint32]bool {
+	windowsMu.Lock()
+	defer windowsMu.Unlock()
+	out := map[uint32]bool{}
+	for cmd := range windows {
+		if cmd.Process != nil {
+			out[uint32(cmd.Process.Pid)] = true
+		}
+	}
+	return out
 }
 
 // CloseWindows ends the app-window browser processes Magnetar started. They
