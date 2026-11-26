@@ -79,13 +79,34 @@ func (a *app) openMain() error {
 	return desktop.OpenWindow(a.launchURL(""), a.profile, desktop.MainSize, a.settings.AppWindow)
 }
 
-// openAddDialog shows the "add torrent" window for a magnet link, so the user
-// can pick the download folder and files like in qBittorrent.
+// openAddDialog opens the main window with the "add torrent" dialog for a
+// magnet link, so the user can pick files and a folder like in qBittorrent.
 func (a *app) openAddDialog(magnet string) error {
 	if a.noUI {
 		return errors.New("no UI")
 	}
-	return desktop.OpenWindow(a.launchURL(magnet), a.profile, desktop.PopupSize, a.settings.AppWindow)
+	return desktop.OpenWindow(a.launchURL(magnet), a.profile, desktop.MainSize, a.settings.AppWindow)
+}
+
+// showUI keeps exactly one window: if one is open it is brought to the front
+// (with the add dialog for a magnet link); otherwise a window is opened.
+func (a *app) showUI(srv *server.Server, eng *engine.Engine, magnet string) {
+	if a.noUI {
+		return
+	}
+	if srv.WindowConnected() {
+		if magnet != "" {
+			eng.Broadcast(engine.Event{Type: "ui-add", Message: magnet})
+		}
+		eng.Broadcast(engine.Event{Type: "ui-focus"})
+		desktop.FocusWindow()
+		return
+	}
+	if magnet != "" {
+		a.openAddDialog(magnet)
+		return
+	}
+	a.openMain()
 }
 
 func run() error {
@@ -182,12 +203,14 @@ func run() error {
 	updater := update.New(engine.Version, logger, func() bool { return store.Get().AutoUpdateCheck }, stop)
 	go updater.Run(ctx)
 
-	srv := server.New(eng, store, keys, web.FS(), logger, server.Options{
+	var srv *server.Server
+	srv = server.New(eng, store, keys, web.FS(), logger, server.Options{
 		Port:      settings.WebPort,
 		Shutdown:  stop,
 		Register:  register,
 		AutoStart: desktop.SetAutostart,
 		Updater:   updater,
+		ShowUI:    func(magnet string) { a.showUI(srv, eng, magnet) },
 	})
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ctx, ln) }()
@@ -198,7 +221,7 @@ func run() error {
 
 	prompted := false
 	for _, arg := range flag.Args() {
-		if isMagnet(arg) && settings.ShowAddDialog && !*headless {
+		if isMagnet(arg) && settings.ShowAddDialog && !*headless && !prompted {
 			if err := a.openAddDialog(arg); err == nil {
 				prompted = true
 				continue
@@ -230,7 +253,7 @@ func run() error {
 			desktop.StopTray()
 		}()
 		desktop.RunTray(desktop.TrayActions{
-			Open:     func() { a.openMain() },
+			Open:     func() { a.showUI(srv, eng, "") },
 			IsAlt:    func() bool { return store.Get().AltSpeedEnabled },
 			AltSpeed: func(on bool) error { return setAltSpeed(eng, store, on) },
 			PauseAll: func() { eng.PauseAll() },
@@ -378,10 +401,31 @@ func handoff(a *app, args []string, showUI bool) error {
 	}
 	resp.Body.Close()
 
+	// The running instance owns the single window: ask it to show the add
+	// dialog (or itself) instead of opening another window from here.
+	desktop.AllowFocus()
+	showOnly := func(magnet string) error {
+		b, _ := json.Marshal(map[string]string{"magnet": magnet})
+		req, _ := http.NewRequest(http.MethodPost, a.base+"/api/ui/open", bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Magnetar-Request", "1")
+		req.Header.Set("Authorization", "Launch "+a.keys.NewLaunchToken())
+		resp, err := client.Do(req)
+		if err != nil {
+			return err
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("running instance: %s", resp.Status)
+		}
+		return nil
+	}
+
 	prompted := false
 	for _, arg := range args {
 		if isMagnet(arg) && a.settings.ShowAddDialog {
-			if err := a.openAddDialog(arg); err == nil {
+			if err := showOnly(arg); err == nil {
 				prompted = true
 				continue
 			}
@@ -417,7 +461,7 @@ func handoff(a *app, args []string, showUI bool) error {
 		}
 	}
 	if showUI && !prompted {
-		return a.openMain()
+		return showOnly("")
 	}
 	return nil
 }

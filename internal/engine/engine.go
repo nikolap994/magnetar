@@ -1271,6 +1271,9 @@ func (e *Engine) publish(ev Event) {
 	}
 }
 
+// Broadcast sends an event to all connected windows (e.g. UI commands).
+func (e *Engine) Broadcast(ev Event) { e.publish(ev) }
+
 // AnnounceShutdown tells connected windows that Magnetar is quitting so they
 // can close themselves.
 func (e *Engine) AnnounceShutdown() {

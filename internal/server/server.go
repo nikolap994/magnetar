@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/nikolap994/magnetar/internal/auth"
@@ -41,6 +42,8 @@ type Server struct {
 	register  func() error
 	autoStart func(bool) error
 	updater   Updater
+	showUI    func(magnet string)
+	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
 
@@ -55,6 +58,9 @@ type Options struct {
 	AutoStart func(bool) error
 	// Updater checks for and installs new versions (optional).
 	Updater Updater
+	// ShowUI brings the app window to the front (opening one if needed),
+	// optionally with the add dialog for a magnet link.
+	ShowUI func(magnet string)
 }
 
 // Updater is the subset of the update package used by the API.
@@ -67,7 +73,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI}
 	s.routes()
 	return s
 }
@@ -101,6 +107,7 @@ func (s *Server) routes() {
 	m.Handle("GET /api/preview/{hash}", s.authed(s.handlePreviewStatus))
 	m.Handle("DELETE /api/preview/{hash}", s.authed(s.handlePreviewCancel))
 	m.Handle("POST /api/system/register", s.authed(s.handleRegister))
+	m.Handle("POST /api/ui/open", s.authedOrLaunch(s.handleUIOpen))
 	m.Handle("GET /api/update", s.authed(s.handleUpdateStatus))
 	m.Handle("POST /api/update/check", s.authed(s.handleUpdateCheck))
 	m.Handle("POST /api/update/install", s.authed(s.handleUpdateInstall))
@@ -610,6 +617,8 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	events, cancel := s.eng.Subscribe()
 	defer cancel()
+	s.windows.Add(1)
+	defer s.windows.Add(-1)
 
 	send := func(event string, v any) error {
 		b, err := json.Marshal(v)
@@ -655,6 +664,32 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+}
+
+// WindowConnected reports whether an app window is open and listening.
+func (s *Server) WindowConnected() bool { return s.windows.Load() > 0 }
+
+// handleUIOpen shows the app (one window only), optionally with the add
+// dialog for a magnet link. Used by the tray and by a second Magnetar
+// process started for a magnet link.
+func (s *Server) handleUIOpen(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Magnet string `json:"magnet"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if req.Magnet != "" && !strings.HasPrefix(strings.ToLower(req.Magnet), "magnet:?") {
+		writeErr(w, http.StatusBadRequest, errors.New("not a magnet link"))
+		return
+	}
+	if s.showUI == nil {
+		writeErr(w, http.StatusNotImplemented, errors.New("no desktop window in this mode"))
+		return
+	}
+	s.showUI(req.Magnet)
+	writeJSON(w, map[string]bool{"ok": true})
 }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
