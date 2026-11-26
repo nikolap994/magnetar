@@ -115,6 +115,9 @@ h4.sub em { text-transform: none; letter-spacing: 0; font-style: normal; }
 .seg button { all: unset; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 13px; }
 .seg button.active { background: var(--panel); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
 .seg button[data-mode=alt].active svg { color: var(--amber); }
+.rate-input { display: flex; gap: 6px; }
+.rate-input input { flex: 1; min-width: 0; }
+.rate-input select { width: auto; flex: none; }
 .presets { display: flex; flex-wrap: wrap; gap: 6px; }
 .presets button { all: unset; cursor: pointer; font-size: 12px; padding: 4px 10px; border-radius: 20px; border: 1px solid var(--line); color: var(--muted); }
 .presets button:hover { border-color: var(--accent); color: var(--text); }

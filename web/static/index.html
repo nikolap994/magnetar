@@ -210,13 +210,13 @@
           <section data-sec="speed">
             <h4 class="sub">Global limits</h4>
             <div class="two">
-              <label class="field"><span>Download, KiB/s <em>(0 = ∞)</em></span><input name="downloadLimitKBps" type="number" min="0"></label>
-              <label class="field"><span>Upload, KiB/s <em>(0 = ∞)</em></span><input name="uploadLimitKBps" type="number" min="0"></label>
+              <label class="field"><span>Download <em>(0 = unlimited)</em></span><input name="downloadLimitKBps" class="rate" type="number" min="0"></label>
+              <label class="field"><span>Upload <em>(0 = unlimited)</em></span><input name="uploadLimitKBps" class="rate" type="number" min="0"></label>
             </div>
             <h4 class="sub">Alternative limits <em>(turtle mode)</em></h4>
             <div class="two">
-              <label class="field"><span>Download, KiB/s <em>(0 = ∞)</em></span><input name="altDownloadLimitKBps" type="number" min="0"></label>
-              <label class="field"><span>Upload, KiB/s <em>(0 = ∞)</em></span><input name="altUploadLimitKBps" type="number" min="0"></label>
+              <label class="field"><span>Download <em>(0 = unlimited)</em></span><input name="altDownloadLimitKBps" class="rate" type="number" min="0"></label>
+              <label class="field"><span>Upload <em>(0 = unlimited)</em></span><input name="altUploadLimitKBps" class="rate" type="number" min="0"></label>
             </div>
             <label class="switch"><input type="checkbox" name="altSpeedEnabled"><span></span>Use alternative limits now</label>
             <h4 class="sub">Connections</h4>
@@ -319,8 +319,8 @@
         <button type="button" data-mode="alt"><svg><use href="#i-turtle"/></svg>Alternative</button>
       </div>
       <div class="two">
-        <label class="field"><span>Download, KiB/s <em>(0 = ∞)</em></span><input id="sp-down" type="number" min="0"></label>
-        <label class="field"><span>Upload, KiB/s <em>(0 = ∞)</em></span><input id="sp-up" type="number" min="0"></label>
+        <label class="field"><span>Download <em>(0 = unlimited)</em></span><input id="sp-down" class="rate" type="number" min="0"></label>
+        <label class="field"><span>Upload <em>(0 = unlimited)</em></span><input id="sp-up" class="rate" type="number" min="0"></label>
       </div>
       <div class="presets" id="sp-presets"></div>
       <footer>

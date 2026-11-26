@@ -43,6 +43,37 @@ function eta(s) {
 const pct = (p) => (p >= 1 ? "100%" : (Math.floor(p * 1000) / 10).toFixed(1) + "%");
 const fmtDate = (d) => (d ? new Date(d).toLocaleString() : "–");
 
+/* ---------- speed-limit inputs with automatic units ---------- */
+// Limits are stored in KiB/s. Each <input class="rate"> becomes a hidden field
+// holding KiB/s plus a visible number + unit picker (KiB/s, MiB/s, GiB/s).
+const RATE_UNITS = [["KiB/s", 1], ["MiB/s", 1024], ["GiB/s", 1024 * 1024]];
+function bestRateUnit(kib) {
+  if (kib >= 1024 * 1024) return 2;
+  if (kib >= 1024) return 1;
+  return 0;
+}
+const trimNum = (n) => String(Math.round(n * 100) / 100);
+function enhanceRateInput(hidden) {
+  hidden.type = "hidden";
+  const num = h("input", { type: "number", min: "0", step: "any", placeholder: "Unlimited", "aria-label": "Limit" });
+  const unit = h("select", { "aria-label": "Unit" }, RATE_UNITS.map(([label], i) => h("option", { value: String(i), text: label })));
+  const sync = () => {
+    const v = Math.max(0, Number(num.value || 0));
+    hidden.value = String(Math.round(v * RATE_UNITS[+unit.value][1]));
+  };
+  num.addEventListener("input", sync);
+  unit.addEventListener("change", sync);
+  hidden._show = () => {
+    const kib = Math.max(0, Number(hidden.value || 0));
+    const u = bestRateUnit(kib);
+    unit.value = String(u);
+    num.value = kib ? trimNum(kib / RATE_UNITS[u][1]) : "0";
+  };
+  hidden.after(h("div", { class: "rate-input" }, num, unit));
+}
+function setRate(input, kib) { input.value = String(kib); if (input._show) input._show(); }
+function refreshRates(root) { root.querySelectorAll("input.rate").forEach((i) => i._show && i._show()); }
+
 /* ---------- API ---------- */
 class ApiError extends Error { constructor(msg, status) { super(msg); this.status = status; } }
 async function api(path, { method = "GET", body, form } = {}) {
@@ -756,6 +787,7 @@ async function openSettings() {
   $("#pw-current").hidden = !state.settings.passwordSet;
   $("#pw-remove").hidden = !state.settings.passwordSet;
   $("#settings-err").textContent = "";
+  refreshRates($("#settings-form"));
   $("#dlg-settings").showModal();
 }
 $("#btn-settings").addEventListener("click", openSettings);
@@ -851,13 +883,13 @@ function setSpeedMode(mode) {
   speedMode = mode;
   const s = state.settings;
   $$("#speed-mode button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
-  $("#sp-down").value = mode === "alt" ? s.altDownloadLimitKBps : s.downloadLimitKBps;
-  $("#sp-up").value = mode === "alt" ? s.altUploadLimitKBps : s.uploadLimitKBps;
+  setRate($("#sp-down"), mode === "alt" ? s.altDownloadLimitKBps : s.downloadLimitKBps);
+  setRate($("#sp-up"), mode === "alt" ? s.altUploadLimitKBps : s.uploadLimitKBps);
 }
 $$("#speed-mode button").forEach((b) => b.addEventListener("click", () => setSpeedMode(b.dataset.mode)));
 const PRESETS = [["Unlimited", 0, 0], ["10 MiB/s ↓", 10240, null], ["5 MiB/s ↓", 5120, null], ["1 MiB/s ↓", 1024, null], ["500 KiB/s ↑", null, 500], ["100 KiB/s ↑", null, 100]];
 $("#sp-presets").replaceChildren(...PRESETS.map(([label, d, u]) => h("button", {
-  type: "button", text: label, onclick: () => { if (d !== null) $("#sp-down").value = d; if (u !== null) $("#sp-up").value = u; },
+  type: "button", text: label, onclick: () => { if (d !== null) setRate($("#sp-down"), d); if (u !== null) setRate($("#sp-up"), u); },
 })));
 $("#speed-form").addEventListener("submit", async (ev) => {
   if (ev.submitter && ev.submitter.value === "cancel") return;
@@ -905,4 +937,5 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+document.querySelectorAll("input.rate").forEach(enhanceRateInput);
 boot();
