@@ -66,13 +66,21 @@ func hidden(name string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-// stopRunning closes a running Magnetar so its files can be replaced.
+// stopRunning waits for a running Magnetar to exit (the updater shuts it down
+// gracefully so the session is saved) and force-closes it after 15 seconds.
 func stopRunning() {
+	for range 30 {
+		out, err := hidden("tasklist", "/FI", "IMAGENAME eq magnetar.exe", "/NH").Output()
+		if err != nil || !strings.Contains(strings.ToLower(string(out)), "magnetar.exe") {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 	hidden("taskkill", "/IM", "magnetar.exe", "/F").Run()
 	time.Sleep(700 * time.Millisecond)
 }
 
-func install(silent bool) error {
+func install(silent, launch bool) error {
 	exe, err := readPayload()
 	if err != nil {
 		return err
@@ -120,7 +128,8 @@ func install(silent bool) error {
 	if err := shortcuts(target, true); err != nil && !silent {
 		message(appName, "Could not create shortcuts: "+err.Error(), mbIconInfo)
 	}
-	if associate {
+	// Updates (/launch) keep whatever default-app choice the user has made.
+	if associate && !launch {
 		hidden(target, "register").Run()
 	}
 	procNotify.Call(0x08000000, 0, 0, 0)
@@ -130,7 +139,7 @@ func install(silent bool) error {
 		done = appName + " is installed.\n\nThe first time you click a magnet link, Windows may ask which app to use — " +
 			"choose Magnetar and tick \"Always\".\n\nLaunch it now?"
 	}
-	if !silent && message(appName, done, mbYesNo|mbIconInfo) == idYes {
+	if launch || (!silent && message(appName, done, mbYesNo|mbIconInfo) == idYes) {
 		exec.Command(target).Start()
 	}
 	return nil

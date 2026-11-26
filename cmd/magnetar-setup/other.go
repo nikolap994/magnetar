@@ -11,7 +11,7 @@ const (
 	mbIconError = 0
 )
 
-func install(bool) error                 { return errWindowsOnly }
+func install(bool, bool) error           { return errWindowsOnly }
 func startUninstall(bool) error          { return errWindowsOnly }
 func runUninstall(string, bool) error    { return errWindowsOnly }
 func message(string, string, uint32) int { return 0 }

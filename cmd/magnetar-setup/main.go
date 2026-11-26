@@ -6,7 +6,8 @@
 //   - magnet: and .torrent associations (optional)
 //   - an entry in Settings → Apps with a working uninstaller
 //
-// Flags: /S silent install, /uninstall to remove (also /S for silent).
+// Flags: /S silent install, /launch start Magnetar afterwards (used by the
+// in-app updater), /uninstall to remove (also /S for silent).
 package main
 
 import (
@@ -22,12 +23,14 @@ var payload embed.FS
 var Version = "dev"
 
 func main() {
-	silent, uninstallMode, uninstallRun := false, false, ""
+	silent, launch, uninstallMode, uninstallRun := false, false, false, ""
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "/S", "/s", "--silent":
 			silent = true
+		case "/launch", "--launch":
+			launch = true
 		case "/uninstall", "--uninstall":
 			uninstallMode = true
 		case "/uninstall-run":
@@ -44,7 +47,7 @@ func main() {
 	case uninstallMode:
 		err = startUninstall(silent)
 	default:
-		err = install(silent)
+		err = install(silent, launch)
 	}
 	if err != nil {
 		if !silent {
