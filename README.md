@@ -213,5 +213,5 @@ content you have the right to share.
 
 ## License
 
-[MIT](LICENSE) © Nikola Pavlovic and contributors.
+[MIT](LICENSE) © Nikola Pavlović and contributors.
 Magnetar builds on [anacrolix/torrent](https://github.com/anacrolix/torrent) (MPL-2.0).

@@ -26,7 +26,7 @@ mkdir -p "$PKG/usr/share/doc/magnetar"
   echo "Source: https://github.com/nikolap994/magnetar"
   echo
   echo "Files: *"
-  echo "Copyright: 2026 Nikola Pavlovic and Magnetar contributors"
+  echo "Copyright: 2026 Nikola Pavlović and Magnetar contributors"
   echo "License: MIT"
   sed 's/^/ /; s/^ $/ ./' "$ROOT/LICENSE"
 } > "$PKG/usr/share/doc/magnetar/copyright"
@@ -37,7 +37,7 @@ cat > "$PKG/DEBIAN/control" <<CONTROL
 Package: magnetar
 Version: $DEBVER
 Architecture: $ARCH
-Maintainer: Nikola Pavlovic <noreply@github.com>
+Maintainer: Nikola Pavlović <noreply@github.com>
 Installed-Size: $SIZE
 Section: net
 Priority: optional
