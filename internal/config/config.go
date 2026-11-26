@@ -70,6 +70,9 @@ type Settings struct {
 	AppWindow     bool `json:"appWindow"`     // Open the UI in its own app window instead of a browser tab.
 	TrayIcon      bool `json:"trayIcon"`
 	AutoStart     bool `json:"autoStart"` // Start (minimised) when the user signs in.
+
+	// Updates
+	AutoUpdateCheck bool `json:"autoUpdateCheck"` // Check GitHub Releases for new versions once a day.
 }
 
 // Defaults returns sensible, secure defaults.
@@ -98,6 +101,7 @@ func Defaults() Settings {
 		ShowAddDialog:        true,
 		AppWindow:            true,
 		TrayIcon:             true,
+		AutoUpdateCheck:      true,
 	}
 }
 

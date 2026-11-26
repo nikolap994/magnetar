@@ -19,6 +19,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/auth"
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/engine"
+	"github.com/nikolap994/magnetar/internal/update"
 )
 
 const (
@@ -39,6 +40,7 @@ type Server struct {
 	shutdown  func()
 	register  func() error
 	autoStart func(bool) error
+	updater   Updater
 	mux       *http.ServeMux
 }
 
@@ -51,12 +53,21 @@ type Options struct {
 	Register func() error
 	// AutoStart enables or disables starting Magnetar at sign-in.
 	AutoStart func(bool) error
+	// Updater checks for and installs new versions (optional).
+	Updater Updater
+}
+
+// Updater is the subset of the update package used by the API.
+type Updater interface {
+	Status() update.Status
+	Check(ctx context.Context) (update.Status, error)
+	Install(ctx context.Context) error
 }
 
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater}
 	s.routes()
 	return s
 }
@@ -85,6 +96,9 @@ func (s *Server) routes() {
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))
 	m.Handle("POST /api/system/register", s.authed(s.handleRegister))
+	m.Handle("GET /api/update", s.authed(s.handleUpdateStatus))
+	m.Handle("POST /api/update/check", s.authed(s.handleUpdateCheck))
+	m.Handle("POST /api/update/install", s.authed(s.handleUpdateInstall))
 	m.Handle("GET /api/events", s.authed(s.handleEvents))
 	m.Handle("GET /api/debug", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -587,7 +601,11 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		return nil
 	}
 	snapshot := func() error {
-		return send("snapshot", map[string]any{"torrents": s.eng.List(), "stats": s.eng.Stats()})
+		snap := map[string]any{"torrents": s.eng.List(), "stats": s.eng.Stats()}
+		if s.updater != nil {
+			snap["update"] = s.updater.Status()
+		}
+		return send("snapshot", snap)
 	}
 	if err := snapshot(); err != nil {
 		return
@@ -625,6 +643,51 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
+func (s *Server) handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	if s.updater == nil {
+		writeErr(w, http.StatusNotImplemented, errors.New("updates are not available in this build"))
+		return
+	}
+	writeJSON(w, s.updater.Status())
+}
+
+func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
+	if s.updater == nil {
+		writeErr(w, http.StatusNotImplemented, errors.New("updates are not available in this build"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	st, err := s.updater.Check(ctx)
+	if err != nil {
+		writeErr(w, http.StatusBadGateway, fmt.Errorf("could not check for updates: %w", err))
+		return
+	}
+	writeJSON(w, st)
+}
+
+// handleUpdateInstall starts the download in the background; progress and
+// errors are reported through the status in live snapshots.
+func (s *Server) handleUpdateInstall(w http.ResponseWriter, r *http.Request) {
+	if s.updater == nil {
+		writeErr(w, http.StatusNotImplemented, errors.New("updates are not available in this build"))
+		return
+	}
+	st := s.updater.Status()
+	if !st.CanInstall {
+		writeErr(w, http.StatusConflict, errors.New("no installable update is available"))
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		if err := s.updater.Install(ctx); err != nil {
+			s.log.Warn("update failed", "err", err)
+		}
+	}()
 	writeJSON(w, map[string]bool{"ok": true})
 }
 

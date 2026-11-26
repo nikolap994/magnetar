@@ -30,6 +30,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/desktop"
 	"github.com/nikolap994/magnetar/internal/engine"
 	"github.com/nikolap994/magnetar/internal/server"
+	"github.com/nikolap994/magnetar/internal/update"
 	"github.com/nikolap994/magnetar/web"
 )
 
@@ -95,6 +96,7 @@ func run() error {
 		port      = flag.Int("port", 0, "override web UI port")
 		verbose   = flag.Bool("verbose", false, "enable debug logging")
 		version   = flag.Bool("version", false, "print version and exit")
+		afterUpd  = flag.Bool("after-update", false, "internal: started by the updater; wait for the old version to exit")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -141,7 +143,10 @@ func run() error {
 	}
 	webAddr := net.JoinHostPort(settings.WebHost, strconv.Itoa(settings.WebPort))
 
-	ln, err := net.Listen("tcp", webAddr)
+	if *afterUpd {
+		update.CleanupOld()
+	}
+	ln, err := listenWeb(webAddr, *afterUpd)
 	if err != nil {
 		if isAddrInUse(err) {
 			// Another instance is (probably) running: hand it our arguments and show it.
@@ -159,11 +164,21 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Restart with the same flags after an in-place update.
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name != "after-update" {
+			update.RestartArgs = append(update.RestartArgs, "-"+f.Name+"="+f.Value.String())
+		}
+	})
+	updater := update.New(engine.Version, logger, func() bool { return store.Get().AutoUpdateCheck }, stop)
+	go updater.Run(ctx)
+
 	srv := server.New(eng, store, keys, web.FS(), logger, server.Options{
 		Port:      settings.WebPort,
 		Shutdown:  stop,
 		Register:  register,
 		AutoStart: desktop.SetAutostart,
+		Updater:   updater,
 	})
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ctx, ln) }()
@@ -227,6 +242,19 @@ func run() error {
 		logger.Warn("close engine", "err", cerr)
 	}
 	return err
+}
+
+// listenWeb binds the web UI. Right after an update the previous version may
+// still be shutting down, so keep retrying for a while instead of handing off.
+func listenWeb(addr string, afterUpdate bool) (net.Listener, error) {
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		ln, err := net.Listen("tcp", addr)
+		if err == nil || !afterUpdate || !isAddrInUse(err) || time.Now().After(deadline) {
+			return ln, err
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 func setAltSpeed(eng *engine.Engine, store *config.Store, on bool) error {
