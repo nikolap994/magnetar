@@ -3,6 +3,17 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-11-27
+
+### Security
+- Stricter path validation: any ".." in a user-chosen folder or a torrent's file path is refused, checked before the
+  path is cleaned. This closes all remaining CodeQL path-injection findings.
+- Torrent names and error messages are stripped of control characters before they are written to the log.
+
+### Changed
+- Folder names that contain two consecutive dots (for example "Season 1..3") can no longer be used as download
+  folders.
+
 ## [0.3.0] - 2026-11-27
 
 ### Added

@@ -43,6 +43,9 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
+    <release version="0.3.1" date="2026-11-27">
+      <description><p>Stricter path validation and log hardening.</p></description>
+    </release>
     <release version="0.3.0" date="2026-11-27">
       <description><p>File selection before downloading, categories, moving files, connection status, notifications,
       speed schedule and statistics.</p></description>
