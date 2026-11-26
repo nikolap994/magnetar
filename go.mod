@@ -8,6 +8,7 @@ require (
 	github.com/anacrolix/dht/v2 v2.24.0
 	github.com/anacrolix/torrent v1.63.0
 	github.com/energye/systray v1.0.3
+	github.com/godbus/dbus/v5 v5.1.0
 	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.48.0
 	golang.org/x/sys v0.50.0
@@ -46,7 +47,6 @@ require (
 	github.com/go-llsqlite/crawshaw v0.5.6-0.20250312230104-194977a03421 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect

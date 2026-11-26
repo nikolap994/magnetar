@@ -297,6 +297,9 @@ func runUninstall(dir string, silent bool) error {
 	}
 	registry.DeleteKey(registry.CURRENT_USER, uninstKey)
 	registry.DeleteKey(registry.CURRENT_USER, `Software\Magnetar`)
+	// Notification app identity and icon registered by Magnetar.
+	registry.DeleteKey(registry.CURRENT_USER, `Software\Classes\AppUserModelId\Magnetar.BitTorrent`)
+	os.RemoveAll(filepath.Join(os.Getenv("LOCALAPPDATA"), "Magnetar"))
 
 	var lastErr error
 	for range 30 {

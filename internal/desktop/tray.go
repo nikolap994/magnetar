@@ -3,6 +3,7 @@ package desktop
 import (
 	_ "embed"
 	"runtime"
+	"sync/atomic"
 
 	"github.com/energye/systray"
 )
@@ -12,6 +13,18 @@ var iconICO []byte
 
 //go:embed icon.png
 var iconPNG []byte
+
+//go:embed icon-large.png
+var iconLargePNG []byte
+
+var trayReady atomic.Bool
+
+// SetTrayTooltip updates the tray icon's tooltip (e.g. live speeds).
+func SetTrayTooltip(s string) {
+	if trayReady.Load() {
+		systray.SetTooltip(s)
+	}
+}
 
 // TrayActions are the callbacks behind the tray menu.
 type TrayActions struct {
@@ -40,6 +53,7 @@ func onReady(a TrayActions) {
 	}
 	systray.SetTitle("Magnetar")
 	systray.SetTooltip("Magnetar")
+	trayReady.Store(true)
 	systray.SetOnClick(func(systray.IMenu) { a.Open() })
 	systray.SetOnDClick(func(systray.IMenu) { a.Open() })
 

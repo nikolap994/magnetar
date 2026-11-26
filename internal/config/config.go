@@ -75,7 +75,8 @@ type Settings struct {
 	ShowAddDialog bool `json:"showAddDialog"` // Ask where to save when a magnet link is opened.
 	AppWindow     bool `json:"appWindow"`     // Open the UI in its own app window instead of a browser tab.
 	TrayIcon      bool `json:"trayIcon"`
-	AutoStart     bool `json:"autoStart"` // Start (minimised) when the user signs in.
+	AutoStart     bool `json:"autoStart"`     // Start (minimised) when the user signs in.
+	Notifications bool `json:"notifications"` // Native notification when a download completes.
 
 	// Updates
 	AutoUpdateCheck bool `json:"autoUpdateCheck"` // Check GitHub Releases for new versions once a day.
@@ -134,6 +135,7 @@ func Defaults() Settings {
 		AppWindow:            true,
 		TrayIcon:             true,
 		AutoUpdateCheck:      true,
+		Notifications:        true,
 	}
 }
 

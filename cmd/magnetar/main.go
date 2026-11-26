@@ -183,6 +183,10 @@ func run() error {
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ctx, ln) }()
 
+	if !*headless {
+		go desktopFeedback(ctx, eng, store)
+	}
+
 	prompted := false
 	for _, arg := range flag.Args() {
 		if isMagnet(arg) && settings.ShowAddDialog && !*headless {
@@ -247,6 +251,48 @@ func run() error {
 		logger.Warn("close engine", "err", cerr)
 	}
 	return err
+}
+
+// desktopFeedback shows native notifications for finished downloads and keeps
+// the tray tooltip updated with live speeds.
+func desktopFeedback(ctx context.Context, eng *engine.Engine, store *config.Store) {
+	events, cancel := eng.Subscribe()
+	defer cancel()
+	tick := time.NewTicker(3 * time.Second)
+	defer tick.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case ev, ok := <-events:
+			if !ok {
+				return
+			}
+			if ev.Type == "completed" && store.Get().Notifications {
+				desktop.Notify("Download complete", ev.Name)
+			}
+		case <-tick.C:
+			st := eng.Stats()
+			tip := fmt.Sprintf("Magnetar\n↓ %s  ↑ %s", humanRate(st.DownRate), humanRate(st.UpRate))
+			if st.Active > 0 {
+				tip += fmt.Sprintf(" · %d active", st.Active)
+			}
+			desktop.SetTrayTooltip(tip)
+		}
+	}
+}
+
+func humanRate(b int64) string {
+	units := []string{"B/s", "KiB/s", "MiB/s", "GiB/s"}
+	v, i := float64(b), 0
+	for v >= 1024 && i < len(units)-1 {
+		v /= 1024
+		i++
+	}
+	if i == 0 {
+		return fmt.Sprintf("%d %s", b, units[0])
+	}
+	return fmt.Sprintf("%.1f %s", v, units[i])
 }
 
 // listenWeb binds the web UI. Right after an update the previous version may
