@@ -769,6 +769,7 @@ function handleIncomingLinks() {
     openDetail(h);
   }
   else if (hash === "#settings") openSettings();
+  else if (hash.startsWith("#settings:")) openSettings().then(() => $(`.settings-nav [data-sec="${hash.slice(10)}"]`)?.click());
   else if (hash === "#speed") openSpeed();
   else if (hash === "#add") openAdd();
 }
