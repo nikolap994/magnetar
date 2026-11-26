@@ -67,7 +67,7 @@ jobs:
           output-artifact-directory: dist/bin
 
       - name: Build packages and installers
-        run: make archives deb installer VERSION="$version"
+        run: make archives deb installer source-archive VERSION="$version"
 
       - name: Upload unsigned installers
         if: env.SIGNPATH_ENABLED == 'true'
@@ -144,3 +144,17 @@ jobs:
           prerelease=""
           case "$version" in *-*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" dist/* --title "Magnetar ${version}" --notes-file notes.md $prerelease
+
+  # Opens a pull request on microsoft/winget-pkgs for every new release.
+  # Enable after the first version has been accepted into winget (see docs/DISTRIBUTION.md):
+  # repository variable WINGET_ENABLED=true and secret WINGET_TOKEN (classic PAT, public_repo).
+  winget:
+    needs: release
+    if: ${{ vars.WINGET_ENABLED == 'true' && !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: NikolaPavlovic.Magnetar
+          installers-regex: '_setup\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
