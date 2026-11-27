@@ -3,6 +3,7 @@ package backup
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,8 @@ import (
 
 func TestExportStageApply(t *testing.T) {
 	cfg, data := t.TempDir(), t.TempDir()
-	os.WriteFile(filepath.Join(cfg, "settings.json"), []byte(`{"downloadDir":"/tmp/dl","listenPort":6881,"webPort":8899}`), 0o600)
+	dl, _ := json.Marshal(t.TempDir()) // absolute on every platform
+	os.WriteFile(filepath.Join(cfg, "settings.json"), []byte(`{"downloadDir":`+string(dl)+`,"listenPort":6881,"webPort":8899}`), 0o600)
 	os.WriteFile(filepath.Join(cfg, "secret.key"), []byte("never exported"), 0o600)
 	os.WriteFile(filepath.Join(data, "session.json"), []byte(`{"version":1,"torrents":[]}`), 0o600)
 	os.MkdirAll(filepath.Join(data, "torrents"), 0o700)
