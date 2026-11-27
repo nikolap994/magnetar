@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -78,7 +79,7 @@ type Engine struct {
 
 	// Connection health: incoming peer connections prove the port is reachable.
 	started      time.Time
-	incomingSeen int       // incoming connections observed this session
+	incoming     atomic.Int64 // incoming peer connections since the client started
 	activeSince  time.Time // when we first had a running torrent with peers
 
 	subsMu sync.Mutex
@@ -301,6 +302,16 @@ func (e *Engine) newClient(s config.Settings) (*torrent.Client, error) {
 		e.blocklistSize = n
 	}
 
+	// Every incoming connection proves the port is reachable. Counted as it
+	// happens (short connections are easy to miss when sampling), without
+	// taking the engine lock from inside the client.
+	e.incoming.Store(0)
+	e.activeSince = time.Time{}
+	cfg.Callbacks.PeerConnAdded = append(cfg.Callbacks.PeerConnAdded, func(pc *torrent.PeerConn) {
+		if pc.Discovery == torrent.PeerSourceIncoming {
+			e.incoming.Add(1)
+		}
+	})
 	cl, err := torrent.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("start BitTorrent client: %w", err)
@@ -1131,12 +1142,6 @@ func (e *Engine) tickLocked() {
 		tickUp += u - m.lastUp
 		m.lastDown, m.lastUp = d, u
 		gDown += m.downRate
-		for _, pc := range m.t.PeerConns() {
-			if pc.Discovery == torrent.PeerSourceIncoming {
-				e.incomingSeen++
-				break
-			}
-		}
 		if e.activeSince.IsZero() && m.t.Stats().ActivePeers > 0 {
 			e.activeSince = time.Now()
 		}

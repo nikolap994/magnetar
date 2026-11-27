@@ -125,14 +125,18 @@ func TestConnectionHealth(t *testing.T) {
 	e := &Engine{started: time.Now().Add(-time.Hour)}
 	e.settings.EnableDHT = true
 	online := GlobalStats{Online: true, DHTNodes: 50, Peers: 3}
+	if got := e.connectionLocked(online); got != "idle" {
+		t.Fatalf("nothing active = %q, want idle", got)
+	}
+	e.activeSince = time.Now()
 	if got := e.connectionLocked(online); got != "checking" {
-		t.Fatalf("fresh session = %q, want checking", got)
+		t.Fatalf("just became active = %q, want checking", got)
 	}
 	e.activeSince = time.Now().Add(-10 * time.Minute)
 	if got := e.connectionLocked(online); got != "firewalled" {
 		t.Fatalf("no incoming after 10 min = %q, want firewalled", got)
 	}
-	e.incomingSeen = 1
+	e.incoming.Store(1)
 	if got := e.connectionLocked(online); got != "connectable" {
 		t.Fatalf("with incoming = %q, want connectable", got)
 	}

@@ -1968,7 +1968,8 @@ $("#st-table-btn").addEventListener("click", () => {
 /* ---------- connection health ---------- */
 const CONN = {
   connectable: ["Connectable", "Other peers can connect to you - the best speeds are possible."],
-  checking: ["Checking connection…", "Magnetar is watching whether other peers can connect to you. This becomes clear a few minutes after a download starts."],
+  idle: ["Ready", "No torrent is exchanging data right now, so there is nothing to measure yet. As soon as a download or upload is active, Magnetar checks whether other peers can connect to you - usually within a few minutes."],
+  checking: ["Checking connection…", "A torrent is active and Magnetar is waiting to see whether other peers connect to you. If none do within about three minutes, it will tell you how to fix it."],
   firewalled: ["Port not reachable", "Peers are not connecting to you, so you can only reach peers that accept incoming connections themselves. Downloads still work but are usually slower."],
   "vpn-down": ["VPN disconnected", "The network connection Magnetar is bound to (your VPN) is down, so all torrent traffic is stopped to keep your real address hidden. Transfers resume automatically when it reconnects."],
   offline: ["No network", "Magnetar cannot reach the BitTorrent network. Check your internet connection, VPN or the “Bind traffic to IP” setting."],
@@ -1977,14 +1978,14 @@ function renderConnection() {
   const s = state.stats, c = s.connection || "checking";
   const pill = $("#g-conn");
   pill.className = "conn-pill " + c;
-  pill.querySelector("span").textContent = CONN[c][0] + (c === "connectable" ? ` · port ${s.listenPort}` : "");
+  pill.querySelector("span").textContent = CONN[c][0] + (c === "connectable" || c === "idle" ? ` · port ${s.listenPort}` : "");
 }
 $("#g-conn").addEventListener("click", () => {
   const s = state.stats, c = s.connection || "checking", port = s.listenPort || "?";
   $("#conn-title").textContent = CONN[c][0];
   $("#conn-text").textContent = CONN[c][1];
   const step = (...parts) => h("li", {}, ...parts.map((p) => (typeof p === "string" ? p : h("code", { text: p.code }))));
-  const steps = c === "connectable" ? [] : c === "vpn-down" ? [
+  const steps = c === "connectable" || c === "idle" ? [] : c === "vpn-down" ? [
     step("Reconnect your VPN. Magnetar notices within a few seconds and resumes."),
     step("To stop using the kill switch, choose “Any connection” under Privacy & security."),
   ] : c === "offline" ? [

@@ -158,7 +158,7 @@ type GlobalStats struct {
 	ProxyPeers bool   `json:"proxyPeers,omitempty"`
 	Version    string `json:"version"`
 	Online     bool   `json:"online"`
-	// Connection is "connectable", "firewalled", "offline", "vpn-down" or "checking".
+	// Connection is "connectable", "firewalled", "offline", "vpn-down", "idle" or "checking".
 	Connection string `json:"connection"`
 	UPnP       bool   `json:"upnp"`
 }
@@ -208,7 +208,7 @@ func (e *Engine) Stats() GlobalStats {
 
 // firewalledAfter is how long we wait for an incoming connection while
 // actively transferring before warning that the port seems unreachable.
-const firewalledAfter = 5 * time.Minute
+const firewalledAfter = 3 * time.Minute
 
 func (e *Engine) connectionLocked(g GlobalStats) string {
 	switch {
@@ -216,8 +216,10 @@ func (e *Engine) connectionLocked(g GlobalStats) string {
 		return "vpn-down"
 	case !g.Online || (e.settings.EnableDHT && g.DHTNodes == 0 && g.Peers == 0 && time.Since(e.started) > time.Minute):
 		return "offline"
-	case e.incomingSeen > 0:
+	case e.incoming.Load() > 0:
 		return "connectable"
+	case e.activeSince.IsZero():
+		return "idle" // nothing exchanges data yet, so there is nothing to measure
 	case !e.activeSince.IsZero() && time.Since(e.activeSince) > firewalledAfter:
 		return "firewalled"
 	default:
