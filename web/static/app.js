@@ -722,6 +722,38 @@ const TABS = {
     );
   },
 };
+/* ---------- file types ---------- */
+const FILE_TYPES = {
+  video: ["mkv", "mp4", "m4v", "avi", "mov", "wmv", "webm", "ts", "m2ts", "mpg", "mpeg", "flv", "ogv", "vob", "3gp"],
+  audio: ["mp3", "flac", "m4a", "aac", "ogg", "oga", "opus", "wav", "wma", "ape", "alac", "dsf", "mka"],
+  image: ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tif", "tiff", "heic", "avif", "svg", "psd", "raw", "cr2", "nef"],
+  sub: ["srt", "vtt", "ass", "ssa", "sub", "idx", "sup"],
+  text: ["txt", "nfo", "md", "log", "cue", "sfv", "md5", "sha1", "sha256", "json", "xml", "csv", "ini"],
+  archive: ["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "zst", "lz", "cab", "r00", "r01", "001"],
+  disc: ["iso", "img", "bin", "mdf", "mds", "nrg", "dmg", "vhd", "vhdx", "vmdk", "qcow2", "wim"],
+  app: ["exe", "msi", "msix", "appx", "apk", "appimage", "deb", "rpm", "pkg", "sh", "bat", "cmd", "ps1", "jar", "run", "flatpak", "snap"],
+  doc: ["pdf", "epub", "mobi", "azw3", "djvu", "doc", "docx", "odt", "rtf", "xls", "xlsx", "ppt", "pptx", "cbz", "cbr"],
+  torrent: ["torrent"],
+};
+const EXT_TYPE = new Map(Object.entries(FILE_TYPES).flatMap(([k, list]) => list.map((e) => [e, k])));
+function fileType(path) {
+  const name = path.split("/").pop().toLowerCase();
+  if (/\.r\d\d$|\.part\d+\.rar$|\.\d{3}$/.test(name)) return "archive";
+  return EXT_TYPE.get(extOf(path)) || "";
+}
+function fileIcon(path) {
+  const t = fileType(path);
+  const el = icon(t ? "ft-" + t : "file");
+  el.setAttribute("class", "ft " + (t || "other"));
+  el.setAttribute("aria-hidden", "true");
+  return el;
+}
+function folderIcon() {
+  const el = icon("folder");
+  el.setAttribute("class", "ft folder");
+  return el;
+}
+
 /* ---------- file tree ---------- */
 // Collapsed folders and the filter survive the detail panel's live refresh.
 const fileTrees = new Map();
@@ -804,7 +836,7 @@ function fileRow(d, f, depth) {
     f.progress >= 1 && !blocked ? h("button", { class: "btn icon", title: "Open", onclick: () => fileAction(d.hash, f.index, "open") }, icon("external")) : null,
     f.completed > 0 ? h("button", { class: "btn icon", title: "Show in folder", onclick: () => fileAction(d.hash, f.index, "reveal") }, icon("folder")) : null);
   return indent(h("div", { class: "file" + (f.priority === 0 ? " skip" : ""), role: "treeitem" },
-    h("div", { class: "fp", text: f.path.split("/").pop(), title: f.path }), acts,
+    h("div", { class: "fp with-icon", title: f.path }, fileIcon(f.path), h("span", { text: f.path.split("/").pop() })), acts,
     prioSelect(f.priority, (v) => setPrio(d.hash, [f.index], v)),
     h("div", { class: "fm", text: `${bytes(f.completed)} / ${bytes(f.size)} · ${pct(f.progress)}` }), progressBar(f.progress)), depth);
 }
@@ -992,23 +1024,59 @@ function renderPreview(mode, msg) {
     $("#ap-summary").textContent = i.name || "";
     return waiting(i.peers ? `Fetching the file list from ${i.peers} peers… You can also add it right away.` : "Looking for peers to fetch the file list… You can also add it right away.");
   }
-  const files = [...i.files].sort((a, b) => a.path.localeCompare(b.path));
-  list.replaceChildren(...files.slice(0, 3000).map((f) => {
-    const on = !pv.skip.has(f.index);
-    const cb = h("input", { type: "checkbox", checked: on, "aria-label": f.path });
-    const slash = f.path.lastIndexOf("/");
-    const row = h("label", { class: "ap-row" + (on ? "" : " off"), title: f.path },
-      cb,
-      h("span", { class: "ap-path" }, slash >= 0 ? h("span", { class: "ap-dir", text: f.path.slice(0, slash + 1) }) : null, f.path.slice(slash + 1)),
-      h("span", { class: "ap-size", text: bytes(f.size) }));
-    cb.addEventListener("change", () => {
-      cb.checked ? pv.skip.delete(f.index) : pv.skip.add(f.index);
-      row.classList.toggle("off", !cb.checked);
-      previewSummary();
-    });
-    return row;
-  }));
+  renderPreviewTree(i, list);
   previewSummary();
+}
+// The add dialog shows the files as a tree: folders can be collapsed and
+// (un)ticked as a whole, and every file has an icon for its type.
+const pvCollapsed = new Set();
+function renderPreviewTree(i, list) {
+  const tree = buildFileTree(i.files.map((f) => ({ ...f, priority: pv.skip.has(f.index) ? 0 : 1, completed: 0 })));
+  const rows = [];
+  const many = i.files.length > 60;
+  const walk = (node, depth) => {
+    for (const dir of node.dirs) {
+      const idx = dir.allFiles.map((f) => f.index);
+      const on = idx.filter((x) => !pv.skip.has(x)).length;
+      const collapsed = pvCollapsed.has(pv.key + "/" + dir.path) || (many && depth > 0 && !pvCollapsed.has("open:" + pv.key + "/" + dir.path));
+      const cb = h("input", { type: "checkbox", checked: on > 0, "aria-label": dir.path });
+      cb.indeterminate = on > 0 && on < idx.length;
+      cb.addEventListener("change", () => {
+        idx.forEach((x) => (cb.checked ? pv.skip.delete(x) : pv.skip.add(x)));
+        renderPreview();
+      });
+      const chev = h("span", { class: "chev" + (collapsed ? "" : " open"), text: "›", role: "button", "aria-label": collapsed ? "Expand" : "Collapse" });
+      chev.addEventListener("click", (e) => {
+        e.preventDefault();
+        const k = pv.key + "/" + dir.path;
+        if (collapsed) { pvCollapsed.delete(k); pvCollapsed.add("open:" + k); } else { pvCollapsed.add(k); pvCollapsed.delete("open:" + k); }
+        renderPreview();
+      });
+      const size = dir.allFiles.reduce((a, f) => a + f.size, 0);
+      const row = h("label", { class: "ap-row ap-folder" + (on ? "" : " off"), title: dir.path },
+        cb, h("span", { class: "ap-name" }, chev, folderIcon(), h("span", { text: dir.name })), h("span", { class: "ap-size", text: bytes(size) }));
+      row.style.setProperty("--depth", depth);
+      rows.push(row);
+      if (!collapsed) walk(dir, depth + 1);
+    }
+    for (const f of node.files) {
+      if (rows.length > 3000) return;
+      const on = !pv.skip.has(f.index);
+      const cb = h("input", { type: "checkbox", checked: on, "aria-label": f.path });
+      cb.addEventListener("change", () => {
+        cb.checked ? pv.skip.delete(f.index) : pv.skip.add(f.index);
+        renderPreview();
+      });
+      const row = h("label", { class: "ap-row" + (on ? "" : " off"), title: f.path },
+        cb, h("span", { class: "ap-name" }, fileIcon(f.path), h("span", { text: f.path.split("/").pop() })), h("span", { class: "ap-size", text: bytes(f.size) }));
+      row.style.setProperty("--depth", depth);
+      rows.push(row);
+    }
+  };
+  walk(tree, 0);
+  const scroll = list.scrollTop;
+  list.replaceChildren(...rows);
+  list.scrollTop = scroll;
 }
 function selectedSize() {
   const i = pv.info;
