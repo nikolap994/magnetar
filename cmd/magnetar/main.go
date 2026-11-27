@@ -206,6 +206,18 @@ func run() error {
 	feeds := rss.New(dataDir, eng, eng.HTTPClient, logger.With("component", "rss"))
 	go feeds.Run(ctx)
 
+	// Relaunch with the same flags (listen-address changes). A service manager
+	// restarts headless instances itself, so they only report it.
+	var relaunch func()
+	if !*headless {
+		relaunch = func() {
+			if err := update.Relaunch(); err != nil {
+				logger.Error("restart", "err", err)
+				return
+			}
+			stop()
+		}
+	}
 	var srv *server.Server
 	srv = server.New(eng, store, keys, web.FS(), logger, server.Options{
 		Port:      settings.WebPort,
@@ -214,6 +226,8 @@ func run() error {
 		AutoStart: desktop.SetAutostart,
 		Updater:   updater,
 		RSS:       feeds,
+		Host:      settings.WebHost,
+		Restart:   relaunch,
 		ShowUI:    func(magnet string) { a.showUI(srv, eng, magnet) },
 	})
 	errc := make(chan error, 1)

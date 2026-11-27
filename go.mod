@@ -15,6 +15,7 @@ require (
 	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.48.0
 	golang.org/x/time v0.16.0
+	rsc.io/qr v0.2.0
 )
 
 require (

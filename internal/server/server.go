@@ -45,6 +45,8 @@ type Server struct {
 	updater   Updater
 	showUI    func(magnet string)
 	rss       *rss.Manager
+	host      string
+	restart   func()
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
@@ -65,6 +67,10 @@ type Options struct {
 	ShowUI func(magnet string)
 	// RSS is the feed downloader (optional).
 	RSS *rss.Manager
+	// Host is the address the server listens on (to tell when a restart is needed).
+	Host string
+	// Restart relaunches Magnetar to apply listen-address changes (optional).
+	Restart func()
 }
 
 // Updater is the subset of the update package used by the API.
@@ -77,7 +83,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart}
 	s.routes()
 	return s
 }
@@ -111,6 +117,8 @@ func (s *Server) routes() {
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))
 	m.Handle("GET /api/fs/free", s.authed(s.handleFree))
+	m.Handle("GET /api/remote", s.authed(s.handleRemote))
+	m.Handle("POST /api/remote", s.authed(s.handleRemoteSet))
 	m.Handle("GET /api/import/sources", s.authed(s.handleImportSources))
 	m.Handle("POST /api/import/scan", s.authed(s.handleImportScan))
 	m.Handle("POST /api/import", s.authed(s.handleImport))

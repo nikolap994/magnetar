@@ -138,3 +138,14 @@ func CleanupOld() {
 		os.Remove(filepath.Clean(exe) + ".old")
 	}
 }
+
+// Relaunch starts a new Magnetar process with the same flags, for settings
+// that need a restart. The new process waits for this one to exit, so the
+// caller should shut down right after.
+func Relaunch() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return startDetached(exe, append([]string{"--after-update"}, RestartArgs...)...)
+}
