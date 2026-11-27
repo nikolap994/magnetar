@@ -260,6 +260,18 @@ function renderFilters() {
         icon(f.icon), h("span", { text: f.label }), h("span", { class: "count" })));
     }
   }
+  // Narrow screens hide the sidebar; the same filters are offered as a menu.
+  const sel = $("#m-filter");
+  if (!sel.childElementCount) {
+    for (const f of FILTERS) sel.append(h("option", { value: f.id }));
+    sel.addEventListener("change", () => { state.filter = sel.value; render(); });
+  }
+  for (const o of sel.options) {
+    const f = FILTERS.find((x) => x.id === o.value);
+    const n = state.torrents.filter(f.match).length;
+    o.textContent = f.label + (n ? ` (${n})` : "");
+  }
+  sel.value = state.filter || "all";
   for (const btn of nav.children) {
     const f = FILTERS.find((x) => x.id === btn.dataset.f);
     btn.classList.toggle("active", f.id === state.filter);
@@ -271,6 +283,8 @@ function renderStats() {
   const s = state.stats;
   $("#g-down").textContent = bytes(s.downRate) + "/s";
   $("#g-up").textContent = bytes(s.upRate) + "/s";
+  $("#m-down").textContent = "↓ " + bytes(s.downRate) + "/s";
+  $("#m-up").textContent = "↑ " + bytes(s.upRate) + "/s";
   const lim = (n) => (n ? bytes(n) + "/s" : "∞");
   $("#g-limits").textContent = (s.altSpeed ? "🐢 " : "") + "↓ " + lim(s.downLimit) + "  ↑ " + lim(s.upLimit);
   $("#alt-toggle").classList.toggle("on", !!s.altSpeed);
@@ -1140,6 +1154,7 @@ async function openSettings() {
   refreshRates($("#settings-form"));
   renderCatEditor(state.settings.categories || []);
   renderDays();
+  renderRemote();
   $("#proxy-pass").placeholder = state.settings.proxyPasswordSet ? "Saved - leave empty to keep" : "";
   syncProxy();
   $("#dlg-settings").showModal();
@@ -1436,6 +1451,63 @@ async function playTorrent(hash) {
 $("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = null; });
 $("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
 $("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
+
+/* ---------- narrow screens: overflow menu ---------- */
+$("#btn-more").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const menu = $("#ctx");
+  const item = (label, ic, fn) => h("button", { onclick: () => { hideMenu(); fn(); } }, icon(ic), h("span", { text: label }));
+  menu.replaceChildren(
+    item("Create torrent", "plus-file", openCreate),
+    item("RSS feeds", "rss", () => openRSS()),
+    item("Statistics", "chart", openStatistics),
+    item("Import from another app", "down", openImport),
+    item("Light / dark theme", "moon", () => $("#btn-theme").click()),
+  );
+  menu.hidden = false;
+  const b = e.currentTarget.getBoundingClientRect(), r = menu.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(b.right - r.width, innerWidth - r.width - 8)) + "px";
+  menu.style.top = b.bottom + 6 + "px";
+});
+
+/* ---------- phone / remote access ---------- */
+async function renderRemote() {
+  const box = $("#remote-box");
+  let rs;
+  try { rs = await api("/api/remote"); } catch (e) { box.replaceChildren(h("p", { class: "error", text: e.message })); return; }
+  const kids = [];
+  if (!rs.enabled) {
+    kids.push(h("ol", { class: "remote-steps" },
+      h("li", { class: rs.passwordSet ? "done" : "", text: "Set a password below, so only you can get in." }),
+      h("li", { text: "Turn on phone access. Magnetar restarts once to open it." }),
+      h("li", { text: "Scan the QR code with your phone's camera." })));
+    kids.push(h("button", { type: "button", class: "btn primary", disabled: !rs.passwordSet, onclick: () => setRemote(true) },
+      h("span", { text: "Turn on phone access" })));
+    if (!rs.passwordSet) kids.push(h("p", { class: "muted small", text: "Set a password first (see Password below)." }));
+  } else {
+    kids.push(h("p", { class: "muted small", text: "Only use this on networks you trust, such as your home Wi-Fi. Your computer's firewall may ask to allow Magnetar the first time." }));
+    if (rs.restartRequired) {
+      kids.push(h("p", { class: "notice", text: "Restart Magnetar to start accepting connections from your phone." }),
+        rs.canRestart ? h("button", { type: "button", class: "btn primary", onclick: () => setRemote(true) }, h("span", { text: "Restart now" })) : null);
+    }
+    kids.push(h("div", { class: "remote-urls" }, ...(rs.urls.length ? rs.urls.map((u) =>
+      h("div", { class: "remote-url" }, u.qr ? h("img", { src: u.qr, alt: "QR code for " + u.url }) : null, h("code", { text: u.url })))
+      : [h("p", { class: "muted", text: "This computer has no home-network address right now. Connect it to your Wi-Fi or network." })])));
+    kids.push(h("div", { class: "row" }, h("button", { type: "button", class: "btn ghost", onclick: () => setRemote(false) }, h("span", { text: "Turn off phone access" }))));
+  }
+  box.replaceChildren(...kids.filter(Boolean));
+}
+async function setRemote(enabled) {
+  try {
+    const rs = await api("/api/remote", { method: "POST", body: { enabled, restart: true } });
+    if (rs.restartRequired && rs.canRestart) {
+      toast("Magnetar is restarting…");
+      setTimeout(() => location.reload(), 4000);
+      return;
+    }
+    renderRemote();
+  } catch (e) { fail(e); }
+}
 
 /* ---------- import from other clients ---------- */
 const imp = { client: "", dir: "", list: [], names: {} };

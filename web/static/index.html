@@ -45,6 +45,7 @@
     <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
     <symbol id="i-rss" viewBox="0 0 24 24"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="6" cy="18" r="1.6" fill="currentColor"/></symbol>
     <symbol id="i-plus-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v5h5M12 11v6M9 14h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.7" fill="currentColor"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><circle cx="19" cy="12" r="1.7" fill="currentColor"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -105,13 +106,19 @@
         </div>
         <div class="spacer"></div>
         <button class="update-pill" id="update-pill" hidden><svg><use href="#i-update"/></svg><span></span></button>
-        <button class="btn icon" id="btn-create" title="Create torrent"><svg><use href="#i-plus-file"/></svg></button>
-        <button class="btn icon" id="btn-rss" title="RSS feeds"><svg><use href="#i-rss"/></svg></button>
-        <button class="btn icon" id="btn-stats" title="Statistics"><svg><use href="#i-chart"/></svg></button>
-        <button class="btn icon" id="btn-theme" title="Toggle theme"><svg><use href="#i-moon"/></svg></button>
+        <button class="btn icon wide-only" id="btn-create" title="Create torrent"><svg><use href="#i-plus-file"/></svg></button>
+        <button class="btn icon wide-only" id="btn-rss" title="RSS feeds"><svg><use href="#i-rss"/></svg></button>
+        <button class="btn icon wide-only" id="btn-stats" title="Statistics"><svg><use href="#i-chart"/></svg></button>
+        <button class="btn icon wide-only" id="btn-theme" title="Toggle theme"><svg><use href="#i-moon"/></svg></button>
+        <button class="btn icon narrow-only" id="btn-more" title="More" aria-label="More"><svg><use href="#i-more"/></svg></button>
         <button class="btn icon" id="btn-settings" title="Settings"><svg><use href="#i-gear"/></svg></button>
         <button class="btn primary" id="btn-add"><svg><use href="#i-plus"/></svg><span>Add torrent</span></button>
       </header>
+
+      <div class="mobile-bar">
+        <select id="m-filter" aria-label="Show"></select>
+        <span class="m-speed"><span class="down" id="m-down">0 B/s</span><span class="up" id="m-up">0 B/s</span></span>
+      </div>
 
       <section class="list-wrap">
         <div class="list-head">
@@ -403,6 +410,12 @@
             </div>
           </section>
           <section data-sec="webui">
+            <div class="card remote-card">
+              <h3>Use Magnetar from your phone</h3>
+              <p class="muted">Open Magnetar in your phone's browser on the same Wi-Fi to add magnet links, watch progress and pause or resume downloads.</p>
+              <div id="remote-box"></div>
+            </div>
+            <h4 class="sub">Advanced</h4>
             <label class="field"><span>Listen address <em>(127.0.0.1 = this computer only)</em></span><input name="webHost" type="text" spellcheck="false"></label>
             <label class="field"><span>Port</span><input name="webPort" type="number" min="1" max="65535"></label>
             <div class="card">
