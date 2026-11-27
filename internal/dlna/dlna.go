@@ -5,7 +5,7 @@ package dlna
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -58,7 +58,7 @@ type Server struct {
 // New creates a media server announced as name on port.
 func New(eng *engine.Engine, log *slog.Logger, port int, name string) *Server {
 	host, _ := os.Hostname()
-	sum := sha1.Sum([]byte(fmt.Sprintf("magnetar-dlna-%s-%d", host, port)))
+	sum := sha256.Sum256([]byte(fmt.Sprintf("magnetar-dlna-%s-%d", host, port)))
 	uuid := fmt.Sprintf("%x-%x-%x-%x-%x", sum[0:4], sum[4:6], sum[6:8], sum[8:10], sum[10:16])
 	return &Server{eng: eng, log: log, port: port, uuid: uuid, name: name}
 }
@@ -79,9 +79,9 @@ func (s *Server) Run(ctx context.Context) error {
 	mux.HandleFunc("HEAD /dlna/media/{hash}/{index}", s.handleMedia)
 	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 2 * time.Minute}
 	go s.ssdp(ctx)
-	go func() {
+	go func() { //nolint:gosec // runs after ctx is done; shutdown needs its own deadline
 		<-ctx.Done()
-		sctx, cancel := context.WithTimeout(context.Background(), 3*time.Second) //nolint:gosec // ctx is done; shutdown needs its own deadline
+		sctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(sctx)
 	}()
