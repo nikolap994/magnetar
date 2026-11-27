@@ -72,6 +72,8 @@ Download from the [latest release](https://github.com/nikolap994/magnetar/releas
 With a package manager:
 
 ```powershell
+winget install NikolaPavlovic.Magnetar
+# or
 scoop bucket add magnetar https://github.com/nikolap994/magnetar
 scoop install magnetar/magnetar
 ```
