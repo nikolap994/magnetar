@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-27
+
 ### Added
 - Play video and audio inside Magnetar while they download: the pieces you are watching are fetched first, seeking
   works, and subtitles (.srt/.vtt) next to the video are offered in the player.
@@ -29,8 +31,17 @@ All notable changes to this project are documented here. The format follows
 - macOS app for Apple silicon and Intel, and a Docker image for servers and NAS devices.
 - Pause updates for a week, two weeks, a month or until you resume them (off by default).
 - Clearer connection status: "Ready" when nothing is active, faster detection of an unreachable port.
+- File type icons everywhere, and a folder tree in the add dialog with folder sizes and whole-folder selection.
+- Compact list view.
 - Folder tree in the Files tab, with priorities for whole folders and a filter for big torrents. Paused and queued
   torrents show their files too.
+
+### Performance
+- Speed limits no longer cut torrents off from peers: while a download limit was reached, no new peer connections
+  were allowed, so limited downloads used only web seeds and seeding torrents could not gain peers. Limits stay exact.
+- Downloads are written with regular file I/O: the same speed, and memory use stays flat (about 70 MiB while
+  downloading a 790 MB file, instead of growing to its size). Files changed by other programs can no longer crash
+  Magnetar.
 
 ### Fixed
 - Opening a .torrent file now shows the add dialog (name, size, file picker, folder) instead of starting the

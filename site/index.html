@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Magnetar - a fast, secure, open-source BitTorrent client</title>
-  <meta name="description" content="Magnetar is a free, open-source BitTorrent client for Windows and Linux. Open magnet links from your browser, pick files, set speed limits, stay private.">
+  <meta name="description" content="Magnetar is a free, open-source BitTorrent client for Windows, macOS and Linux. Open magnet links from your browser, pick files, set speed limits, stay private.">
   <meta property="og:title" content="Magnetar - open-source BitTorrent client">
-  <meta property="og:description" content="Free for Windows and Linux. Magnet links from your browser, file selection, categories, speed schedules, signed updates.">
+  <meta property="og:description" content="Free for Windows, macOS, Linux and Docker. Magnet links from your browser, play while downloading, RSS, queue, VPN kill switch, signed updates.">
   <meta property="og:image" content="screenshots/screenshot-list.png">
   <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -141,11 +141,11 @@
       <div class="hero">
         <div>
           <h1>Torrents without the clutter.</h1>
-          <p class="lead">Magnetar is a free, open-source BitTorrent client for Windows and Linux. Click a magnet link in your browser, choose the files you want, and let it run quietly in the tray.</p>
+          <p class="lead">Magnetar is a free, open-source BitTorrent client for Windows, macOS and Linux. Click a magnet link in your browser, choose the files you want, and let it run quietly in the tray.</p>
           <div class="cta">
             <a class="btn main" id="dl-main" href="https://github.com/nikolap994/magnetar/releases/latest">Download Magnetar</a>
             <a class="btn plain" href="https://github.com/nikolap994/magnetar">View the source</a>
-            <small id="dl-note">Version <!-- release:version -->. Free, no ads, no tracking. Windows 10/11 and Ubuntu/Debian.</small>
+            <small id="dl-note">Version <!-- release:version -->. Free, no ads, no tracking. Windows, macOS, Linux and Docker.</small>
           </div>
         </div>
         <figure class="swarm" aria-label="A torrent's pieces arriving from the swarm">
@@ -167,26 +167,26 @@
           <div class="group">
             <h3>Everyday downloading</h3>
             <dl>
-              <dt>Magnet links from your browser</dt><dd>Click a link and Magnetar asks where to save it.</dd>
-              <dt>Pick files first</dt><dd>See every file and its size, and whether it fits on your disk, before anything downloads.</dd>
-              <dt>Picks up where it left off</dt><dd>Add a torrent again and only the missing pieces are fetched.</dd>
-              <dt>Statistics</dt><dd>All-time totals and a 24-hour bandwidth chart.</dd>
+              <dt>Magnet links from your browser</dt><dd>Click a link and see what's inside, with an icon for every file, before you choose where to save it.</dd>
+              <dt>Play while it downloads</dt><dd>Watch videos and listen to music in Magnetar before the download finishes; the part you're watching comes first.</dd>
+              <dt>Download queue</dt><dd>A few downloads at a time, the rest wait their turn and start by themselves.</dd>
+              <dt>RSS auto-download</dt><dd>Subscribe to feeds and let rules pick new episodes, each one only once.</dd>
             </dl>
           </div>
           <div class="group">
             <h3>Control</h3>
             <dl>
-              <dt>Speed limits and a turtle mode</dt><dd>One click for slower limits, or let a schedule switch them during work hours.</dd>
-              <dt>Categories with folders</dt><dd>Movies here, Linux images there, finished downloads moved automatically.</dd>
-              <dt>Connection status</dt><dd>Tells you when peers cannot reach you, and how to fix it.</dd>
-              <dt>Updates itself</dt><dd>New versions install with one click and are verified before they run.</dd>
+              <dt>Speed limits and a turtle mode</dt><dd>Exact limits, one click for slower ones, or a schedule for work hours.</dd>
+              <dt>From your phone</dt><dd>Scan a QR code and manage downloads from your phone on the same Wi-Fi.</dd>
+              <dt>Bring your torrents</dt><dd>Import from another BitTorrent app with folders, file choices and statistics; files on disk keep seeding.</dd>
+              <dt>Create torrents</dt><dd>Share a file or folder: get a .torrent file and a magnet link, and start seeding.</dd>
             </dl>
           </div>
           <div class="group">
             <h3>Privacy</h3>
             <dl>
-              <dt>Encryption by default</dt><dd>Protocol encryption is preferred, or required with one switch.</dd>
-              <dt>Stays on your VPN</dt><dd>Bind traffic to your VPN's address and it stops if the VPN drops.</dd>
+              <dt>VPN kill switch</dt><dd>Pick your VPN connection; if it drops, every transfer stops until it is back.</dd>
+              <dt>Encryption by default</dt><dd>Protocol encryption is preferred, or required with one switch. SOCKS5 and HTTP proxies too.</dd>
               <dt>Blocklists and anonymous mode</dt><dd>Block known bad ranges and hide the client's name from peers.</dd>
               <dt>Nothing phones home</dt><dd>No telemetry, no accounts. The only outside check is an optional daily update check.</dd>
             </dl>
@@ -205,7 +205,9 @@
         <div class="os-picker" role="tablist" aria-label="Choose your system">
           <button role="tab" id="tab-win" aria-controls="os-win" aria-selected="true">Windows</button>
           <button role="tab" id="tab-deb" aria-controls="os-deb" aria-selected="false">Ubuntu &amp; Debian</button>
+          <button role="tab" id="tab-mac" aria-controls="os-mac" aria-selected="false">macOS</button>
           <button role="tab" id="tab-linux" aria-controls="os-linux" aria-selected="false">Other Linux</button>
+          <button role="tab" id="tab-docker" aria-controls="os-docker" aria-selected="false">Server &amp; NAS</button>
         </div>
 
         <div class="os-panel" role="tabpanel" id="os-win" aria-labelledby="tab-win">
@@ -230,6 +232,16 @@
           </ol>
         </div>
 
+        <div class="os-panel" role="tabpanel" id="os-mac" aria-labelledby="tab-mac" hidden>
+          <h3>macOS 11 or newer</h3>
+          <p>One app for Apple silicon and Intel Macs. It lives in the menu bar.</p>
+          <ol class="steps">
+            <li><div><p>Download the disk image.</p><a class="btn main" data-asset="macos_universal.dmg" href="https://github.com/nikolap994/magnetar/releases/latest">Download for Mac</a></div></li>
+            <li><div><p>Open it and drag <b>Magnetar</b> to <b>Applications</b>.</p></div></li>
+            <li><div><p>The first time, right-click Magnetar in Applications and choose <b>Open</b>.</p></div></li>
+          </ol>
+        </div>
+
         <div class="os-panel" role="tabpanel" id="os-linux" aria-labelledby="tab-linux" hidden>
           <h3>Any other Linux distribution</h3>
           <p>A portable build that installs into your home folder.</p>
@@ -239,6 +251,19 @@
 cd magnetar_*_linux_amd64
 ./install.sh</code></pre>
               <p class="note">Add <code>--service</code> to also start Magnetar in the background when you log in.</p></div></li>
+          </ol>
+        </div>
+
+        <div class="os-panel" role="tabpanel" id="os-docker" aria-labelledby="tab-docker" hidden>
+          <h3>Docker on a server or NAS</h3>
+          <p>The same interface in your browser, from any device on your network.</p>
+          <ol class="steps">
+            <li><div><p>Start the container:</p><pre><code>docker run -d --name magnetar --restart unless-stopped \
+  -e MAGNETAR_PASSWORD='choose-a-password' \
+  -p 8899:8899 -p 51413:51413 -p 51413:51413/udp \
+  -v ./config:/config -v /path/to/downloads:/downloads \
+  ghcr.io/nikolap994/magnetar:latest</code></pre></div></li>
+            <li><div><p>Open <code>http://&lt;server&gt;:8899</code> and sign in with that password.</p></div></li>
           </ol>
         </div>
       </section>
@@ -313,6 +338,7 @@ cd magnetar_*_linux_amd64
       });
       const ua = navigator.userAgent;
       if (/Linux/i.test(ua) && !/Android/i.test(ua)) select(tabs[1]);
+      else if (/Mac OS X|Macintosh/i.test(ua) && !/iPhone|iPad/i.test(ua)) select(tabs[2]);
       else select(tabs[0]);
     })();
 
@@ -327,12 +353,13 @@ cd magnetar_*_linux_amd64
           const asset = find(a.dataset.asset);
           if (asset) a.href = asset.browser_download_url;
         });
-        const isWin = /Windows/i.test(navigator.userAgent), isLinux = /Linux/i.test(navigator.userAgent) && !/Android/i.test(navigator.userAgent);
+        const ua = navigator.userAgent;
+        const isWin = /Windows/i.test(ua), isLinux = /Linux/i.test(ua) && !/Android/i.test(ua), isMac = /Macintosh/i.test(ua);
         const main = document.getElementById("dl-main"), note = document.getElementById("dl-note");
-        const pick = isWin ? find("windows_amd64_setup.exe") : isLinux ? find("amd64.deb") : null;
+        const pick = isWin ? find("windows_amd64_setup.exe") : isLinux ? find("amd64.deb") : isMac ? find("macos_universal.dmg") : null;
         if (pick) {
           main.href = pick.browser_download_url;
-          main.textContent = isWin ? "Download for Windows" : "Download for Ubuntu";
+          main.textContent = isWin ? "Download for Windows" : isMac ? "Download for Mac" : "Download for Ubuntu";
           note.textContent = `Version ${rel.tag_name.replace(/^v/, "")}. Free, no ads, no tracking.`;
         }
       } catch (e) { /* keep the releases-page links */ }
