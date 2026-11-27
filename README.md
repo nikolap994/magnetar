@@ -100,6 +100,19 @@ tar xzf magnetar_<version>_linux_amd64.tar.gz && cd magnetar_<version>_linux_amd
 ./install.sh --service  # optional: run headless at login as a systemd user service
 ```
 
+### Docker (servers and NAS)
+```sh
+docker run -d --name magnetar --restart unless-stopped --user "$(id -u):$(id -g)" \
+  -e MAGNETAR_PASSWORD='choose-a-password' \
+  -p 8899:8899 -p 51413:51413 -p 51413:51413/udp \
+  -v ./magnetar-config:/config -v /path/to/downloads:/downloads \
+  ghcr.io/nikolap994/magnetar:latest
+```
+Then open `http://<server>:8899`. A ready-made [`compose.yaml`](packaging/docker/compose.yaml) is included. Settings can
+also come from the environment: `MAGNETAR_PASSWORD` (first start only), `MAGNETAR_WEB_PORT`, `MAGNETAR_PEER_PORT`,
+`MAGNETAR_DOWNLOAD_DIR` and `MAGNETAR_ALLOWED_HOSTS` (host names when running behind a reverse proxy). Update by pulling
+the new image.
+
 ### From source
 Requires Go 1.26+.
 ```sh

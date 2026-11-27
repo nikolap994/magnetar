@@ -20,6 +20,9 @@ func detectMethod(exe string) string {
 	if _, err := os.Stat("/.flatpak-info"); err == nil {
 		return MethodFlatpak
 	}
+	if os.Getenv("MAGNETAR_CONTAINER") != "" {
+		return MethodContainer
+	}
 	if exe == "/usr/bin/magnetar" {
 		if _, err := os.Stat("/var/lib/dpkg/info/magnetar.list"); err == nil {
 			return MethodDeb

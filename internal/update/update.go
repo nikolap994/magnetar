@@ -48,6 +48,7 @@ const (
 	MethodDeb             = "deb"              // installed from the .deb package
 	MethodLinuxPortable   = "linux-portable"   // unpacked .tar.gz
 	MethodFlatpak         = "flatpak"          // updated by Flathub / the software center
+	MethodContainer       = "container"        // updated by pulling a new image
 	MethodUnsupported     = "unsupported"
 )
 
@@ -151,8 +152,8 @@ func (u *Updater) Run(ctx context.Context) {
 		u.log.Info("update checks disabled for development build", "version", u.current)
 		return
 	}
-	if u.method == MethodFlatpak {
-		return // Flathub delivers updates
+	if u.method == MethodFlatpak || u.method == MethodContainer {
+		return // Flathub or the container image delivers updates
 	}
 	t := time.NewTimer(firstCheck)
 	defer t.Stop()
@@ -177,7 +178,7 @@ func (u *Updater) Status() Status {
 	defer u.mu.Unlock()
 	s := u.status
 	s.AutoCheck = u.auto()
-	s.CanInstall = s.Available && u.method != MethodUnsupported && u.method != MethodFlatpak && len(u.pubKey) == ed25519.PublicKeySize &&
+	s.CanInstall = s.Available && u.method != MethodUnsupported && u.method != MethodFlatpak && u.method != MethodContainer && len(u.pubKey) == ed25519.PublicKeySize &&
 		s.State != "downloading" && s.State != "installing"
 	return s
 }
@@ -263,6 +264,9 @@ func (u *Updater) Install(ctx context.Context) error {
 	}
 	if u.method == MethodFlatpak {
 		return errors.New("Magnetar is installed from Flathub; update it in your software center")
+	}
+	if u.method == MethodContainer {
+		return errors.New("Magnetar runs in a container; pull the new image to update")
 	}
 	if u.method == MethodUnsupported {
 		return errors.New("automatic updates are not supported for this installation; download the new version from GitHub")

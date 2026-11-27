@@ -220,14 +220,16 @@ func (s *Server) hostAllowed(host string) bool {
 	if err != nil {
 		h, p = host, ""
 	}
-	if p != "" && p != strconv.Itoa(s.port) {
+	st := s.store.Get()
+	// Behind Docker port mapping or a reverse proxy the port seen by the
+	// browser differs; only a loopback-only instance insists on its own.
+	if p != "" && p != strconv.Itoa(s.port) && config.IsLoopback(st.WebHost) {
 		return false
 	}
 	h = strings.ToLower(strings.Trim(h, "[]"))
 	if h == "localhost" || h == "127.0.0.1" || h == "::1" {
 		return true
 	}
-	st := s.store.Get()
 	if !config.IsLoopback(st.WebHost) {
 		if ip := net.ParseIP(h); ip != nil {
 			return true // direct IP access on LAN; rebinding requires a hostname

@@ -152,6 +152,9 @@ func run() error {
 	logger, closeLog := setupLogging(dataDir, *verbose)
 	defer closeLog()
 
+	if err := applyEnv(store); err != nil {
+		return err
+	}
 	settings := store.Get()
 	if *port != 0 {
 		settings.WebPort = *port

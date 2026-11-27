@@ -1,0 +1,17 @@
+# docker compose up -d   then open http://<server>:8899
+services:
+  magnetar:
+    image: ghcr.io/nikolap994/magnetar:latest
+    container_name: magnetar
+    restart: unless-stopped
+    # Run as your own user so downloads belong to you (see `id -u` and `id -g`).
+    user: "1000:1000"
+    environment:
+      MAGNETAR_PASSWORD: "change-me-please"   # used once, when no password is set yet
+    ports:
+      - "8899:8899"          # web interface
+      - "51413:51413"        # BitTorrent (TCP)
+      - "51413:51413/udp"    # BitTorrent (UDP: DHT, µTP)
+    volumes:
+      - ./config:/config
+      - /path/to/downloads:/downloads
