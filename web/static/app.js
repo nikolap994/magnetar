@@ -201,7 +201,10 @@ function connect() {
     if (n.type === "shutdown") { showStopped(); return; }
     if (n.type === "ui-add") { openAdd(n.message, true); window.focus(); return; }
     if (n.type === "ui-focus") { window.focus(); return; }
-    if (n.type === "finish") { checkFinish(); return; }
+    if (n.type === "finish") { checkFinish();
+// Whether this computer can allow Magnetar through its firewall (Windows).
+state.canFirewall = false;
+api("/api/remote").then((r) => { state.canFirewall = !!r.canFirewall; }).catch(() => {}); return; }
     if (n.type === "completed") {
       toast("Download complete: " + n.name); // the desktop notification comes from Magnetar itself
     } else if (n.type === "error") toast(n.name + ": " + n.message, "err");
@@ -1391,7 +1394,9 @@ const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "w
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
   // Optional fields left out of the response when empty still belong to the form.
-  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL", "defaultTrackers", "incompleteDir", "dlnaName"]) state.settings[k] ??= "";
+  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL", "defaultTrackers", "incompleteDir", "dlnaName",
+    "openSubtitlesKey", "openSubtitlesUser", "openSubtitlesPassword", "subtitleLanguages"]) state.settings[k] ??= "";
+  state.settings.openSubtitlesKey = state.settings.openSubtitlesPassword = "";
   state.settings.proxyPassword = "";
   state.settings.notifyTelegramToken = "";
   $("#watch-cat").replaceChildren(h("option", { value: "", text: "No category" }),
@@ -1416,6 +1421,8 @@ async function openSettings() {
   $("#qbit-port").textContent = location.port || state.settings.webPort;
   $('#settings-form [name="qbitAPI"]').disabled = !state.settings.passwordSet;
   $("#proxy-pass").placeholder = state.settings.proxyPasswordSet ? "Saved - leave empty to keep" : "";
+  $("#os-key").placeholder = state.settings.openSubtitlesKeySet ? "Saved - leave empty to keep" : "";
+  $("#os-pass").placeholder = state.settings.openSubtitlesPasswordSet ? "Saved - leave empty to keep" : "";
   $('#settings-form [name="notifyTelegramToken"]').placeholder = state.settings.notifyTelegramTokenSet ? "Saved - leave empty to keep" : "";
   syncProxy();
   $("#dlg-settings").showModal();
@@ -1670,6 +1677,8 @@ function openPreview(d, f) {
   if (!kind) return;
   if (d.state === "paused" || d.state === "metadata") { toast("Resume the torrent to preview its files", "err"); return; }
   playerCtx = { hash: d.hash, file: f };
+  $("#sub-panel").hidden = true;
+  $("#pl-subs").hidden = kind !== "video";
   stopPlayer();
   $("#pl-title").textContent = f.path.split("/").pop();
   $("#pl-open").hidden = f.progress < 1 || BLOCKED_EXT.has(extOf(f.path));
@@ -1687,6 +1696,7 @@ function openPreview(d, f) {
           src: contentURL(d.hash, s.index, extOf(s.path) === "srt" ? "?format=vtt" : "") }));
       });
     }
+    if (kind === "video") loadSavedSubs(el, d.hash, f.index);
     el.addEventListener("error", () => playerMessage(
       "This file can't be played inside Magnetar (its format or codec isn't supported by the built-in player)." +
       (f.progress < 1 ? " Wait until it finishes, then open it in your system player." : " Open it in your system player instead.")));
@@ -1726,6 +1736,58 @@ async function playTorrent(hash) {
   } catch (e) { fail(e); }
 }
 $("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = null; });
+/* subtitles from OpenSubtitles */
+const subURL = (hash, i, extra = "") => `/api/torrents/${hash}/files/${i}/subtitles${extra}`;
+function addSubTrack(video, hash, index, name, show) {
+  if ([...video.querySelectorAll("track")].some((t) => t.dataset.name === name)) return;
+  const lang = name.split("-")[0];
+  const tr = h("track", { kind: "subtitles", label: lang.toUpperCase() + " (downloaded)", srclang: lang.length <= 3 ? lang : undefined, src: subURL(hash, index, "/" + name), dataset: { name } });
+  video.append(tr);
+  if (show) {
+    setTimeout(() => { for (const t of video.textTracks) t.mode = t.label === tr.label ? "showing" : "disabled"; }, 50);
+  }
+}
+async function loadSavedSubs(video, hash, index) {
+  try {
+    const r = await api(subURL(hash, index));
+    r.files.forEach((n) => addSubTrack(video, hash, index, n, false));
+  } catch { /* no saved subtitles */ }
+}
+async function searchSubs() {
+  if (!playerCtx) return;
+  const { hash, file } = playerCtx;
+  $("#sub-status").textContent = "Searching OpenSubtitles…";
+  $("#sub-results").replaceChildren();
+  try {
+    const q = $("#sub-q").value.trim();
+    const r = await api(subURL(hash, file.index, "/search" + (q ? "?q=" + encodeURIComponent(q) : "")));
+    $("#sub-q").value = r.query;
+    $("#sub-status").textContent = r.results.length ? `${r.results.length} subtitles found` : "Nothing found - try a shorter name.";
+    $("#sub-results").replaceChildren(...r.results.slice(0, 80).map((x) => h("div", { class: "sub-row" },
+      h("span", { class: "lang", text: x.language }),
+      h("span", { class: "rel", text: x.release + (x.hearingImpaired ? " (HI)" : "") + (x.hashMatch ? " ✓ exact match" : ""), title: x.release }),
+      h("span", { class: "n", text: `${x.downloads.toLocaleString()} downloads` }),
+      h("button", { type: "button", class: "btn ghost sm", onclick: async (e) => {
+        e.currentTarget.disabled = true;
+        try {
+          const res = await api(subURL(hash, file.index), { method: "POST", body: { fileId: x.fileId, language: x.language } });
+          const video = $("#pl-stage video");
+          if (video) addSubTrack(video, hash, file.index, res.name, true);
+          toast("Subtitles added");
+        } catch (err) { fail(err); e.currentTarget.disabled = false; }
+      } }, h("span", { text: "Use" })))));
+  } catch (e) {
+    $("#sub-status").textContent = e.message;
+  }
+}
+$("#pl-subs").addEventListener("click", () => {
+  const p = $("#sub-panel");
+  p.hidden = !p.hidden;
+  if (!p.hidden) { $("#sub-q").value = ""; searchSubs(); }
+});
+$("#sub-go").addEventListener("click", searchSubs);
+$("#sub-q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); searchSubs(); } });
+
 $("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
 $("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
 
@@ -1782,6 +1844,13 @@ async function renderRemote() {
   let rs;
   try { rs = await api("/api/remote"); } catch (e) { box.replaceChildren(h("p", { class: "error", text: e.message })); return; }
   const kids = [];
+  const firewallBtn = () => rs.canFirewall ? h("div", { class: "fw-hint" },
+    h("p", { class: "muted small", text: "Can't connect from another device, or downloads find no peers? Allow Magnetar through Windows Defender Firewall (one approval)." }),
+    h("button", { type: "button", class: "btn ghost sm", onclick: async (e) => {
+      e.currentTarget.disabled = true;
+      try { await api("/api/system/firewall", { method: "POST" }); toast("Magnetar is now allowed through the firewall"); }
+      catch (err) { fail(err); } finally { e.currentTarget.disabled = false; }
+    } }, h("span", { text: "Allow through Windows Firewall" }))) : null;
   if (!rs.enabled) {
     kids.push(h("ol", { class: "remote-steps" },
       h("li", { class: rs.passwordSet ? "done" : "", text: "Set a password below, so only you can get in." }),
@@ -1801,11 +1870,12 @@ async function renderRemote() {
       : [h("p", { class: "muted", text: "This computer has no home-network address right now. Connect it to your Wi-Fi or network." })])));
     const https = h("input", { type: "checkbox", checked: !!state.settings.remoteHTTPS });
     https.addEventListener("change", () => setRemote(true, https.checked));
-    kids.push(h("label", { class: "switch" }, https, h("span"), "Encrypt with HTTPS (recommended on shared networks)"));
+    kids.push(h("label", { class: "switch remote-https" }, https, h("span"), "Encrypt with HTTPS (recommended on shared networks)"));
     if (rs.https && rs.fingerprint) {
       kids.push(h("p", { class: "muted small", text: "The first time, your phone warns that the certificate is not trusted, because Magnetar made it itself. Check that the fingerprint matches, then continue:" }),
         h("code", { class: "fingerprint", text: rs.fingerprint }));
     }
+    kids.push(firewallBtn());
     kids.push(h("div", { class: "row" }, h("button", { type: "button", class: "btn ghost", onclick: () => setRemote(false) }, h("span", { text: "Turn off phone access" }))));
   }
   box.replaceChildren(...kids.filter(Boolean));
@@ -2405,7 +2475,14 @@ $("#g-conn").addEventListener("click", () => {
   ];
   $("#conn-steps").replaceChildren(...steps);
   $("#conn-steps").hidden = !steps.length;
+  const fw = $("#conn-firewall");
+  fw.hidden = !(state.canFirewall && c === "firewalled");
   $("#dlg-conn").showModal();
+});
+$("#conn-firewall").addEventListener("click", async (e) => {
+  e.currentTarget.disabled = true;
+  try { await api("/api/system/firewall", { method: "POST" }); toast("Magnetar is now allowed through the firewall"); $("#dlg-conn").close(); }
+  catch (err) { fail(err); } finally { e.currentTarget.disabled = false; }
 });
 $("#conn-settings").addEventListener("click", async () => {
   $("#dlg-conn").close();

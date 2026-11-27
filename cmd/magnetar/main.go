@@ -103,12 +103,15 @@ func (a *app) showUI(srv *server.Server, eng *engine.Engine, magnet string) {
 	if a.noUI {
 		return
 	}
-	if srv.WindowConnected() {
+	// Bring Magnetar's own window to the front. A web UI left open in an
+	// ordinary browser tab (for example for phone access) also counts as a
+	// connected window, but it is not ours to focus, so prefer our window and
+	// open one when it is not there.
+	if desktop.FocusWindow() {
 		if magnet != "" {
 			eng.Broadcast(engine.Event{Type: "ui-add", Message: magnet})
 		}
 		eng.Broadcast(engine.Event{Type: "ui-focus"})
-		desktop.FocusWindow()
 		return
 	}
 	if magnet != "" {
@@ -165,6 +168,8 @@ func run() error {
 		return register()
 	case "unregister":
 		return unregister()
+	case "firewall":
+		return configureFirewall()
 	}
 
 	logger, closeLog := setupLogging(dataDir, *verbose)
@@ -265,11 +270,24 @@ func run() error {
 			stop()
 		}
 	}
+	// Allowing Magnetar through Windows Defender Firewall needs elevation; the
+	// server triggers it (one UAC prompt) when the user asks.
+	var firewallCallback func() error
+	if runtime.GOOS == "windows" {
+		firewallCallback = func() error {
+			exe, err := os.Executable()
+			if err != nil {
+				return err
+			}
+			return desktop.RunElevated(exe, "firewall")
+		}
+	}
 	var srv *server.Server
 	srv = server.New(eng, store, keys, web.FS(), logger, server.Options{
 		Port:             settings.WebPort,
 		Shutdown:         stop,
 		Register:         register,
+		Firewall:         firewallCallback,
 		AutoStart:        desktop.SetAutostart,
 		Updater:          updater,
 		RSS:              feeds,

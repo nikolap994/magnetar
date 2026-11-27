@@ -168,6 +168,12 @@ type Settings struct {
 	// Search: Torznab indexers (Prowlarr, Jackett, ...).
 	Indexers []Indexer `json:"indexers,omitempty"`
 
+	// Subtitles from OpenSubtitles (the user's own API key; account optional).
+	OpenSubtitlesKey      string `json:"openSubtitlesKey,omitempty"`
+	OpenSubtitlesUser     string `json:"openSubtitlesUser,omitempty"`
+	OpenSubtitlesPassword string `json:"openSubtitlesPassword,omitempty"`
+	SubtitleLanguages     string `json:"subtitleLanguages,omitempty"` // e.g. "en,sr"
+
 	// Phone notifications
 	NotifyNtfyURL       string `json:"notifyNtfyURL,omitempty"`
 	NotifyTelegramToken string `json:"notifyTelegramToken,omitempty"`
@@ -236,8 +242,8 @@ func Defaults() Settings {
 		EnableUTP:          true,
 		EnableUPnP:         true,
 		Encryption:         EncryptionPrefer,
-		MaxConnsPerTorrent: 80,
-		MaxHalfOpenConns:   200,
+		MaxConnsPerTorrent: 100,
+		MaxHalfOpenConns:   500,
 		PieceHashers:       4,
 		MinFreeSpaceMB:     1024,
 		QueueEnabled:       true,
@@ -406,6 +412,14 @@ func (s *Settings) Validate() error {
 	s.NotifyTelegramChat = strings.TrimSpace(s.NotifyTelegramChat)
 	if len(s.NotifyTelegramToken) > 200 || len(s.NotifyTelegramChat) > 100 || hasControl(s.NotifyTelegramToken) || hasControl(s.NotifyTelegramChat) {
 		errs = append(errs, errors.New("the Telegram bot token or chat ID is not valid"))
+	}
+	s.OpenSubtitlesKey, s.OpenSubtitlesUser = strings.TrimSpace(s.OpenSubtitlesKey), strings.TrimSpace(s.OpenSubtitlesUser)
+	s.SubtitleLanguages = strings.ToLower(strings.ReplaceAll(s.SubtitleLanguages, " ", ""))
+	for _, v := range []string{s.OpenSubtitlesKey, s.OpenSubtitlesUser, s.OpenSubtitlesPassword, s.SubtitleLanguages} {
+		if len(v) > 200 || hasControl(v) {
+			errs = append(errs, errors.New("the subtitle settings are not valid"))
+			break
+		}
 	}
 	s.DLNAName = strings.TrimSpace(s.DLNAName)
 	if len(s.DLNAName) > 60 || hasControl(s.DLNAName) {

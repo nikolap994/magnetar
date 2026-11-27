@@ -286,15 +286,19 @@ func (e *Engine) newClient(s config.Settings) (*torrent.Client, error) {
 		cfg.HeaderObfuscationPolicy = torrent.HeaderObfuscationPolicy{Preferred: true}
 	}
 
-	// Performance tuning.
+	// Performance tuning. A fresh public torrent often gets hundreds of peers
+	// at once; fan out to many of them quickly so downloads ramp up fast
+	// instead of trickling in a few connections at a time.
 	cfg.EstablishedConnsPerTorrent = s.MaxConnsPerTorrent
-	cfg.HalfOpenConnsPerTorrent = max(s.MaxConnsPerTorrent/2, 10)
+	cfg.HalfOpenConnsPerTorrent = max(min(s.MaxConnsPerTorrent, 100), 25)
 	cfg.TotalHalfOpenConns = s.MaxHalfOpenConns
-	cfg.TorrentPeersHighWater = 1000
-	cfg.TorrentPeersLowWater = 100
+	cfg.TorrentPeersHighWater = 2000
+	cfg.TorrentPeersLowWater = 200
 	cfg.PieceHashersPerTorrent = s.PieceHashers
-	cfg.DialRateLimiter = rate.NewLimiter(50, 50)
-	cfg.MaxUnverifiedBytes = 128 << 20
+	cfg.DialRateLimiter = rate.NewLimiter(250, 500)
+	// Keep more data in flight before it is hash-checked, so large-piece
+	// torrents (4+ MiB pieces) don't stall waiting for verification.
+	cfg.MaxUnverifiedBytes = 256 << 20
 	cfg.DownloadRateLimiter = e.downLimiter
 	cfg.UploadRateLimiter = e.upLimiter
 

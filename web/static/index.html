@@ -462,6 +462,16 @@
             </ul>
             <div id="ix-editor" class="ix-editor"></div>
             <div class="row"><button type="button" class="btn ghost" id="ix-add"><svg><use href="#i-plus"/></svg><span>Add indexer</span></button></div>
+            <h4 class="sub">Subtitles</h4>
+            <p class="muted small">The player can find subtitles on OpenSubtitles. Create a free account there and an API key under <em>API consumers</em>; your login is optional but allows more downloads per day.</p>
+            <div class="two">
+              <label class="field"><span>API key</span><input name="openSubtitlesKey" id="os-key" type="password" autocomplete="off" spellcheck="false"></label>
+              <label class="field"><span>Languages <em>(codes, e.g. en,sr)</em></span><input name="subtitleLanguages" type="text" spellcheck="false" placeholder="en"></label>
+            </div>
+            <div class="two">
+              <label class="field"><span>Username <em>(optional)</em></span><input name="openSubtitlesUser" type="text" autocomplete="off" spellcheck="false"></label>
+              <label class="field"><span>Password</span><input name="openSubtitlesPassword" id="os-pass" type="password" autocomplete="new-password"></label>
+            </div>
           </section>
           <section data-sec="notify">
             <p class="muted">Get a message on your phone when a download finishes, even when you're away from the computer.</p>
@@ -667,9 +677,18 @@
     <form method="dialog">
       <header><h2 id="pl-title">Play</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
       <div class="player-stage" id="pl-stage"></div>
+      <div class="sub-panel" id="sub-panel" hidden>
+        <div class="row">
+          <input id="sub-q" type="text" class="search-input" spellcheck="false" aria-label="Search subtitles for">
+          <button type="button" class="btn ghost sm" id="sub-go">Search</button>
+        </div>
+        <p class="muted small" id="sub-status"></p>
+        <div class="sub-results" id="sub-results"></div>
+      </div>
       <div class="player-foot">
         <span id="pl-status" class="muted"></span>
         <span class="spacer"></span>
+        <button type="button" class="btn ghost sm" id="pl-subs" hidden><svg><use href="#i-ft-sub"/></svg><span>Find subtitles</span></button>
         <button type="button" class="btn ghost sm" id="pl-open"><svg><use href="#i-external"/></svg><span>Open in system player</span></button>
         <button type="button" class="btn ghost sm" id="pl-reveal"><svg><use href="#i-folder"/></svg><span>Show in folder</span></button>
       </div>
@@ -828,6 +847,7 @@
       <p id="conn-text" class="muted"></p>
       <ol id="conn-steps" class="conn-steps"></ol>
       <footer>
+        <button type="button" class="btn ghost" id="conn-firewall" hidden>Allow through Windows Firewall</button>
         <button type="button" class="btn ghost" id="conn-settings">Connection settings</button>
         <button class="btn primary" value="ok">Close</button>
       </footer>

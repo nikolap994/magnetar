@@ -28,6 +28,7 @@ type remoteStatus struct {
 	URLs            []remoteURL `json:"urls"`
 	HTTPS           bool        `json:"https"`
 	Fingerprint     string      `json:"fingerprint,omitempty"`
+	CanFirewall     bool        `json:"canFirewall"`
 }
 
 // lanAddresses lists this computer's private IPv4 addresses (home and office
@@ -83,6 +84,7 @@ func (s *Server) remoteStatus() remoteStatus {
 	}
 	rs.RestartRequired = st.WebHost != s.host || (rs.Enabled && st.RemoteHTTPS != (s.httpsPort > 0))
 	rs.HTTPS, rs.Fingerprint = s.httpsPort > 0, s.httpsFP
+	rs.CanFirewall = s.firewall != nil
 	if rs.Enabled {
 		for _, ip := range lanAddresses() {
 			u := "http://" + net.JoinHostPort(ip, strconv.Itoa(s.port))

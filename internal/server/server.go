@@ -42,6 +42,7 @@ type Server struct {
 	port      int
 	shutdown  func()
 	register  func() error
+	firewall  func() error
 	autoStart func(bool) error
 	updater   Updater
 	showUI    func(magnet string)
@@ -65,6 +66,8 @@ type Options struct {
 	Shutdown func()
 	// Register makes Magnetar the system handler for magnet links and .torrent files.
 	Register func() error
+	// Firewall allows Magnetar through the OS firewall (Windows; optional).
+	Firewall func() error
 	// AutoStart enables or disables starting Magnetar at sign-in.
 	AutoStart func(bool) error
 	// Updater checks for and installs new versions (optional).
@@ -99,7 +102,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint, applied: o.Applied}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, firewall: o.Firewall, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint, applied: o.Applied}
 	s.routes()
 	return s
 }
@@ -127,6 +130,10 @@ func (s *Server) routes() {
 	m.Handle("DELETE /api/peers/bans", s.authed(s.handleClearBans))
 	m.Handle("POST /api/trackers/public-list", s.authed(s.handleFetchTrackerList))
 	m.Handle("GET /api/torrents/{hash}/files/{index}/content", s.authed(s.handleFileContent))
+	m.Handle("GET /api/torrents/{hash}/files/{index}/subtitles", s.authed(s.handleSubList))
+	m.Handle("GET /api/torrents/{hash}/files/{index}/subtitles/search", s.authed(s.handleSubSearch))
+	m.Handle("POST /api/torrents/{hash}/files/{index}/subtitles", s.authed(s.handleSubDownload))
+	m.Handle("GET /api/torrents/{hash}/files/{index}/subtitles/{name}", s.authed(s.handleSubFile))
 	m.Handle("POST /api/torrents/{hash}/files/{index}/open", s.authed(s.handleFileOpen))
 	m.Handle("POST /api/torrents/{hash}/files/{index}/reveal", s.authed(s.handleFileReveal))
 	m.Handle("POST /api/torrents/{hash}/open-folder", s.authed(s.handleOpenFolder))
@@ -178,6 +185,7 @@ func (s *Server) routes() {
 	m.Handle("GET /api/preview/{hash}", s.authed(s.handlePreviewStatus))
 	m.Handle("DELETE /api/preview/{hash}", s.authed(s.handlePreviewCancel))
 	m.Handle("POST /api/system/register", s.authed(s.handleRegister))
+	m.Handle("POST /api/system/firewall", s.authed(s.handleFirewall))
 	m.Handle("POST /api/ui/open", s.authedOrLaunch(s.handleUIOpen))
 	m.Handle("GET /api/update", s.authed(s.handleUpdateStatus))
 	m.Handle("POST /api/update/check", s.authed(s.handleUpdateCheck))
@@ -630,6 +638,11 @@ type publicSettings struct {
 	// Likewise the Telegram bot token.
 	NotifyTelegramToken    string `json:"notifyTelegramToken,omitempty"`
 	NotifyTelegramTokenSet bool   `json:"notifyTelegramTokenSet"`
+	// Nor are the OpenSubtitles key and password.
+	OpenSubtitlesKey         string `json:"openSubtitlesKey,omitempty"`
+	OpenSubtitlesKeySet      bool   `json:"openSubtitlesKeySet"`
+	OpenSubtitlesPassword    string `json:"openSubtitlesPassword,omitempty"`
+	OpenSubtitlesPasswordSet bool   `json:"openSubtitlesPasswordSet"`
 	// Indexer API keys are not sent back either; APIKeySet tells the UI.
 	Indexers []publicIndexer `json:"indexers"`
 }
@@ -647,7 +660,8 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 		ix = append(ix, publicIndexer{Indexer: i, APIKeySet: i.APIKey != ""})
 	}
 	writeJSON(w, publicSettings{Settings: st, PasswordSet: st.PasswordHash != "", ProxyPasswordSet: st.ProxyPassword != "",
-		NotifyTelegramTokenSet: st.NotifyTelegramToken != "", Indexers: ix})
+		NotifyTelegramTokenSet: st.NotifyTelegramToken != "", Indexers: ix,
+		OpenSubtitlesKeySet: st.OpenSubtitlesKey != "", OpenSubtitlesPasswordSet: st.OpenSubtitlesPassword != ""})
 }
 
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
@@ -681,6 +695,13 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	}
+	// Empty OpenSubtitles secrets keep the saved ones.
+	if next.OpenSubtitlesKey == "" {
+		next.OpenSubtitlesKey = cur.OpenSubtitlesKey
+	}
+	if next.OpenSubtitlesPassword == "" && next.OpenSubtitlesUser == cur.OpenSubtitlesUser {
+		next.OpenSubtitlesPassword = cur.OpenSubtitlesPassword
 	}
 	// An empty bot token keeps the saved one unless the chat ID was cleared.
 	if next.NotifyTelegramToken == "" && next.NotifyTelegramChat != "" {
@@ -881,6 +902,24 @@ func (s *Server) handleUIOpen(w http.ResponseWriter, r *http.Request) {
 // PreviewTarget names a prepared preview (from a .torrent file) for the add
 // dialog, in place of a magnet link.
 func PreviewTarget(hash string) string { return "preview:" + hash }
+
+// handleFirewall allows Magnetar through the firewall (needs the computer,
+// not a remote device, since it shows a system prompt there).
+func (s *Server) handleFirewall(w http.ResponseWriter, r *http.Request) {
+	if s.firewall == nil {
+		writeErr(w, http.StatusNotImplemented, errors.New("this is only needed on Windows"))
+		return
+	}
+	if err := localOnly(r); err != nil {
+		writeErr(w, http.StatusForbidden, errors.New("allow Magnetar through the firewall on the computer itself"))
+		return
+	}
+	if err := s.firewall(); err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, map[string]bool{"ok": true})
+}
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if s.register == nil {

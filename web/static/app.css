@@ -540,6 +540,16 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .btn.icon.xs { width: 24px; height: 24px; }
 .btn.icon.xs svg { width: 13px; height: 13px; }
 
+/* Subtitles in the player */
+.sub-panel { margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.sub-panel[hidden] { display: none; }
+.sub-panel .row input { flex: 1; }
+.sub-results { max-height: 220px; overflow: auto; }
+.sub-row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.sub-row .lang { font-weight: 700; text-transform: uppercase; color: var(--accent); }
+.sub-row .rel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sub-row .n { color: var(--muted); font-size: 12px; }
+
 /* Search */
 .dialog.search-dlg { width: min(1100px, 96vw); }
 .search-row input { flex: 1; }
@@ -623,6 +633,9 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .remote-url img { width: 168px; height: 168px; image-rendering: pixelated; }
 .remote-url code { color: #111; background: none; font-size: 13px; font-weight: 600; }
 .remote-card .row { margin-top: 12px; }
+.remote-https { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.fw-hint { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.fw-hint p { margin: 0 0 8px; }
 .fingerprint { display: block; font-size: 11px; word-break: break-all; background: var(--panel-2); padding: 8px 10px; border-radius: 8px; margin-top: 6px; }
 
 /* Import */

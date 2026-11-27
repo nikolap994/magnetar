@@ -125,7 +125,9 @@ func install(silent, launch bool) error {
 	if err := writeUninstallEntry(dir, int64(len(exe))); err != nil {
 		return err
 	}
-	if err := shortcuts(target, true); err != nil && !silent {
+	// On an update (started by the in-app updater), only refresh shortcuts the
+	// user still has: a desktop icon they deleted stays deleted.
+	if err := shortcuts(target, true, launch); err != nil && !silent {
 		message(appName, "Could not create shortcuts: "+err.Error(), mbIconInfo)
 	}
 	// Updates (/launch) keep whatever default-app choice the user has made.
@@ -201,7 +203,7 @@ func writeUninstallEntry(dir string, size int64) error {
 // shortcuts creates or removes the Start Menu and desktop shortcuts using the
 // Windows Script Host COM object via PowerShell (arguments are passed as
 // environment variables, never interpolated into the script).
-func shortcuts(target string, create bool) error {
+func shortcuts(target string, create, refreshOnly bool) error {
 	appData := os.Getenv("APPDATA")
 	profile := os.Getenv("USERPROFILE")
 	links := []string{filepath.Join(appData, `Microsoft\Windows\Start Menu\Programs`, appName+".lnk")}
@@ -215,6 +217,18 @@ func shortcuts(target string, create bool) error {
 			os.Remove(l)
 		}
 		return nil
+	}
+	if refreshOnly {
+		kept := links[:0]
+		for _, l := range links {
+			if _, err := os.Stat(l); err == nil {
+				kept = append(kept, l)
+			}
+		}
+		links = kept
+		if len(links) == 0 {
+			return nil
+		}
 	}
 	const script = `$s = New-Object -ComObject WScript.Shell
 foreach ($p in $env:MG_LINKS.Split('|')) {
@@ -289,7 +303,7 @@ func runUninstall(dir string, silent bool) error {
 	if _, err := os.Stat(exe); err == nil {
 		hidden(exe, "unregister").Run()
 	}
-	shortcuts(exe, false)
+	shortcuts(exe, false, false)
 	// Remove autostart entry if the user enabled it.
 	if k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Run`, registry.SET_VALUE); err == nil {
 		k.DeleteValue(appName)
