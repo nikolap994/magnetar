@@ -1468,23 +1468,47 @@ for (const b of $$(".settings-nav button")) {
     $$(".settings-body section").forEach((s) => s.classList.toggle("active", s.dataset.sec === b.dataset.sec));
   });
 }
-$("#settings-form").addEventListener("submit", async (ev) => {
-  if (ev.submitter && ev.submitter.value === "cancel") return;
-  ev.preventDefault();
+// Settings save as you edit them: no Save button. Text fields are debounced,
+// toggles and menus save at once.
+let settingsSaveTimer = null;
+async function saveSettings() {
+  clearTimeout(settingsSaveTimer);
+  if (!state.settings) return;
   const body = {};
-  for (const el of ev.target.elements) {
+  for (const el of $("#settings-form").elements) {
     if (!el.name || !(el.name in state.settings)) continue;
     body[el.name] = el.type === "checkbox" ? el.checked : NUMERIC.has(el.name) ? Number(el.value || 0) : el.value.trim();
   }
   body.categories = readCatEditor();
   body.indexers = readIndexerEditor();
+  $("#settings-err").textContent = "";
   try {
     const res = await api("/api/settings", { method: "PUT", body });
-    $("#dlg-settings").close();
-    state.settings = null;
+    Object.assign(state.settings, body);
     loadCategories();
-    toast(res.restartRequired ? "Saved - restart Magnetar to apply web interface changes" : "Settings saved");
+    $("#settings-saved").textContent = res.restartRequired ? "Saved - restart to apply the web interface change" : "Saved";
+    clearTimeout(saveSettings._clear);
+    saveSettings._clear = setTimeout(() => { $("#settings-saved").textContent = ""; }, 2500);
   } catch (e) { $("#settings-err").textContent = e.message; }
+}
+function scheduleSettingsSave() { clearTimeout(settingsSaveTimer); settingsSaveTimer = setTimeout(saveSettings, 700); }
+$("#settings-form").addEventListener("submit", (ev) => ev.preventDefault());
+$("#settings-form").addEventListener("input", (ev) => {
+  if (ev.target.closest("#pw-current, #pw-new")) return; // password has its own control
+  scheduleSettingsSave();
+});
+$("#settings-form").addEventListener("change", (ev) => {
+  if (ev.target.type === "checkbox" || ev.target.tagName === "SELECT") saveSettings();
+});
+$("#dlg-settings").addEventListener("close", () => { if (settingsSaveTimer) saveSettings(); });
+$("#settings-reset").addEventListener("click", async () => {
+  if (!confirm("Reset all settings to their defaults? Your download folder, web address, password and categories are kept.")) return;
+  try {
+    await api("/api/settings/reset", { method: "POST" });
+    toast("Settings reset to defaults");
+    state.settings = null;
+    await openSettings();
+  } catch (e) { fail(e); }
 });
 $("#pw-save").addEventListener("click", async () => {
   try {
@@ -2045,7 +2069,7 @@ function addIndexerRow(ix) {
   const key = h("input", { type: "password", value: "", placeholder: ix.apiKeySet ? "API key saved" : "API key", autocomplete: "off", "aria-label": "API key" });
   const on = h("input", { type: "checkbox", checked: ix.enabled !== false, "aria-label": "Enabled" });
   const row = h("div", { class: "ix-row" }, name, url, key, h("label", { class: "switch" }, on, h("span")),
-    h("button", { type: "button", class: "btn icon", title: "Remove", onclick: () => row.remove() }, icon("trash")));
+    h("button", { type: "button", class: "btn icon", title: "Remove", onclick: () => { row.remove(); scheduleSettingsSave(); } }, icon("trash")));
   $("#ix-editor").append(row);
 }
 function renderIndexerEditor(list) {
@@ -2571,7 +2595,7 @@ function addCatRow(c, focus) {
   const browseBtn = h("button", { type: "button", class: "btn ghost sm", title: "Browse" }, icon("folder"));
   browseBtn.addEventListener("click", () => pickFolder(path.value.trim(), (p) => { path.value = p; }));
   const row = h("div", { class: "cat-row" }, name, path, browseBtn,
-    h("button", { type: "button", class: "btn ghost sm danger", title: "Remove", onclick: () => row.remove() }, icon("trash")));
+    h("button", { type: "button", class: "btn ghost sm danger", title: "Remove", onclick: () => { row.remove(); scheduleSettingsSave(); } }, icon("trash")));
   $("#cat-editor").append(row);
   if (focus) name.focus();
 }

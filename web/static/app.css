@@ -288,7 +288,7 @@ h4.sub em { text-transform: none; letter-spacing: 0; font-style: normal; }
 
 /* Detail panel */
 .detail {
-  width: 440px; border-left: 1px solid var(--line); background: var(--bg-2);
+  width: 520px; border-left: 1px solid var(--line); background: var(--bg-2);
   display: flex; flex-direction: column; min-height: 0;
   animation: slide .18s ease-out;
 }
@@ -738,7 +738,7 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 @media (max-width: 1000px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   .sidebar { display: none; }
-  .detail { position: fixed; inset: 0 0 0 auto; width: min(440px, 100vw); z-index: 40; box-shadow: var(--shadow); }
+  .detail { position: fixed; inset: 0 0 0 auto; width: min(520px, 100vw); z-index: 40; box-shadow: var(--shadow); }
   .list-head, .row-t { grid-template-columns: 28px 1fr 120px 76px; }
   .list-head .size, .list-head .rate, .list-head .eta, .row-t .c-size, .row-t .c-rate, .row-t .c-eta { display: none; }
   .search { width: auto; flex: 1; }

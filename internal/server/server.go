@@ -147,6 +147,7 @@ func (s *Server) routes() {
 	m.Handle("GET /api/statistics", s.authed(func(w http.ResponseWriter, r *http.Request) { writeJSON(w, s.eng.Statistics()) }))
 	m.Handle("GET /api/settings", s.authed(s.handleGetSettings))
 	m.Handle("PUT /api/settings", s.authed(s.handlePutSettings))
+	m.Handle("POST /api/settings/reset", s.authed(s.handleResetSettings))
 	m.Handle("POST /api/password", s.authed(s.handlePassword))
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))
@@ -712,6 +713,11 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if next.NotifyTelegramToken == "" && next.NotifyTelegramChat != "" {
 		next.NotifyTelegramToken = cur.NotifyTelegramToken
 	}
+	s.commitSettings(w, cur, next)
+}
+
+// commitSettings validates and applies next, writing the result (or error).
+func (s *Server) commitSettings(w http.ResponseWriter, cur, next config.Settings) {
 	if err := next.Validate(); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -738,6 +744,18 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	restart := cur.WebHost != next.WebHost || cur.WebPort != next.WebPort
 	writeJSON(w, map[string]bool{"ok": true, "restartRequired": restart})
+}
+
+// handleResetSettings restores default settings, keeping the download folder,
+// web address and password so nothing is lost and nobody is locked out.
+func (s *Server) handleResetSettings(w http.ResponseWriter, r *http.Request) {
+	cur := s.store.Get()
+	def := config.Defaults()
+	def.DownloadDir = cur.DownloadDir
+	def.WebHost, def.WebPort = cur.WebHost, cur.WebPort
+	def.PasswordHash = cur.PasswordHash
+	def.Categories = cur.Categories
+	s.commitSettings(w, cur, def)
 }
 
 func (s *Server) handlePassword(w http.ResponseWriter, r *http.Request) {
