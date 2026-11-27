@@ -22,21 +22,32 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 ## Features
 
 **A real desktop client**
-- Native installers: **Windows setup `.exe`** and **Ubuntu/Debian `.deb`** (plus portable builds)
-- Opens in its own app window with a **tray icon** (open, pause/resume all, turtle mode, quit)
+- Native apps: **Windows setup `.exe`**, **macOS `.dmg`** (Apple silicon and Intel), **Ubuntu/Debian `.deb`**, portable
+  builds, and a **Docker image** for servers and NAS devices
+- Opens in its own app window with a **tray / menu bar icon** (open, pause/resume all, turtle mode, quit)
 - **Click a magnet link in any browser** → Magnetar shows what's inside and asks where to save it
 - Opens `.torrent` files from your file manager; optional start at sign-in
-- **Updates itself**: one click installs new releases, verified with Magnetar's signing key before anything runs
+- **Updates itself**: one click installs new releases, verified with Magnetar's signing key before anything runs; updates
+  can be paused
+- **Use it from your phone**: turn on phone access, scan the QR code, and manage downloads on the same Wi-Fi
 
 **Everything you expect from a torrent client**
 - Magnet links, `.torrent` files and bare info hashes - paste anywhere, drag & drop, or click in the browser
-- **Pick files before downloading**: see the file list, sizes and free disk space before anything is written
+- **Pick files before downloading**: a folder tree with file type icons, sizes and free disk space before anything
+  is written
+- **Play while downloading**: built-in player for video and audio (the part you watch comes first), with subtitles;
+  quick look for images and text
+- **Download queue**: a few torrents at a time, the rest start by themselves; force start and queue order
+- **RSS auto-download** with filters and a smart episode filter, a **watch folder**, and **create torrents** from your
+  own files
+- **Import** your torrents from qBittorrent, Transmission or uTorrent; media apps such as Sonarr and Radarr can send
+  downloads through an optional compatible API
 - **Choose the download folder** per torrent with a built-in folder browser, plus a default folder
 - **Categories** with their own folders, **Move files to…** for existing torrents, and automatic moving of completed
   downloads
 - **Picks up where it left off**: remove a torrent but keep its files, add it again later and Magnetar checks what is
   already on disk and downloads only what is missing
-- **Speed limits**: global download/upload limits plus *alternative* (turtle) limits you can toggle
+- **Exact speed limits**: global download/upload limits plus *alternative* (turtle) limits you can toggle
   with one click from the sidebar or tray, or on a **schedule** (e.g. weekdays 9-17)
 - Pause, resume, verify, remove (with or without data), bulk actions and right-click menus
 - Per-file selection and priorities (skip / normal / high), sequential download for previewing video
@@ -48,12 +59,14 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 
 **Built for speed**
 - Powered by the battle-tested [`anacrolix/torrent`](https://github.com/anacrolix/torrent) engine
-- Tuned connection limits, parallel piece hashing and memory-mapped file storage
+- Saturates fast connections, keeps peers connected under speed limits, verifies existing data at disk speed
+- Low memory use (about 70 MiB while downloading), tuned connection limits and parallel piece hashing
 - Fully static Go binary (~22 MB), starts in milliseconds, no runtime to install
 
 **Secure by default** - see [Security model](#security-model)
 - Protocol encryption (MSE/PE) preferred, or **required** with one switch
-- Bind all peer, tracker and DHT traffic to one IP (e.g. your VPN) - traffic **stops** if the VPN drops
+- **VPN kill switch**: bind all traffic to your VPN connection - transfers **stop** if the VPN drops, and resume when
+  it reconnects; SOCKS5 and HTTP proxies
 - IP blocklists (P2P/eMule format, `.gz` supported) and anonymous mode
 - Interface listens on `127.0.0.1` only, with signed sessions, CSRF and DNS-rebinding protection, a strict CSP and an
   isolated browser profile for the app window
@@ -216,7 +229,7 @@ Magnetar is designed so that running it does not widen your attack surface.
 | Password brute force | Argon2id hashing, rate-limited logins |
 | Path traversal in torrents | File paths are confined to the download folder; symlinks out of it are rejected; "delete data" never leaves the save path or removes files shared with another torrent |
 | Metadata leaks | Magnet `xs`/`as` sources (arbitrary HTTP fetches) are ignored; optional anonymous mode hides client identity |
-| VPN drops | Binding to an IP makes sockets fail rather than fall back to another interface |
+| VPN drops | Binding to the VPN connection makes sockets fail rather than fall back to another interface |
 | Browser extensions reading the UI | The app window uses its own isolated browser profile with extensions disabled |
 | Tampered downloads of Magnetar | Reproducible builds, Sigstore signatures and build-provenance attestations |
 | Malicious updates | Updates install only if `SHA256SUMS` carries a valid Ed25519 signature from the release key and the file's hash matches; HTTPS from GitHub hosts only |
