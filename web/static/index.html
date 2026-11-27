@@ -44,6 +44,7 @@
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
     <symbol id="i-rss" viewBox="0 0 24 24"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="6" cy="18" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-plus-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 3v5h5M12 11v6M9 14h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -104,6 +105,7 @@
         </div>
         <div class="spacer"></div>
         <button class="update-pill" id="update-pill" hidden><svg><use href="#i-update"/></svg><span></span></button>
+        <button class="btn icon" id="btn-create" title="Create torrent"><svg><use href="#i-plus-file"/></svg></button>
         <button class="btn icon" id="btn-rss" title="RSS feeds"><svg><use href="#i-rss"/></svg></button>
         <button class="btn icon" id="btn-stats" title="Statistics"><svg><use href="#i-chart"/></svg></button>
         <button class="btn icon" id="btn-theme" title="Toggle theme"><svg><use href="#i-moon"/></svg></button>
@@ -440,7 +442,7 @@
   <!-- Folder picker -->
   <dialog id="dlg-folder" class="dialog">
     <form method="dialog" id="folder-form">
-      <header><h2>Choose folder</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <header><h2 id="folder-title">Choose folder</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
       <div class="path-row">
         <input id="folder-path" type="text" spellcheck="false" aria-label="Folder path">
         <button type="button" class="btn ghost" id="folder-go">Go</button>
@@ -450,7 +452,7 @@
       <footer>
         <span id="folder-err" class="error"></span>
         <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
-        <button class="btn primary" value="ok">Use this folder</button>
+        <button class="btn primary" value="ok" id="folder-ok">Use this folder</button>
       </footer>
     </form>
   </dialog>
@@ -479,6 +481,56 @@
         <button type="button" class="btn ghost sm" id="pl-open"><svg><use href="#i-external"/></svg><span>Open in system player</span></button>
         <button type="button" class="btn ghost sm" id="pl-reveal"><svg><use href="#i-folder"/></svg><span>Show in folder</span></button>
       </div>
+    </form>
+  </dialog>
+
+  <!-- Create torrent -->
+  <dialog id="dlg-create" class="dialog">
+    <form method="dialog" id="create-form">
+      <header><h2>Create torrent</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div id="create-setup">
+        <div class="field"><span>File or folder to share</span>
+          <div class="path-row">
+            <input id="cr-path" type="text" spellcheck="false" placeholder="/home/you/Videos/My film" aria-label="File or folder to share">
+            <button type="button" class="btn ghost" id="cr-browse"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
+          </div>
+        </div>
+        <label class="field"><span>Trackers <em>(one per line, optional - DHT finds peers without them)</em></span>
+          <textarea id="cr-trackers" rows="3" spellcheck="false" placeholder="udp://tracker.opentrackr.org:1337/announce"></textarea></label>
+        <div class="two">
+          <label class="field"><span>Piece size</span>
+            <select id="cr-piece">
+              <option value="0">Automatic (recommended)</option>
+              <option value="65536">64 KiB</option><option value="262144">256 KiB</option><option value="1048576">1 MiB</option>
+              <option value="4194304">4 MiB</option><option value="16777216">16 MiB</option>
+            </select></label>
+          <label class="field"><span>Comment <em>(optional)</em></span><input id="cr-comment" type="text"></label>
+        </div>
+        <details class="more">
+          <summary>More options</summary>
+          <label class="field"><span>Web seeds <em>(HTTP addresses with the same files, one per line)</em></span>
+            <textarea id="cr-webseeds" rows="2" spellcheck="false"></textarea></label>
+          <label class="field"><span>Source tag <em>(only if your private tracker asks for one)</em></span><input id="cr-source" type="text"></label>
+          <label class="switch"><input type="checkbox" id="cr-private"><span></span>Private torrent (only the trackers above share peers; no DHT or PEX)</label>
+        </details>
+        <label class="switch"><input type="checkbox" id="cr-seed" checked><span></span>Start seeding right away</label>
+      </div>
+      <div id="create-progress" hidden>
+        <p id="cr-status" class="muted"></p>
+        <div class="bar big"><i id="cr-bar"></i></div>
+        <div id="cr-result" class="create-result" hidden>
+          <label class="field"><span>Magnet link</span><input id="cr-magnet" type="text" readonly></label>
+          <div class="row">
+            <a class="btn primary" id="cr-download" download><svg><use href="#i-down"/></svg><span>Save .torrent file</span></a>
+            <button type="button" class="btn ghost" id="cr-copy"><svg><use href="#i-copy"/></svg><span>Copy magnet link</span></button>
+          </div>
+        </div>
+      </div>
+      <footer>
+        <span class="error" id="cr-err"></span>
+        <button class="btn ghost" value="cancel" formnovalidate id="cr-cancel">Cancel</button>
+        <button class="btn primary" id="cr-start" value="default">Create</button>
+      </footer>
     </form>
   </dialog>
 

@@ -538,6 +538,14 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .conn-pill.vpn-down { color: var(--red); border-color: rgba(239, 68, 68, .4); }
 .conn-pill.vpn-down .dot { background: var(--red); }
 
+/* Create torrent */
+.more { margin: 4px 0 10px; }
+.more summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.bar.big { height: 8px; margin: 6px 0 14px; }
+.create-result { margin-top: 6px; }
+.folder-list .file-pick svg { color: var(--muted); }
+.folder-list .picked { background: var(--panel-2); outline: 1px solid var(--accent); }
+
 /* RSS */
 .dialog.rss { width: min(1100px, 96vw); }
 .dialog.rss header { gap: 14px; }

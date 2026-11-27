@@ -1112,6 +1112,7 @@ function handleIncomingLinks() {
   else if (hash === "#speed") openSpeed();
   else if (hash === "#stats") openStatistics();
   else if (hash === "#rss") openRSS();
+  else if (hash === "#create") openCreate();
   else if (hash === "#rss:rules") openRSS("rules");
   else if (/^#play=[0-9a-f]{40}$/i.test(hash)) playTorrent(hash.slice(6).toLowerCase());
   else if (hash === "#add") openAdd();
@@ -1276,10 +1277,11 @@ $("#btn-register").addEventListener("click", async () => {
 
 /* ---------- folder picker ---------- */
 let folderTarget = null;
+let folderFiles = false; // also list files (choosing what to share in a new torrent)
 async function browse(path) {
   $("#folder-err").textContent = "";
   try {
-    const d = await api("/api/fs/dirs?path=" + encodeURIComponent(path || ""));
+    const d = await api("/api/fs/dirs?path=" + encodeURIComponent(path || "") + (folderFiles ? "&files=1" : ""));
     $("#folder-path").value = d.path;
     $("#folder-roots").replaceChildren(...d.roots.map((r) => h("button", { type: "button", title: r, text: r, onclick: () => browse(r) })));
     const items = [];
@@ -1287,14 +1289,25 @@ async function browse(path) {
     for (const name of d.dirs) {
       items.push(h("button", { type: "button", onclick: () => browse(d.path + (d.path.endsWith(d.sep) ? "" : d.sep) + name) }, icon("folder"), h("span", { text: name })));
     }
-    if (!d.dirs.length) items.push(h("p", { class: "muted", text: "No sub-folders. Use this folder, or type a new path - it will be created." }));
+    for (const name of d.files || []) {
+      const full = d.path + (d.path.endsWith(d.sep) ? "" : d.sep) + name;
+      items.push(h("button", { type: "button", class: "file-pick", onclick: (e) => {
+        $$("#folder-list .picked").forEach((x) => x.classList.toggle("picked", false));
+        e.currentTarget.classList.add("picked");
+        $("#folder-path").value = full;
+      } }, icon("file"), h("span", { text: name })));
+    }
+    if (!d.dirs.length && !(d.files || []).length) items.push(h("p", { class: "muted", text: folderFiles ? "This folder is empty." : "No sub-folders. Use this folder, or type a new path - it will be created." }));
     $("#folder-list").replaceChildren(...items);
   } catch (e) { $("#folder-err").textContent = e.message; }
 }
 let folderCallback = null;
-function pickFolder(initial, cb) {
+function pickFolder(initial, cb, withFiles = false) {
   folderTarget = null;
   folderCallback = cb;
+  folderFiles = withFiles;
+  $("#folder-title").textContent = withFiles ? "Choose a file or folder" : "Choose folder";
+  $("#folder-ok").textContent = withFiles ? "Use selected" : "Use this folder";
   const dlg = $("#dlg-folder");
   dlg.returnValue = "";
   dlg.showModal();
@@ -1303,6 +1316,9 @@ function pickFolder(initial, cb) {
 function bindBrowse(b) {
   b.addEventListener("click", () => {
     folderCallback = null;
+    folderFiles = false;
+    $("#folder-title").textContent = "Choose folder";
+    $("#folder-ok").textContent = "Use this folder";
     folderTarget = $(b.dataset.browse) || b.closest(".path-row")?.querySelector("input");
     const dlg = $("#dlg-folder");
     dlg.returnValue = "";
@@ -1419,6 +1435,69 @@ async function playTorrent(hash) {
 $("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = null; });
 $("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
 $("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
+
+/* ---------- create torrent ---------- */
+const creating = { id: null, poll: null };
+function openCreate() {
+  $("#create-setup").hidden = false;
+  $("#create-progress").hidden = true;
+  $("#cr-start").hidden = false;
+  $("#cr-cancel").textContent = "Cancel";
+  $("#cr-err").textContent = "";
+  creating.id = null;
+  $("#dlg-create").showModal();
+  $("#cr-path").focus();
+}
+$("#btn-create").addEventListener("click", openCreate);
+$("#cr-browse").addEventListener("click", () => pickFolder($("#cr-path").value.trim(), (p) => { $("#cr-path").value = p; }, true));
+const lines = (id) => $(id).value.split("\n").map((s) => s.trim()).filter(Boolean);
+$("#create-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  const path = $("#cr-path").value.trim();
+  if (!path) { $("#cr-err").textContent = "Choose a file or folder to share."; return; }
+  $("#cr-err").textContent = "";
+  $("#cr-start").disabled = true;
+  try {
+    const job = await api("/api/create", { method: "POST", body: {
+      path, trackers: lines("#cr-trackers"), webSeeds: lines("#cr-webseeds"), pieceLength: Number($("#cr-piece").value),
+      private: $("#cr-private").checked, comment: $("#cr-comment").value.trim(), source: $("#cr-source").value.trim(),
+      startSeeding: $("#cr-seed").checked } });
+    creating.id = job.id;
+    $("#create-setup").hidden = true;
+    $("#create-progress").hidden = false;
+    $("#cr-result").hidden = true;
+    $("#cr-start").hidden = true;
+    showCreate(job);
+    clearInterval(creating.poll);
+    creating.poll = setInterval(async () => {
+      try { showCreate(await api(`/api/create/${creating.id}`)); } catch (e) { clearInterval(creating.poll); $("#cr-err").textContent = e.message; }
+    }, 400);
+  } catch (e) { $("#cr-err").textContent = e.message; }
+  finally { $("#cr-start").disabled = false; }
+});
+function showCreate(j) {
+  $("#cr-bar").style.width = (j.progress * 100).toFixed(1) + "%";
+  if (j.state === "hashing") {
+    $("#cr-status").textContent = `Reading ${j.files} file${j.files === 1 ? "" : "s"} (${bytes(j.size)}) - ${pct(j.progress)}`;
+    return;
+  }
+  clearInterval(creating.poll);
+  if (j.state === "error") { $("#cr-status").textContent = "Could not create the torrent."; $("#cr-err").textContent = j.error; return; }
+  $("#cr-status").textContent = `“${j.name}” is ready - ${bytes(j.size)} in ${j.files} file${j.files === 1 ? "" : "s"}.` + (j.seeding ? " Magnetar is seeding it." : "");
+  if (j.error) $("#cr-err").textContent = j.error;
+  $("#cr-magnet").value = j.magnet;
+  $("#cr-download").href = `/api/create/${j.id}/torrent`;
+  $("#cr-result").hidden = false;
+  $("#cr-cancel").textContent = "Close";
+}
+$("#cr-copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("#cr-magnet").value); toast("Magnet link copied"); } catch { $("#cr-magnet").select(); }
+});
+$("#dlg-create").addEventListener("close", () => {
+  clearInterval(creating.poll);
+  if (creating.id && $("#cr-result").hidden) api(`/api/create/${creating.id}`, { method: "DELETE" }).catch(() => {});
+});
 
 /* ---------- RSS ---------- */
 const rss = { data: { feeds: [], rules: [] }, feed: null, rule: null, rules: [], testTimer: null };
