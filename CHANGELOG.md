@@ -5,6 +5,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-27
+
+### Added
+- Built-in search through your own indexers (Prowlarr, Jackett and other Torznab sources): results from all of
+  them at once, sorted by seeders, added through the usual preview. Magnetar includes no search sources.
+- Play downloads on your TV: Magnetar can appear as a media server (DLNA) on your home network, so TVs, consoles
+  and players like VLC can browse and play videos, music and photos, also while they download. Off by default.
+- Tags: give torrents several labels, filter by them in the sidebar, and set them when adding.
+- Per-torrent speed limits on top of the global limits.
+- When downloads finish: quit Magnetar, put the computer to sleep or shut it down (with a minute to cancel), and
+  optionally run a program for every finished download.
+- Phone notifications through ntfy, Telegram or a webhook (Discord, Slack, Home Assistant) when downloads finish
+  or have problems.
+- Trackers tab with each tracker's status, removing trackers, and optional extra trackers for new public torrents
+  (with a current public list one click away).
+- Ban peers and connect to a peer by address.
+- Swarm health: availability of each download and a warning when some pieces are not available from any peer yet.
+- Disk protection: downloads pause with a clear message when free space runs low (1 GiB by default).
+- An incomplete-downloads folder: unfinished files are kept apart and moved when they complete.
+- Backup and restore of settings, the torrent list, RSS rules, statistics and banned peers.
+- HTTPS for phone access with a self-signed certificate and its fingerprint shown for checking.
+- Optionally offer to add magnet links you copy.
+
 ## [0.4.0] - 2026-11-27
 
 ### Added

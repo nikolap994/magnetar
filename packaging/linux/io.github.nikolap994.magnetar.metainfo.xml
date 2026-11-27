@@ -43,6 +43,9 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
+    <release version="0.5.0" date="2026-11-27">
+      <description><p>Built-in search through your own indexers, play on your TV (DLNA), tags, per-torrent speed limits, actions and phone notifications when downloads finish, tracker status and peer bans, swarm health, disk protection, an incomplete-downloads folder, backup and restore, and HTTPS phone access.</p></description>
+    </release>
     <release version="0.4.0" date="2026-11-27">
       <description><p>Play while downloading, download queue, RSS auto-download, VPN kill switch, proxy support, torrent creation, import from other apps, phone access, file type icons, pausable updates, and faster, leaner transfers under speed limits.</p></description>
     </release>
