@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/backup"
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/desktop"
+	"github.com/nikolap994/magnetar/internal/dlna"
 	"github.com/nikolap994/magnetar/internal/engine"
 	"github.com/nikolap994/magnetar/internal/finish"
 	"github.com/nikolap994/magnetar/internal/logsafe"
@@ -248,6 +250,8 @@ func run() error {
 	go feeds.Run(ctx)
 	finisher := finish.New(logger, stop)
 	go onFinished(ctx, eng, store, finisher, logger)
+	tv := &mediaServer{ctx: ctx, eng: eng, log: logger.With("component", "dlna"), port: settings.WebPort + 2}
+	tv.apply(store.Get())
 
 	// Relaunch with the same flags (listen-address changes). A service manager
 	// restarts headless instances itself, so they only report it.
@@ -272,6 +276,7 @@ func run() error {
 		Finish:           finisher,
 		ConfigDir:        cfgDir,
 		DataDir:          dataDir,
+		Applied:          tv.apply,
 		HTTPSPort:        httpsPort,
 		HTTPSFingerprint: fingerprint,
 		Host:             settings.WebHost,
@@ -400,6 +405,40 @@ func desktopFeedback(ctx context.Context, eng *engine.Engine, store *config.Stor
 			}
 			desktop.SetTrayTooltip(tip)
 		}
+	}
+}
+
+// mediaServer starts and stops the media server for TVs as the setting changes.
+type mediaServer struct {
+	ctx    context.Context
+	eng    *engine.Engine
+	log    *slog.Logger
+	port   int
+	mu     sync.Mutex
+	cancel context.CancelFunc
+	name   string
+}
+
+func (m *mediaServer) apply(s config.Settings) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	name := s.DLNAName
+	if name == "" {
+		name = "Magnetar"
+	}
+	if m.cancel != nil && (!s.DLNAEnabled || name != m.name) {
+		m.cancel()
+		m.cancel = nil
+	}
+	if s.DLNAEnabled && m.cancel == nil {
+		ctx, cancel := context.WithCancel(m.ctx)
+		m.cancel, m.name = cancel, name
+		srv := dlna.New(m.eng, m.log, m.port, name)
+		go func() {
+			if err := srv.Run(ctx); err != nil {
+				m.log.Error("media server for TVs", "err", err)
+			}
+		}()
 	}
 }
 

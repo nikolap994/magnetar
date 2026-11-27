@@ -1391,7 +1391,7 @@ const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "w
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
   // Optional fields left out of the response when empty still belong to the form.
-  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL", "defaultTrackers", "incompleteDir"]) state.settings[k] ??= "";
+  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL", "defaultTrackers", "incompleteDir", "dlnaName"]) state.settings[k] ??= "";
   state.settings.proxyPassword = "";
   state.settings.notifyTelegramToken = "";
   $("#watch-cat").replaceChildren(h("option", { value: "", text: "No category" }),

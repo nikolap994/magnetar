@@ -130,6 +130,10 @@ type Settings struct {
 	// Web UI
 	WebHost string `json:"webHost"` // Defaults to 127.0.0.1 (local only).
 	WebPort int    `json:"webPort"`
+	// DLNA shares downloads with TVs and media players on the network
+	// (no password: everyone on the network can watch them).
+	DLNAEnabled bool   `json:"dlnaEnabled"`
+	DLNAName    string `json:"dlnaName,omitempty"`
 	// RemoteHTTPS serves other devices over HTTPS (self-signed) on WebPort+1;
 	// plain HTTP then only answers on this computer.
 	RemoteHTTPS bool `json:"remoteHTTPS"`
@@ -402,6 +406,10 @@ func (s *Settings) Validate() error {
 	s.NotifyTelegramChat = strings.TrimSpace(s.NotifyTelegramChat)
 	if len(s.NotifyTelegramToken) > 200 || len(s.NotifyTelegramChat) > 100 || hasControl(s.NotifyTelegramToken) || hasControl(s.NotifyTelegramChat) {
 		errs = append(errs, errors.New("the Telegram bot token or chat ID is not valid"))
+	}
+	s.DLNAName = strings.TrimSpace(s.DLNAName)
+	if len(s.DLNAName) > 60 || hasControl(s.DLNAName) {
+		errs = append(errs, errors.New("the TV name must be up to 60 characters"))
 	}
 	if s.IncompleteDir != "" {
 		p, err := fsutil.CleanAbs(s.IncompleteDir)

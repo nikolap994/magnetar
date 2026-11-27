@@ -53,6 +53,7 @@ type Server struct {
 	dataDir   string
 	httpsPort int
 	httpsFP   string
+	applied   func(config.Settings)
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
@@ -81,6 +82,8 @@ type Options struct {
 	Finish *finish.Runner
 	// ConfigDir and DataDir are backed up and restored (optional).
 	ConfigDir, DataDir string
+	// Applied is called after settings were saved (optional).
+	Applied func(config.Settings)
 	// HTTPSPort and HTTPSFingerprint describe HTTPS phone access, if running.
 	HTTPSPort        int
 	HTTPSFingerprint string
@@ -96,7 +99,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint, applied: o.Applied}
 	s.routes()
 	return s
 }
@@ -700,6 +703,9 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.Update(next); err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
+	}
+	if s.applied != nil {
+		s.applied(next)
 	}
 	restart := cur.WebHost != next.WebHost || cur.WebPort != next.WebPort
 	writeJSON(w, map[string]bool{"ok": true, "restartRequired": restart})
