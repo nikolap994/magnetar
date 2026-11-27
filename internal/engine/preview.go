@@ -95,6 +95,11 @@ func (e *Engine) Preview(magnet string, torrentFile []byte) (PreviewInfo, error)
 		return previewInfo(p), nil
 	}
 	spec.Sources = nil
+	// Add fallback trackers so a magnet whose own trackers are dead still finds
+	// peers (and its metadata) here, instead of waiting on DHT alone.
+	if tier := defaultTrackers(e.settings); len(tier) > 0 {
+		spec.Trackers = append(spec.Trackers, tier)
+	}
 	spec.DeferStorageOpen = true // metadata only: never touch the disk
 	spec.Storage = e.storageFor(e.settings.DownloadDir)
 	t, _, err := e.cl.AddTorrentSpec(spec)
