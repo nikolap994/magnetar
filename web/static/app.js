@@ -1367,11 +1367,11 @@ function handleIncomingLinks() {
 }
 
 /* ---------- settings ---------- */
-const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit", "proxyPort", "maxActiveDownloads", "maxActiveUploads", "maxActiveTorrents"]);
+const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit", "proxyPort", "maxActiveDownloads", "maxActiveUploads", "maxActiveTorrents", "minFreeSpaceMB"]);
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
   // Optional fields left out of the response when empty still belong to the form.
-  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL", "defaultTrackers"]) state.settings[k] ??= "";
+  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL", "defaultTrackers", "incompleteDir"]) state.settings[k] ??= "";
   state.settings.proxyPassword = "";
   state.settings.notifyTelegramToken = "";
   $("#watch-cat").replaceChildren(h("option", { value: "", text: "No category" }),

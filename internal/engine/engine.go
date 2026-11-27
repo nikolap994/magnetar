@@ -68,6 +68,7 @@ type Engine struct {
 	boundIP          net.IP    // address peer traffic is bound to, nil = all
 	killSwitch       bool      // bound interface is down; traffic is stopped
 	lastIfCheck      time.Time // last lookup of the bound interface
+	lastDiskCheck    time.Time
 	creates          createJobs
 
 	// Speed schedule: last schedule state applied, to act only on boundaries.
@@ -517,7 +518,18 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 	if name == "" {
 		name = hash
 	}
+	// Unfinished downloads can live in their own folder and move to the real
+	// one when complete; data that is already in the real folder stays there.
+	finalPath := ""
+	if cur.IncompleteEnabled && cur.IncompleteDir != "" && filepath.Clean(cur.IncompleteDir) != filepath.Clean(savePath) {
+		if _, err := os.Stat(filepath.Join(savePath, name)); err != nil {
+			if err := os.MkdirAll(cur.IncompleteDir, 0o755); err == nil {
+				finalPath, savePath = savePath, cur.IncompleteDir
+			}
+		}
+	}
 	rec := &record{
+		FinalPath:  finalPath,
 		InfoHash:   hash,
 		Name:       name,
 		Size:       size,
@@ -1111,6 +1123,7 @@ func (e *Engine) loop() {
 		e.mu.Lock()
 		e.tickLocked()
 		e.queueLocked(time.Now())
+		e.checkDiskLocked(time.Now())
 		e.reportErrorsLocked()
 		e.checkInterfaceLocked(time.Now())
 		e.expirePreviewsLocked()
@@ -1282,6 +1295,9 @@ func (e *Engine) sequentialLocked(m *managed) {
 
 // completedDestLocked is where a finished torrent should be moved, if anywhere.
 func (e *Engine) completedDestLocked(m *managed) string {
+	if p := e.finalPathLocked(m); p != "" {
+		return p
+	}
 	if !e.settings.MoveCompletedEnabled || e.settings.MoveCompletedDir == "" {
 		return ""
 	}

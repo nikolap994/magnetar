@@ -107,6 +107,12 @@ type Settings struct {
 	// Move finished downloads to MoveCompletedDir (category folders take precedence).
 	MoveCompletedEnabled bool   `json:"moveCompletedEnabled"`
 	MoveCompletedDir     string `json:"moveCompletedDir"`
+	// Keep unfinished downloads in IncompleteDir and move them to their real
+	// folder when they complete.
+	IncompleteEnabled bool   `json:"incompleteEnabled"`
+	IncompleteDir     string `json:"incompleteDir,omitempty"`
+	// Pause downloads when a download folder has less free space than this (MiB, 0 = off).
+	MinFreeSpaceMB int64 `json:"minFreeSpaceMB"`
 	// Watch folder: .torrent files saved here are added automatically and
 	// renamed to .torrent.added (or .torrent.invalid).
 	WatchDir      string `json:"watchDir"`
@@ -226,6 +232,7 @@ func Defaults() Settings {
 		MaxConnsPerTorrent: 80,
 		MaxHalfOpenConns:   200,
 		PieceHashers:       4,
+		MinFreeSpaceMB:     1024,
 		QueueEnabled:       true,
 		MaxActiveDownloads: 3,
 		MaxActiveUploads:   3,
@@ -392,6 +399,19 @@ func (s *Settings) Validate() error {
 	s.NotifyTelegramChat = strings.TrimSpace(s.NotifyTelegramChat)
 	if len(s.NotifyTelegramToken) > 200 || len(s.NotifyTelegramChat) > 100 || hasControl(s.NotifyTelegramToken) || hasControl(s.NotifyTelegramChat) {
 		errs = append(errs, errors.New("the Telegram bot token or chat ID is not valid"))
+	}
+	if s.IncompleteDir != "" {
+		p, err := fsutil.CleanAbs(s.IncompleteDir)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("incomplete downloads folder: %w", err))
+		}
+		s.IncompleteDir = p
+	}
+	if s.IncompleteEnabled && s.IncompleteDir == "" {
+		errs = append(errs, errors.New("choose a folder for incomplete downloads"))
+	}
+	if s.MinFreeSpaceMB < 0 || s.MinFreeSpaceMB > 1<<30 {
+		errs = append(errs, errors.New("minimum free space must be 0 (off) or a positive size"))
 	}
 	if s.WatchDir != "" {
 		p, err := fsutil.CleanAbs(s.WatchDir)

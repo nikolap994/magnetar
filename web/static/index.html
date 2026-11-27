@@ -302,6 +302,14 @@
             </div>
             <label class="switch"><input type="checkbox" name="showAddDialog"><span></span>Ask where to save when opening magnet links</label>
             <label class="switch"><input type="checkbox" name="seedAfterComplete"><span></span>Keep seeding after download completes</label>
+            <label class="switch"><input type="checkbox" name="incompleteEnabled"><span></span>Keep unfinished downloads in a separate folder</label>
+            <div class="field"><span>Incomplete downloads folder <em>(finished downloads move to their real folder)</em></span>
+              <div class="path-row">
+                <input name="incompleteDir" id="set-incomplete" type="text" spellcheck="false" placeholder="e.g. /home/you/Downloads/.incomplete" aria-label="Incomplete downloads folder">
+                <button type="button" class="btn ghost" data-browse="#set-incomplete"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
+              </div>
+            </div>
+            <label class="field"><span>Pause downloads when free space drops below, MiB <em>(0 = never)</em></span><input name="minFreeSpaceMB" type="number" min="0" step="256"></label>
             <label class="switch"><input type="checkbox" name="moveCompletedEnabled"><span></span>Move completed downloads to another folder</label>
             <div class="field"><span>Completed downloads folder</span>
               <div class="path-row">
