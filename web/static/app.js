@@ -506,6 +506,8 @@ function contextMenu(e, hash) {
     item("Verify data", "refresh", () => act("recheck", targets)),
     item(t.sequential ? "Disable sequential" : "Download sequentially", "down", () => setSequential(hash, !t.sequential)),
     item("Category…", "tag", () => openCategoryDialog(targets)),
+    item("Play", "play", () => playTorrent(hash)),
+    item("Open folder", "folder", () => openFolder(hash)),
     item("Move files to…", "move", () => moveTo(targets)),
     item("Copy magnet link", "copy", () => copyMagnet(hash)),
     item("Details", "file", () => openDetail(hash)),
@@ -587,6 +589,8 @@ function renderDetail(d, force) {
   $("#d-actions").replaceChildren(
     h("button", { class: "btn ghost sm", onclick: () => act(paused ? "resume" : "pause", [d.hash]) }, icon(paused ? "play" : "pause"), h("span", { text: paused ? "Resume" : "Pause" })),
     h("button", { class: "btn ghost sm", onclick: () => act("recheck", [d.hash]) }, icon("refresh"), h("span", { text: "Verify" })),
+    bestMediaFile(d) ? h("button", { class: "btn ghost sm", onclick: () => openPreview(d, bestMediaFile(d)) }, icon("play"), h("span", { text: "Play" })) : null,
+    d.files.length ? h("button", { class: "btn ghost sm", onclick: () => openFolder(d.hash) }, icon("folder"), h("span", { text: "Open folder" })) : null,
     h("button", { class: "btn ghost sm", onclick: () => copyMagnet(d.hash) }, icon("copy"), h("span", { text: "Magnet" })),
     h("button", { class: "btn ghost sm danger", onclick: () => confirmRemove([d.hash]) }, icon("trash"), h("span", { text: "Remove" })),
   );
@@ -642,8 +646,15 @@ const TABS = {
       sel.addEventListener("change", () => { setPrio(d.hash, [f.index], +sel.value); sel.blur(); });
       const bar = h("div", { class: "bar" }, h("i"));
       bar.firstChild.style.width = (f.progress * 100).toFixed(1) + "%";
+      const kind = fileKind(f.path);
+      const blocked = BLOCKED_EXT.has(extOf(f.path));
+      const acts = h("div", { class: "file-actions" },
+        kind === "video" || kind === "audio" ? h("button", { class: "btn icon", title: "Play", onclick: () => openPreview(d, f) }, icon("play")) : null,
+        kind === "image" || kind === "text" ? h("button", { class: "btn icon", title: "Quick look", onclick: () => openPreview(d, f) }, icon("eye")) : null,
+        f.progress >= 1 && !blocked ? h("button", { class: "btn icon", title: "Open", onclick: () => fileAction(d.hash, f.index, "open") }, icon("external")) : null,
+        f.completed > 0 ? h("button", { class: "btn icon", title: "Show in folder", onclick: () => fileAction(d.hash, f.index, "reveal") }, icon("folder")) : null);
       wrap.append(h("div", { class: "file" + (f.priority === 0 ? " skip" : "") },
-        h("div", { class: "fp", text: f.path }), sel,
+        h("div", { class: "fp", text: f.path }), acts, sel,
         h("div", { class: "fm", text: `${bytes(f.completed)} / ${bytes(f.size)} · ${pct(f.progress)}` }), bar));
     }
     return h("div", {}, all, h("div", { class: "spacer-8" }), wrap);
@@ -972,6 +983,7 @@ function handleIncomingLinks() {
   else if (hash.startsWith("#settings:")) openSettings().then(() => $(`.settings-nav [data-sec="${hash.slice(10)}"]`)?.click());
   else if (hash === "#speed") openSpeed();
   else if (hash === "#stats") openStatistics();
+  else if (/^#play=[0-9a-f]{40}$/i.test(hash)) playTorrent(hash.slice(6).toLowerCase());
   else if (hash === "#add") openAdd();
 }
 
@@ -1163,6 +1175,94 @@ dayButtons().forEach((b) => b.addEventListener("click", () => {
   v.value = String(Number(v.value || 0) ^ (1 << Number(b.dataset.day)));
   renderDays();
 }));
+
+/* ---------- previews: play, quick look, open ---------- */
+const MEDIA_EXT = { video: ["mp4", "m4v", "webm", "mkv", "mov", "ogv"], audio: ["mp3", "m4a", "aac", "flac", "ogg", "oga", "opus", "wav"],
+  image: ["png", "jpg", "jpeg", "gif", "webp", "avif", "bmp"], text: ["txt", "nfo", "md", "log", "srt", "vtt", "ass", "ssa", "cue", "sfv", "md5", "sha256"] };
+const BLOCKED_EXT = new Set(["exe", "com", "bat", "cmd", "msi", "msp", "msix", "appx", "scr", "pif", "cpl", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "hta", "lnk", "url", "reg", "jar", "dll", "sys", "inf", "sh", "bash", "zsh", "run", "bin", "appimage", "desktop", "deb", "rpm", "py", "pl", "rb", "command", "app", "dmg", "pkg", "iso", "img", "vhd", "vhdx", "html", "htm", "svg", "xhtml", "mht", "chm"]);
+const extOf = (p) => (p.split("/").pop().split(".").length > 1 ? p.split(".").pop().toLowerCase() : "");
+function fileKind(p) {
+  const e = extOf(p);
+  return Object.keys(MEDIA_EXT).find((k) => MEDIA_EXT[k].includes(e)) || "";
+}
+const contentURL = (hash, i, extra = "") => `/api/torrents/${hash}/files/${i}/content${extra}`;
+let playerCtx = null;
+
+function bestMediaFile(d) {
+  const media = d.files.filter((f) => ["video", "audio"].includes(fileKind(f.path)) && f.priority !== 0);
+  return media.sort((a, b) => b.size - a.size)[0];
+}
+function stopPlayer() {
+  const el = $("#pl-stage").querySelector("video, audio");
+  if (el) { el.pause(); el.removeAttribute("src"); el.load(); }
+  $("#pl-stage").replaceChildren();
+}
+function playerMessage(text) {
+  $("#pl-stage").replaceChildren(h("div", { class: "player-msg", text }));
+}
+function openPreview(d, f) {
+  const kind = fileKind(f.path);
+  if (!kind) return;
+  if (d.state === "paused" || d.state === "metadata") { toast("Resume the torrent to preview its files", "err"); return; }
+  playerCtx = { hash: d.hash, file: f };
+  stopPlayer();
+  $("#pl-title").textContent = f.path.split("/").pop();
+  $("#pl-open").hidden = f.progress < 1 || BLOCKED_EXT.has(extOf(f.path));
+  const src = contentURL(d.hash, f.index);
+  if (kind === "video" || kind === "audio") {
+    const el = h(kind, { controls: true, autoplay: true, preload: "auto" });
+    if (kind === "video") {
+      // Subtitles next to the video (same folder) become selectable tracks.
+      const dir = f.path.includes("/") ? f.path.slice(0, f.path.lastIndexOf("/") + 1) : "";
+      const subs = d.files.filter((s) => ["srt", "vtt"].includes(extOf(s.path)) && s.path.startsWith(dir) && s.progress === 1).slice(0, 12);
+      subs.forEach((s, i) => {
+        const base = s.path.split("/").pop();
+        const lang = (base.match(/\.([a-z]{2,3})\.(srt|vtt)$/i) || [])[1] || base;
+        el.append(h("track", { kind: "subtitles", label: lang, srclang: lang.length <= 3 ? lang : undefined,
+          src: contentURL(d.hash, s.index, extOf(s.path) === "srt" ? "?format=vtt" : "") }));
+      });
+    }
+    el.addEventListener("error", () => playerMessage(
+      "This file can't be played inside Magnetar (its format or codec isn't supported by the built-in player)." +
+      (f.progress < 1 ? " Wait until it finishes, then open it in your system player." : " Open it in your system player instead.")));
+    el.src = src;
+    $("#pl-stage").replaceChildren(el);
+    $("#pl-status").textContent = f.progress < 1 ? `Streaming while downloading - ${pct(f.progress)} of this file is ready; playing fetches the next parts first.` : "";
+  } else if (kind === "image") {
+    const img = h("img", { alt: f.path });
+    img.addEventListener("error", () => playerMessage("The image is not ready yet."));
+    img.src = src;
+    $("#pl-stage").replaceChildren(img);
+    $("#pl-status").textContent = f.progress < 1 ? "The image appears once its pieces have downloaded." : "";
+  } else {
+    playerMessage("Loading…");
+    fetch(src, { headers: { Range: "bytes=0-262143" }, credentials: "same-origin" })
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(r.statusText))))
+      .then((txt) => $("#pl-stage").replaceChildren(h("pre", { text: txt + (f.size > 262144 ? "\n\n… (showing the first 256 KiB)" : "") })))
+      .catch(() => playerMessage("The text isn't available yet."));
+    $("#pl-status").textContent = "";
+  }
+  $("#dlg-player").returnValue = "";
+  $("#dlg-player").showModal();
+}
+async function fileAction(hash, index, action) {
+  try { await api(`/api/torrents/${hash}/files/${index}/${action}`, { method: "POST" }); }
+  catch (e) { fail(e); }
+}
+async function openFolder(hash) {
+  try { await api(`/api/torrents/${hash}/open-folder`, { method: "POST" }); } catch (e) { fail(e); }
+}
+async function playTorrent(hash) {
+  try {
+    const d = await api(`/api/torrents/${hash}`);
+    const f = bestMediaFile(d);
+    if (!f) { toast("This torrent has no video or audio files to play", "err"); return; }
+    openPreview(d, f);
+  } catch (e) { fail(e); }
+}
+$("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = null; });
+$("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
+$("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
 
 /* ---------- statistics ---------- */
 const SVG_NS = "http://www.w3.org/2000/svg";

@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Play video and audio inside Magnetar while they download: the pieces you are watching are fetched first, seeking
+  works, and subtitles (.srt/.vtt) next to the video are offered in the player.
+- Quick look for images and text files (subtitles, .nfo, readme).
+- Open file, Show in folder and Open folder. Programs, scripts and web pages from torrents are never opened
+  directly; these actions only work on the computer running Magnetar.
+
 ## [0.3.1] - 2026-11-27
 
 ### Security
