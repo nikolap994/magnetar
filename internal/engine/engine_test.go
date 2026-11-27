@@ -182,3 +182,16 @@ func TestLogSafe(t *testing.T) {
 		t.Fatalf("control characters left: %q", got)
 	}
 }
+
+func TestIsExecutable(t *testing.T) {
+	for _, n := range []string{"setup.EXE", "run.bat", "x.ps1", "a.sh", "page.html", "img.svg", "x.lnk", "t.msi.part"} {
+		if !IsExecutable(n) {
+			t.Errorf("%s should be treated as executable", n)
+		}
+	}
+	for _, n := range []string{"movie.mkv", "song.flac", "readme.txt", "photo.jpg", "archive.zip"} {
+		if IsExecutable(n) {
+			t.Errorf("%s should be openable", n)
+		}
+	}
+}
