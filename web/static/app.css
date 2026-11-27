@@ -417,6 +417,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .ctx-menu button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 7px 10px; border-radius: 6px; font-size: 13px; }
 .ctx-menu button:hover { background: var(--panel-2); }
 .ctx-menu button.danger { color: var(--red); }
+.ctx-menu .ctx-row { display: flex; align-items: center; gap: 2px; padding: 2px 4px 2px 10px; font-size: 12.5px; }
+.ctx-menu .ctx-row > span { flex: 1; }
+.ctx-menu .ctx-row button { width: 28px; justify-content: center; padding: 5px 0; font-size: 15px; }
 .ctx-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 
 /* Add dialog: file selection */
@@ -515,7 +518,9 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .dialog.link-mode.show-link #add-magnets-field { display: flex; }
 
 /* Network settings */
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.card .small { font-size: 12.5px; margin: 6px 0 0; }
+.pill.queued { color: var(--muted); background: rgba(148, 163, 184, .14); }
 .proxy-fields[hidden] { display: none; }
 .proxy-fields .small { font-size: 12.5px; margin: 6px 0 0; }
 .conn-pill.vpn-down { color: var(--red); border-color: rgba(239, 68, 68, .4); }

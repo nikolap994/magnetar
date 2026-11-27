@@ -109,6 +109,7 @@ const FILTERS = [
   { id: "downloading", label: "Downloading", icon: "down", match: (t) => ["downloading", "metadata", "stalled", "checking"].includes(t.state) },
   { id: "seeding", label: "Seeding", icon: "up", match: (t) => t.state === "seeding" },
   { id: "completed", label: "Completed", icon: "check", match: (t) => t.progress >= 1 },
+  { id: "queued", label: "Queued", icon: "clock", match: (t) => t.state === "queued" },
   { id: "paused", label: "Paused", icon: "pause", match: (t) => t.state === "paused" },
   { id: "stalled", label: "Stalled", icon: "clock", match: (t) => t.state === "stalled" },
   { id: "error", label: "Errors", icon: "alert", match: (t) => t.state === "error" },
@@ -414,7 +415,8 @@ function updateRow(row, t) {
 }
 function subtitle(t) {
   const s = subtitleText(t);
-  return t.category ? `${t.category} · ${s}` : s;
+  const f = t.forced && t.state !== "paused" ? "Forced · " : "";
+  return f + (t.category ? `${t.category} · ${s}` : s);
 }
 function subtitleText(t) {
   switch (t.state) {
@@ -424,6 +426,7 @@ function subtitleText(t) {
     case "moving": return "Moving files…";
     case "metadata": return t.knownPeers ? `Fetching metadata from ${t.knownPeers} peers` : "Searching for peers";
     case "seeding": return `${t.peers} peers · ratio ${t.ratio.toFixed(2)}`;
+    case "queued": return `#${t.queuePos} in queue` + (t.size ? ` · ${bytes(t.completed)} of ${bytes(t.size)}` : " · waiting for a free slot");
     case "paused": return t.size ? `${bytes(t.completed)} of ${bytes(t.size)}` : "Paused";
     default: return t.completedAt ? "Finished " + new Date(t.completedAt).toLocaleDateString() : "";
   }
@@ -505,6 +508,8 @@ function contextMenu(e, hash) {
   const item = (label, ic, fn, cls) => h("button", { class: cls, onclick: () => { hideMenu(); fn(); } }, icon(ic), h("span", { text: label }));
   menu.replaceChildren(
     t.state === "paused" ? item("Resume", "play", () => act("resume", targets)) : item("Pause", "pause", () => act("pause", targets)),
+    t.forced ? item("Stop forcing (follow the queue)", "clock", () => act("unforce", targets))
+      : item("Force start", "bolt", () => act("forceStart", targets)),
     item("Verify data", "refresh", () => act("recheck", targets)),
     item(t.sequential ? "Disable sequential" : "Download sequentially", "down", () => setSequential(hash, !t.sequential)),
     item("Category…", "tag", () => openCategoryDialog(targets)),
@@ -513,6 +518,11 @@ function contextMenu(e, hash) {
     item("Move files to…", "move", () => moveTo(targets)),
     item("Copy magnet link", "copy", () => copyMagnet(hash)),
     item("Details", "file", () => openDetail(hash)),
+    h("hr"),
+    h("div", { class: "ctx-row" },
+      h("span", { class: "muted", text: "Queue" }),
+      ...[["queueTop", "Move to top", "⤒"], ["queueUp", "Move up", "↑"], ["queueDown", "Move down", "↓"], ["queueBottom", "Move to bottom", "⤓"]]
+        .map(([a, title, glyph]) => h("button", { class: "btn icon sm", title, "aria-label": title, text: glyph, onclick: () => { hideMenu(); act(a, targets); } }))),
     h("hr"),
     item("Remove…", "trash", () => confirmRemove(targets), "danger"),
   );
@@ -696,9 +706,27 @@ async function setPrio(hash, indices, priority) {
 }
 
 /* ---------- add torrents ---------- */
+// A .torrent file opened from the desktop arrives as "preview:<hash>": the
+// server has already read it, so the dialog shows its files and asks first.
+const PREVIEW_RE = /^preview:([0-9a-f]{40})$/i;
 async function openAdd(prefill = "", fromLink = false) {
   if (!state.settings) { try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); } }
   const dlg = $("#dlg-add");
+  const pm = PREVIEW_RE.exec(prefill);
+  if (pm) {
+    if (dlg.open) dlg.close();
+    state.filePreview = pm[1].toLowerCase();
+    setLinkMode(true, "", true);
+    $("#add-magnets").value = "";
+    $("#add-path").value = state.settings.downloadDir;
+    state.pendingFiles = [];
+    renderPending();
+    dlg.showModal();
+    $("#add-submit").focus();
+    startPreview();
+    updateFree(true);
+    return;
+  }
   if (!dlg.open) {
     setLinkMode(fromLink && /^magnet:\?/i.test(prefill), prefill);
     $("#add-magnets").value = prefill;
@@ -719,15 +747,16 @@ async function openAdd(prefill = "", fromLink = false) {
 function magnetName(link) {
   try { return new URLSearchParams(link.replace(/^magnet:\?/i, "")).get("dn") || ""; } catch { return ""; }
 }
-function setLinkMode(on, link) {
+function setLinkMode(on, link, fromFile = false) {
   const dlg = $("#dlg-add");
+  $("#as-show-link").hidden = fromFile;
   dlg.classList.toggle("link-mode", on);
   dlg.classList.remove("show-link");
   $("#add-summary").hidden = !on;
   $("#add-title").textContent = on ? "Add torrent" : "Add torrents";
   $("#as-show-link").textContent = "Show magnet link";
   if (on) {
-    $("#as-name").textContent = magnetName(link) || "Torrent";
+    $("#as-name").textContent = (link && magnetName(link)) || "Torrent";
     $("#as-meta").textContent = "Loading details…";
   }
 }
@@ -784,6 +813,7 @@ dz.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); dz
 const pv = { key: null, hash: null, info: null, skip: new Set(), timer: null, poll: null, used: false, free: null };
 
 function previewSource() {
+  if (state.filePreview) return { kind: "prepared", key: "prepared:" + state.filePreview, hash: state.filePreview };
   const mags = $("#add-magnets").value.split("\n").map((s) => s.trim()).filter(Boolean);
   if (mags.length === 1 && !state.pendingFiles.length) return { kind: "magnet", key: mags[0], magnet: mags[0] };
   if (!mags.length && state.pendingFiles.length === 1) {
@@ -810,7 +840,9 @@ async function startPreview() {
   renderPreview("loading");
   try {
     let info;
-    if (src.kind === "file") {
+    if (src.kind === "prepared") {
+      info = await api(`/api/preview/${src.hash}`);
+    } else if (src.kind === "file") {
       const fd = new FormData();
       fd.append("torrent", src.file, src.file.name);
       info = await api("/api/preview", { method: "POST", form: fd });
@@ -902,13 +934,13 @@ $("#ap-all").addEventListener("click", () => { pv.skip.clear(); renderPreview();
 $("#ap-none").addEventListener("click", () => { pv.info.files.forEach((f) => pv.skip.add(f.index)); renderPreview(); });
 $("#add-magnets").addEventListener("input", schedulePreview);
 $("#add-path").addEventListener("input", () => updateFree());
-$("#dlg-add").addEventListener("close", () => { clearTimeout(pv.timer); dropPreview(); renderPreview(); $("#add-submit").disabled = false; setLinkMode(false); });
+$("#dlg-add").addEventListener("close", () => { state.filePreview = null; clearTimeout(pv.timer); dropPreview(); renderPreview(); $("#add-submit").disabled = false; setLinkMode(false); });
 
 $("#add-form").addEventListener("submit", async (ev) => {
   if (ev.submitter && ev.submitter.value === "cancel") return;
   ev.preventDefault();
   const magnets = $("#add-magnets").value.trim();
-  if (!magnets && !state.pendingFiles.length) { toast("Add a magnet link or a .torrent file", "err"); return; }
+  if (!magnets && !state.pendingFiles.length && !state.filePreview) { toast("Add a magnet link or a .torrent file", "err"); return; }
   const src = previewSource();
   if (pv.hash && src && src.key === pv.key) {
     $("#add-submit").disabled = true;
@@ -990,7 +1022,7 @@ function handleIncomingLinks() {
 }
 
 /* ---------- settings ---------- */
-const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit", "proxyPort"]);
+const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit", "proxyPort", "maxActiveDownloads", "maxActiveUploads", "maxActiveTorrents"]);
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
   state.settings.proxyPassword = "";

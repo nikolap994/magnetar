@@ -42,6 +42,7 @@
     <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -270,6 +271,18 @@
               <div id="cat-editor" class="cat-editor"></div>
               <div class="row"><button type="button" class="btn ghost" id="cat-add"><svg><use href="#i-plus"/></svg><span>Add category</span></button></div>
             </div>
+            <div class="card">
+              <h3>Queue</h3>
+              <p class="muted">Limit how many torrents run at once. The rest wait as “Queued” in list order and start by themselves when one finishes. Right-click a torrent to move it in the queue or force-start it.</p>
+              <label class="switch"><input type="checkbox" name="queueEnabled"><span></span>Use a download queue</label>
+              <div class="three">
+                <label class="field"><span>Active downloads</span><input name="maxActiveDownloads" type="number" min="0" max="10000"></label>
+                <label class="field"><span>Active uploads</span><input name="maxActiveUploads" type="number" min="0" max="10000"></label>
+                <label class="field"><span>Active torrents</span><input name="maxActiveTorrents" type="number" min="0" max="10000"></label>
+              </div>
+              <label class="switch"><input type="checkbox" name="queueSkipSlow"><span></span>Don't count slow torrents (under 2 KiB/s) towards these limits</label>
+              <p class="muted small">0 means no limit.</p>
+            </div>
             <div class="two">
               <label class="field"><span>Stop seeding at ratio <em>(0 = never)</em></span><input name="seedRatioLimit" type="number" min="0" step="0.1"></label>
               <label class="field"><span>Stop seeding after, minutes <em>(0 = never)</em></span><input name="seedTimeLimitMin" type="number" min="0" step="1"></label>
@@ -334,11 +347,11 @@
               </select>
             </label>
             <div id="proxy-fields" class="proxy-fields">
-              <div class="row2">
+              <div class="two">
                 <label class="field"><span>Host</span><input name="proxyHost" type="text" spellcheck="false" placeholder="proxy.example.com"></label>
                 <label class="field"><span>Port</span><input name="proxyPort" type="number" min="1" max="65535" placeholder="1080"></label>
               </div>
-              <div class="row2">
+              <div class="two">
                 <label class="field"><span>Username <em>(optional)</em></span><input name="proxyUsername" type="text" spellcheck="false" autocomplete="off"></label>
                 <label class="field"><span>Password</span><input name="proxyPassword" id="proxy-pass" type="password" autocomplete="new-password"></label>
               </div>
