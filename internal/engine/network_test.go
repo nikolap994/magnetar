@@ -59,3 +59,13 @@ func TestHTTPClientRefusesLinkLocal(t *testing.T) {
 		}
 	}
 }
+
+func TestShortError(t *testing.T) {
+	got := shortError(`Get "http://t.example/announce?info_hash=x": context deadline exceeded`)
+	if got != "context deadline exceeded" {
+		t.Fatalf("%q", got)
+	}
+	if got := shortError("write error: write error: lookup t on 1.1.1.1:53: no such host"); got != "lookup t on 1.1.1.1:53: no such host" {
+		t.Fatalf("%q", got)
+	}
+}

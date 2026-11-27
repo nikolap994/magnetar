@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/anacrolix/torrent/metainfo"
@@ -37,6 +38,8 @@ func (e *Engine) stoppedDetailLocked(m *managed, d *Detail) {
 			d.Trackers = append(d.Trackers, u)
 		}
 	}
+	d.Trackers = slices.DeleteFunc(d.Trackers, func(u string) bool { return slices.Contains(m.rec.RemovedTrackers, u) })
+	d.TrackerList = e.trackerViewsLocked(m, d.Trackers)
 	if d.Magnet == "" {
 		if mag, err := mi.MagnetV2(); err == nil {
 			d.Magnet = mag.String()

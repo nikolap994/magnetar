@@ -64,6 +64,7 @@ type Engine struct {
 
 	downRate, upRate float64
 	blocklistSize    int
+	bans             []string  // banned peer IPs (banned-peers.json)
 	boundIP          net.IP    // address peer traffic is bound to, nil = all
 	killSwitch       bool      // bound interface is down; traffic is stopped
 	lastIfCheck      time.Time // last lookup of the bound interface
@@ -157,12 +158,14 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 	e.completion = pc
 	e.applyLimits(s)
 
+	e.loadBans()
 	cl, err := e.newClientRetry(s)
 	if err != nil {
 		pc.Close()
 		return nil, err
 	}
 	e.cl = cl
+	e.applyBansLocked()
 	e.ctx, e.cancel = context.WithCancel(context.Background())
 	e.started = time.Now()
 	e.loadStats()
@@ -503,10 +506,12 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 	}
 	name := spec.DisplayName
 	var size int64 // known up front for .torrent files, so paused torrents show it
+	private := false
 	if mi != nil {
 		if info, err := mi.UnmarshalInfo(); err == nil {
 			name = info.BestName()
 			size = info.TotalLength()
+			private = info.Private != nil && *info.Private
 		}
 	}
 	if name == "" {
@@ -523,6 +528,9 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 		Category:   opts.Category,
 		Tags:       tags,
 		AddedAt:    time.Now().UTC(),
+	}
+	if !private {
+		rec.ExtraTrackers = defaultTrackers(cur)
 	}
 	for i, p := range opts.FilePriorities {
 		if p != PriorityNormal {
@@ -583,6 +591,7 @@ func (e *Engine) startLocked(m *managed) error {
 	if len(m.rec.ExtraTrackers) > 0 {
 		spec.Trackers = append(spec.Trackers, m.rec.ExtraTrackers)
 	}
+	spec.Trackers = filterTiers(spec.Trackers, m.rec.RemovedTrackers)
 	t, _, err := e.cl.AddTorrentSpec(spec)
 	if err != nil {
 		return err
@@ -1076,6 +1085,7 @@ func (e *Engine) restartLocked() error {
 		return err
 	}
 	e.cl = cl
+	e.applyBansLocked()
 	var errs []error
 	for _, m := range running {
 		if err := e.startLocked(m); err != nil {

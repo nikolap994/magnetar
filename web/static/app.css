@@ -528,6 +528,18 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .dialog.link-mode #add-magnets-field, .dialog.link-mode #dropzone { display: none; }
 .dialog.link-mode.show-link #add-magnets-field { display: flex; }
 
+/* Trackers and peers */
+.trackers li.trk { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; }
+.trk .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.trk.working .dot { background: var(--green); }
+.trk.error .dot { background: var(--red); }
+.trk.updating .dot { background: var(--amber); }
+.trk-url { overflow-wrap: anywhere; }
+.trk-info { font-family: var(--font, inherit); font-size: 11.5px; color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trk.error .trk-info { color: var(--red); }
+.btn.icon.xs { width: 24px; height: 24px; }
+.btn.icon.xs svg { width: 13px; height: 13px; }
+
 /* Search */
 .dialog.search-dlg { width: min(1100px, 96vw); }
 .search-row input { flex: 1; }

@@ -148,6 +148,10 @@ type Settings struct {
 	// docs for placeholders). Only changeable from this computer.
 	OnCompleteCommand string `json:"onCompleteCommand,omitempty"`
 
+	// Trackers added to every new public torrent (one per line), for faster starts.
+	AddDefaultTrackers bool   `json:"addDefaultTrackers"`
+	DefaultTrackers    string `json:"defaultTrackers,omitempty"`
+
 	// Search: Torznab indexers (Prowlarr, Jackett, ...).
 	Indexers []Indexer `json:"indexers,omitempty"`
 
@@ -345,6 +349,9 @@ func (s *Settings) Validate() error {
 			errs = append(errs, fmt.Errorf("completed downloads folder: %w", err))
 		}
 		s.MoveCompletedDir = p
+	}
+	if len(s.DefaultTrackers) > 100000 {
+		errs = append(errs, errors.New("the tracker list is too long"))
 	}
 	if len(s.Indexers) > 50 {
 		errs = append(errs, errors.New("at most 50 search indexers"))

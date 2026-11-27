@@ -826,9 +826,25 @@ const TABS = {
     return h("div", {}, all, h("div", { class: "spacer-8" }), wrap);
   },
   peers(d) {
-    if (!d.peerList.length) return h("p", { class: "muted", text: d.state === "paused" ? "Torrent is paused." : "No connected peers yet." });
-    return h("table", { class: "table" },
-      h("thead", {}, h("tr", {}, ["Address", "Client", "Progress", "Down", "Up", "Via"].map((x) => h("th", { text: x })))),
+    const addInput = h("input", { type: "text", class: "files-filter", placeholder: "Add a peer: 203.0.113.5:6881", spellcheck: "false", "aria-label": "Peer address" });
+    const addPeer = async () => {
+      const addr = addInput.value.trim();
+      if (!addr) return;
+      try { await api(`/api/torrents/${d.hash}/peers`, { method: "POST", body: { addr } }); addInput.value = ""; toast("Connecting to the peer…"); }
+      catch (e) { fail(e); }
+    };
+    addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addPeer(); } });
+    const head = h("div", { class: "row files-head" }, addInput,
+      h("button", { class: "btn ghost sm", onclick: addPeer, disabled: d.state === "paused" }, icon("plus"), h("span", { text: "Add peer" })));
+    if (!d.peerList.length) return h("div", {}, head, h("p", { class: "muted", text: d.state === "paused" ? "Torrent is paused." : "No connected peers yet." }));
+    const ban = async (p) => {
+      const ip = p.addr.replace(/^\[/, "").replace(/\]?:\d+$/, "");
+      if (!confirm(`Ban ${ip}? Magnetar disconnects it and refuses it from now on.`)) return;
+      try { await api("/api/peers/bans", { method: "POST", body: { ips: [ip] } }); toast("Peer banned"); loadDetail(true); }
+      catch (e) { fail(e); }
+    };
+    return h("div", {}, head, h("table", { class: "table" },
+      h("thead", {}, h("tr", {}, ["Address", "Client", "Progress", "Down", "Up", "Via", ""].map((x) => h("th", { text: x })))),
       h("tbody", {}, d.peerList.map((p) => h("tr", {},
         h("td", { class: "mono", text: p.addr, title: p.addr + " (" + p.network + ")" }),
         h("td", { text: p.client || "–", title: p.client || "" }),
@@ -836,12 +852,24 @@ const TABS = {
         h("td", { text: rate(p.downRate) }),
         h("td", { text: rate(p.upRate) }),
         h("td", { text: p.source + (p.network.startsWith("udp") ? " · µTP" : "") }),
-      ))));
+        h("td", {}, h("button", { class: "btn icon xs", title: "Ban this peer", onclick: () => ban(p) }, icon("ban"))),
+      )))));
   },
   trackers(d) {
     const ta = h("textarea", { rows: 3, placeholder: "udp://tracker.example:1337/announce", spellcheck: "false" });
+    const label = { working: "Working", error: "Error", updating: "Contacting…", disabled: "Not used while paused" };
+    const remove = async (u) => {
+      try { await api(`/api/torrents/${d.hash}/trackers`, { method: "DELETE", body: { url: u } }); loadDetail(true); }
+      catch (e) { fail(e); }
+    };
+    const list = d.trackerList || [];
     return h("div", {},
-      d.trackers.length ? h("ul", { class: "trackers" }, d.trackers.map((t) => h("li", { text: t }))) : h("p", { class: "muted", text: "No trackers - peers are found through DHT and PEX." }),
+      list.length ? h("ul", { class: "trackers" }, list.map((t) => h("li", { class: "trk " + t.status },
+        h("span", { class: "dot", title: label[t.status] || t.status }),
+        h("span", { class: "trk-url", text: t.url }),
+        h("span", { class: "trk-info", text: t.status === "working" ? `${t.peers} peers` : t.status === "error" ? t.message : (label[t.status] || "") , title: t.message || "" }),
+        h("button", { class: "btn icon xs", title: "Remove tracker", onclick: () => remove(t.url) }, icon("x")))))
+        : h("p", { class: "muted", text: "No trackers - peers are found through DHT and PEX." }),
       h("label", { class: "field" }, h("span", { text: "Add trackers (one per line)" }), ta),
       h("button", {
         class: "btn ghost sm", onclick: async () => {
@@ -1343,7 +1371,7 @@ const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "w
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
   // Optional fields left out of the response when empty still belong to the form.
-  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL"]) state.settings[k] ??= "";
+  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL", "defaultTrackers"]) state.settings[k] ??= "";
   state.settings.proxyPassword = "";
   state.settings.notifyTelegramToken = "";
   $("#watch-cat").replaceChildren(h("option", { value: "", text: "No category" }),
@@ -1362,6 +1390,7 @@ async function openSettings() {
   refreshRates($("#settings-form"));
   renderCatEditor(state.settings.categories || []);
   renderIndexerEditor(state.settings.indexers);
+  api("/api/peers/bans").then((b) => { $("#bans-label").textContent = b.length ? `Clear ${b.length} banned peer${b.length === 1 ? "" : "s"}` : "No banned peers"; $("#btn-clear-bans").disabled = !b.length; }).catch(() => {});
   renderDays();
   renderRemote();
   $("#qbit-port").textContent = location.port || state.settings.webPort;
@@ -1888,6 +1917,20 @@ function readIndexerEditor() {
   }).filter((x) => x.url);
 }
 $("#ix-add").addEventListener("click", () => addIndexerRow({ enabled: true }));
+$("#btn-tracker-list").addEventListener("click", async () => {
+  try {
+    const r = await api("/api/trackers/public-list", { method: "POST" });
+    const ta = $('#settings-form [name="defaultTrackers"]');
+    ta.value = r.trackers.join("\n");
+    $('#settings-form [name="addDefaultTrackers"]').checked = true;
+    toast(`${r.trackers.length} trackers loaded - save to use them`);
+  } catch (e) { fail(e); }
+});
+$("#btn-clear-bans").addEventListener("click", async () => {
+  if (!confirm("Allow all banned peers again? Transfers restart briefly.")) return;
+  try { await api("/api/peers/bans", { method: "DELETE" }); toast("Bans cleared"); $("#bans-label").textContent = "No banned peers"; $("#btn-clear-bans").disabled = true; }
+  catch (e) { fail(e); }
+});
 
 /* ---------- create torrent ---------- */
 const creating = { id: null, poll: null };

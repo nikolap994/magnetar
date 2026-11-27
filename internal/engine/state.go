@@ -39,6 +39,8 @@ type record struct {
 	Forced bool `json:"forced,omitempty"`
 	// Tags are free-form labels; a torrent can have several.
 	Tags []string `json:"tags,omitempty"`
+	// Trackers the user removed (from the torrent's own list).
+	RemovedTrackers []string `json:"removedTrackers,omitempty"`
 	// Per-torrent speed limits in KiB/s (0 = only the global limits apply).
 	DownLimitKBps int64 `json:"downLimitKBps,omitempty"`
 	UpLimitKBps   int64 `json:"upLimitKBps,omitempty"`

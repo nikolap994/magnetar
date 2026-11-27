@@ -2,6 +2,7 @@ package engine
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"time"
 
@@ -268,8 +269,10 @@ type Detail struct {
 	Files     []FileView `json:"files"`
 	PeerList  []PeerView `json:"peerList"`
 	Trackers  []string   `json:"trackers"`
-	PieceMap  []int      `json:"pieceMap"` // downsampled: 0 missing … 100 complete, 255 checking
-	WebSeeds  int        `json:"webSeeds"`
+	// TrackerList has each tracker's live status.
+	TrackerList []TrackerView `json:"trackerList"`
+	PieceMap    []int         `json:"pieceMap"` // downsampled: 0 missing … 100 complete, 255 checking
+	WebSeeds    int           `json:"webSeeds"`
 }
 
 const pieceMapBuckets = 240
@@ -316,6 +319,8 @@ func (e *Engine) Detail(hash string) (Detail, error) {
 			d.Trackers = append(d.Trackers, u)
 		}
 	}
+	d.Trackers = slices.DeleteFunc(d.Trackers, func(u string) bool { return slices.Contains(m.rec.RemovedTrackers, u) })
+	d.TrackerList = e.trackerViewsLocked(m, d.Trackers)
 	if mag, err := mi.MagnetV2(); err == nil {
 		d.Magnet = mag.String()
 	} else {
