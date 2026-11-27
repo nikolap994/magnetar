@@ -360,7 +360,7 @@ func loadBlocklist(path string) (*iplist.IPList, int, error) {
 		return nil, 0, err
 	}
 	defer f.Close()
-	var r io.Reader = io.LimitReader(f, 512<<20)
+	r := io.LimitReader(f, 512<<20)
 	if strings.HasSuffix(path, ".gz") {
 		gz, err := gzip.NewReader(r)
 		if err != nil {
@@ -617,7 +617,7 @@ func (e *Engine) awaitInfo(m *managed, t *torrent.Torrent) {
 	if !check {
 		return
 	}
-	// Like qBittorrent: hash whatever is already on disk before downloading,
+	// Hash whatever is already on disk before downloading,
 	// so only missing or damaged pieces are fetched.
 	e.log.Info("checking existing files", "name", logSafe(t.Name()))
 	err := t.VerifyDataContext(e.ctx)

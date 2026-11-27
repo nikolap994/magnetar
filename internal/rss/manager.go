@@ -106,7 +106,7 @@ func (m *Manager) Get() State {
 	defer m.mu.Unlock()
 	b, _ := json.Marshal(m.st.State)
 	var s State
-	json.Unmarshal(b, &s)
+	_ = json.Unmarshal(b, &s) // round-trip of our own value: deep copy
 	if s.Feeds == nil {
 		s.Feeds = []Feed{}
 	}
@@ -150,7 +150,7 @@ func (m *Manager) AddFeed(ctx context.Context, rawURL string) (Feed, error) {
 	}
 	f := Feed{ID: newID(), URL: u, RefreshMin: defaultRefresh, Enabled: true, Items: []Item{}}
 	m.st.Feeds = append(m.st.Feeds, f)
-	m.saveLocked()
+	m.saveOrLogLocked()
 	m.mu.Unlock()
 	m.refresh(ctx, f.ID, true)
 	for _, x := range m.Get().Feeds {
@@ -284,7 +284,7 @@ func (m *Manager) Download(ctx context.Context, feedID, key string) error {
 	}
 	m.mu.Lock()
 	m.st.Seen[feedID+"\x00"+key] = time.Now()
-	m.saveLocked()
+	m.saveOrLogLocked()
 	m.mu.Unlock()
 	return nil
 }
@@ -335,7 +335,7 @@ func (m *Manager) refresh(ctx context.Context, id string, force bool) {
 				cur.Items = items
 			}
 		}
-		m.saveLocked()
+		m.saveOrLogLocked()
 		m.mu.Unlock()
 		if err != nil {
 			m.log.Warn("RSS feed", "url", logsafe.String(f.URL), "err", logsafe.Err(err))
@@ -402,7 +402,7 @@ func (m *Manager) apply(ctx context.Context) {
 				}
 			}
 		}
-		m.saveLocked()
+		m.saveOrLogLocked()
 		m.mu.Unlock()
 	}
 }
@@ -431,6 +431,13 @@ func (m *Manager) feedIndexLocked(id string) int {
 		}
 	}
 	return -1
+}
+
+// saveOrLogLocked saves and logs a failure; used where nothing can be returned.
+func (m *Manager) saveOrLogLocked() {
+	if err := m.saveLocked(); err != nil {
+		m.log.Error("could not save RSS settings", "err", err)
+	}
 }
 
 func (m *Manager) saveLocked() error {

@@ -851,7 +851,7 @@ async function openAdd(prefill = "", fromLink = false) {
   updateFree(true);
 }
 /* ---------- add dialog opened from a magnet link ---------- */
-// Like qBittorrent: show what will be downloaded, not the raw magnet link.
+// Show what will be downloaded, not the raw magnet link.
 function magnetName(link) {
   try { return new URLSearchParams(link.replace(/^magnet:\?/i, "")).get("dn") || ""; } catch { return ""; }
 }

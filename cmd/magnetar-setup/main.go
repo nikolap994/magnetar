@@ -17,7 +17,7 @@ import (
 )
 
 //go:embed payload
-var payload embed.FS
+var payload embed.FS //nolint:unused // used by the Windows installer
 
 // Version is set at build time.
 var Version = "dev"

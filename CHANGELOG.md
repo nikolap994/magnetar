@@ -62,7 +62,7 @@ All notable changes to this project are documented here. The format follows
 - Alternative limits can be edited right under the turtle switch; speed-limit fields pick KiB/s, MiB/s or GiB/s.
 
 ### Changed
-- Magnet links open a qBittorrent-style preview in the main window (name, size and files; the raw link is one
+- Magnet links open a preview in the main window (name, size and files; the raw link is one
   click away), and Magnetar stays open after adding.
 - Only one window: tray Open and magnet links bring the existing window to the front instead of opening another.
 

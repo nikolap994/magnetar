@@ -101,7 +101,7 @@ func track(cmd *exec.Cmd) {
 	windows[cmd] = true
 	windowsMu.Unlock()
 	go func() {
-		cmd.Wait()
+		_ = cmd.Wait()
 		windowsMu.Lock()
 		delete(windows, cmd)
 		windowsMu.Unlock()
@@ -128,7 +128,7 @@ func CloseWindows() {
 	defer windowsMu.Unlock()
 	for cmd := range windows {
 		if cmd.Process != nil {
-			cmd.Process.Kill()
+			_ = cmd.Process.Kill()
 		}
 	}
 }
@@ -156,7 +156,7 @@ func OpenBrowser(url string) error {
 		}
 		cmd := exec.Command(path, c[1:]...)
 		if err = cmd.Start(); err == nil {
-			go cmd.Wait()
+			go func() { _ = cmd.Wait() }()
 			return nil
 		}
 	}

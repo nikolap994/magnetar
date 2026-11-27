@@ -5,11 +5,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/nikolap994/magnetar/web"
 )
 
 const desktopEntry = `[Desktop Entry]
@@ -75,7 +78,7 @@ func register() error {
 		return err
 	}
 	if p, err := exec.LookPath("update-desktop-database"); err == nil {
-		exec.Command(p, appDir).Run()
+		_ = exec.Command(p, appDir).Run() // refreshes the desktop database; optional
 	}
 	fmt.Println("Installed", desktop)
 	return setDefaultHandler()
@@ -170,4 +173,12 @@ func unregister() error {
 	os.Remove(filepath.Join(dh, "icons", "hicolor", "scalable", "apps", "magnetar.svg"))
 	fmt.Println("Removed Magnetar desktop entry.")
 	return nil
+}
+
+func logoSVG() []byte {
+	b, err := fs.ReadFile(web.FS(), "logo.svg")
+	if err != nil {
+		return nil
+	}
+	return b
 }

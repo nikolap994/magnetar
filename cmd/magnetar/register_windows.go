@@ -41,7 +41,7 @@ func register() error {
 	// unregister can restore it.
 	if k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Classes\magnet\shell\open\command`, registry.QUERY_VALUE); err == nil {
 		if prev, _, err := k.GetStringValue(""); err == nil && prev != cmd && !strings.Contains(strings.ToLower(prev), "magnetar") {
-			set(`Software\Magnetar`, map[string]string{"PreviousMagnetHandler": prev})
+			_ = set(`Software\Magnetar`, map[string]string{"PreviousMagnetHandler": prev}) // only used to restore it later
 		}
 		k.Close()
 	}
@@ -103,7 +103,7 @@ func userChoiceElsewhere() bool {
 }
 
 func openDefaultAppsSettings() {
-	exec.Command("rundll32", "url.dll,FileProtocolHandler", "ms-settings:defaultapps?registeredAppUser=Magnetar").Start()
+	_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", "ms-settings:defaultapps?registeredAppUser=Magnetar").Start()
 }
 
 func unregister() error {
@@ -146,12 +146,12 @@ func unregister() error {
 	}
 	if prev != "" {
 		if k, _, err := registry.CreateKey(registry.CURRENT_USER, `Software\Classes\magnet\shell\open\command`, registry.SET_VALUE); err == nil {
-			k.SetStringValue("", prev)
+			_ = k.SetStringValue("", prev)
 			k.Close()
 		}
 		if k, _, err := registry.CreateKey(registry.CURRENT_USER, `Software\Classes\magnet`, registry.SET_VALUE); err == nil {
-			k.SetStringValue("", "URL:Magnet link")
-			k.SetStringValue("URL Protocol", "")
+			_ = k.SetStringValue("", "URL:Magnet link") // restoring the previous handler is best effort
+			_ = k.SetStringValue("URL Protocol", "")
 			k.Close()
 		}
 	}

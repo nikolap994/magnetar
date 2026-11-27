@@ -7,7 +7,7 @@ import (
 )
 
 // Torrents that move less than slowRate after slowGrace do not take up a
-// queue slot when "don't count slow torrents" is on, like qBittorrent.
+// queue slot when "don't count slow torrents" is on.
 const (
 	slowRate  = 2 << 10 // bytes per second
 	slowGrace = 60 * time.Second

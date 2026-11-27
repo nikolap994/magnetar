@@ -1,5 +1,5 @@
 // Package rss reads RSS and Atom feeds and downloads new torrents that match
-// the user's rules, like qBittorrent's RSS downloader.
+// the user's rules.
 package rss
 
 import (

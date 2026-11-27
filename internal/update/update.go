@@ -282,10 +282,10 @@ func (u *Updater) Install(ctx context.Context) error {
 		return errors.New("this build cannot verify updates; download the new version from GitHub")
 	}
 	if u.method == MethodFlatpak {
-		return errors.New("Magnetar is installed from Flathub; update it in your software center")
+		return errors.New("this copy is installed from Flathub; update it in your software center")
 	}
 	if u.method == MethodContainer {
-		return errors.New("Magnetar runs in a container; pull the new image to update")
+		return errors.New("this copy runs in a container; pull the new image to update")
 	}
 	if u.method == MethodUnsupported {
 		return errors.New("automatic updates are not supported for this installation; download the new version from GitHub")

@@ -43,7 +43,7 @@ func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, engine.ErrExists) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusConflict)
-		json.NewEncoder(w).Encode(map[string]string{"error": "this torrent is already in your list", "hash": info.Hash})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "this torrent is already in your list", "hash": info.Hash})
 		return
 	}
 	if err != nil {

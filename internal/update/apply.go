@@ -48,7 +48,7 @@ func (u *Updater) applyInPlace(archive string) error {
 		return fmt.Errorf("replace executable: %w", err)
 	}
 	if err := os.Rename(newExe, u.exe); err != nil {
-		os.Rename(old, u.exe) // roll back
+		_ = os.Rename(old, u.exe) // roll back
 		return fmt.Errorf("replace executable: %w", err)
 	}
 	if err := startDetached(u.exe, append([]string{"--after-update"}, RestartArgs...)...); err != nil {

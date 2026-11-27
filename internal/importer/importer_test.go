@@ -70,7 +70,7 @@ func TestQBittorrentInfoInResume(t *testing.T) {
 	dir := t.TempDir()
 	tb, hash := makeTorrent(t, "Magnet")
 	mi, _ := metainfo.Load(bytes.NewReader(tb))
-	write(t, filepath.Join(dir, hash+".fastresume"), map[string]any{"save_path": "/dl", "info": bencode.Bytes(mi.InfoBytes)})
+	write(t, filepath.Join(dir, hash+".fastresume"), map[string]any{"save_path": "/dl", "info": mi.InfoBytes})
 	ts, err := Load(QBittorrent, dir)
 	if err != nil || len(ts) != 1 || ts[0].Hash != hash {
 		t.Fatalf("%+v %v", ts, err)

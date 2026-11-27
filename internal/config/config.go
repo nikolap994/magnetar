@@ -82,7 +82,7 @@ type Settings struct {
 	MaxHalfOpenConns   int   `json:"maxHalfOpenConns"`
 	DownloadLimitKBps  int64 `json:"downloadLimitKBps"` // 0 = unlimited
 	UploadLimitKBps    int64 `json:"uploadLimitKBps"`   // 0 = unlimited
-	// Alternative ("turtle") limits, toggled from the UI or tray like qBittorrent.
+	// Alternative ("turtle") limits, toggled from the UI or tray.
 	AltSpeedEnabled      bool  `json:"altSpeedEnabled"`
 	AltDownloadLimitKBps int64 `json:"altDownloadLimitKBps"`
 	AltUploadLimitKBps   int64 `json:"altUploadLimitKBps"`

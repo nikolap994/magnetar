@@ -1,0 +1,42 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - gosec
+    - misspell
+    - unconvert
+  settings:
+    errcheck:
+      exclude-functions:
+        # Win32 calls report failure through return codes checked where it matters.
+        - (*syscall.LazyProc).Call
+        - (*golang.org/x/sys/windows.LazyProc).Call
+        # Best-effort clean-up of registry entries.
+        - (golang.org/x/sys/windows/registry.Key).DeleteValue
+        - golang.org/x/sys/windows/registry.DeleteKey
+    gosec:
+      excludes:
+        - G104 # unchecked errors: covered by errcheck
+        - G204 # subprocess with variable: launching the browser/file manager by design
+        - G301 # 0755 download folders are intentional (other apps read them)
+        - G302
+        - G304 # file paths come from validated settings and torrent metadata
+        - G306
+        - G115 # integer conversions are range-checked where it matters
+        - G103 # unsafe is needed for Win32 calls
+        - G703 # path taint: user and torrent paths go through fsutil.CleanAbs/Within (and CodeQL checks it)
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters: [errcheck, gosec]
+      - path: ^tools/
+        linters: [errcheck, gosec]
+      # The installer's clean-up steps are best effort by design.
+      - path: ^cmd/magnetar-setup/
+        linters: [errcheck]
+      - path: ^cmd/magnetar-setup/
+        text: "G103|G702"

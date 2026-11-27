@@ -87,7 +87,9 @@ func (s *Server) handleImport(w http.ResponseWriter, r *http.Request) {
 	if changed {
 		if err := st.Validate(); err == nil {
 			if err := s.eng.ApplySettings(st); err == nil {
-				s.store.Update(st)
+				if err := s.store.Update(st); err != nil {
+					s.log.Error("save categories", "err", err)
+				}
 			}
 		}
 	}

@@ -85,7 +85,7 @@ func (s *Server) handleFileContent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Set("Content-Type", "text/vtt; charset=utf-8")
-		w.Write(srtToVTT(data))
+		_, _ = w.Write(srtToVTT(data))
 		return
 	}
 	h.Set("Content-Type", ctype)
@@ -140,7 +140,7 @@ func (s *Server) handleFileOpen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if engine.IsExecutable(p) {
-		writeErr(w, http.StatusForbidden, errors.New("Magnetar does not open programs, scripts or web pages from torrents; use Show in folder and check the file first"))
+		writeErr(w, http.StatusForbidden, errors.New("for your safety, programs, scripts and web pages from torrents are not opened directly; use Show in folder and check the file first"))
 		return
 	}
 	if !complete {

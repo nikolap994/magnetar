@@ -284,6 +284,7 @@ func (s *Server) authedOrLaunch(h http.HandlerFunc) http.Handler {
 }
 
 func (s *Server) setSession(w http.ResponseWriter, r *http.Request) {
+	//nolint:gosec // Secure is set over HTTPS; plain-HTTP local access cannot use it
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookie,
 		Value:    s.keys.NewSession(),
@@ -350,7 +351,7 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // logout cookie mirrors the session cookie's attributes
 		Name:     sessionCookie,
 		Value:    "",
 		Path:     "/",
@@ -387,7 +388,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusBadRequest, fmt.Errorf("upload: %w", err))
 			return
 		}
-		defer r.MultipartForm.RemoveAll()
+		defer func() { _ = r.MultipartForm.RemoveAll() }()
 		base := engine.AddOptions{
 			SavePath:   r.FormValue("savePath"),
 			Category:   r.FormValue("category"),
@@ -702,7 +703,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b); err != nil {
 			return err
 		}
@@ -914,13 +915,13 @@ func readJSON(r *http.Request, v any) error {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func writeErr(w http.ResponseWriter, code int, err error) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }
 
 // Serve runs the HTTP server on ln until ctx is cancelled.
@@ -933,11 +934,12 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
 		MaxHeaderBytes:    64 << 10,
 		ErrorLog:          slog.NewLogLogger(s.log.Handler(), slog.LevelWarn),
 	}
-	go func() {
+	go func() { //nolint:gosec // runs after ctx is done; shutdown needs its own deadline
 		<-ctx.Done()
+		// ctx is already cancelled here; shutdown needs a fresh deadline.
 		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		srv.Shutdown(sctx)
+		_ = srv.Shutdown(sctx)
 	}()
 	if err := srv.Serve(ln); !errors.Is(err, http.ErrServerClosed) {
 		return err

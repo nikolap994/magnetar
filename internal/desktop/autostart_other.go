@@ -19,6 +19,7 @@ func SetAutostart(enable bool) error {
 		}
 		dir = filepath.Join(home, ".config")
 	}
+	// The folder comes from the user's own XDG_CONFIG_HOME or home directory.
 	path := filepath.Join(dir, "autostart", "magnetar.desktop")
 	if !enable {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {

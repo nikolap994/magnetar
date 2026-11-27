@@ -53,7 +53,7 @@ func (s *Server) handleCreateDownload(w http.ResponseWriter, r *http.Request) {
 	h.Set("Content-Type", "application/x-bittorrent")
 	h.Set("Content-Disposition", "attachment; filename*=UTF-8''"+url.PathEscape(name))
 	h.Set("Content-Security-Policy", "default-src 'none'; sandbox")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 func (s *Server) handleCreateCancel(w http.ResponseWriter, r *http.Request) {

@@ -15,7 +15,7 @@ var iconICO []byte
 var iconPNG []byte
 
 //go:embed icon-large.png
-var iconLargePNG []byte
+var iconLargePNG []byte //nolint:unused // used by Windows notifications
 
 var trayReady atomic.Bool
 

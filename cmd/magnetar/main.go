@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -82,7 +81,7 @@ func (a *app) openMain() error {
 }
 
 // openAddDialog opens the main window with the "add torrent" dialog for a
-// magnet link, so the user can pick files and a folder like in qBittorrent.
+// magnet link, so the user can pick files and a folder first.
 func (a *app) openAddDialog(magnet string) error {
 	if a.noUI {
 		return errors.New("no UI")
@@ -105,10 +104,14 @@ func (a *app) showUI(srv *server.Server, eng *engine.Engine, magnet string) {
 		return
 	}
 	if magnet != "" {
-		a.openAddDialog(magnet)
+		if err := a.openAddDialog(magnet); err != nil {
+			slog.Warn("could not open the add dialog", "err", err)
+		}
 		return
 	}
-	a.openMain()
+	if err := a.openMain(); err != nil {
+		slog.Warn("could not open the window", "err", err)
+	}
 }
 
 func run() error {
@@ -299,7 +302,7 @@ func run() error {
 			Open:     func() { a.showUI(srv, eng, "") },
 			IsAlt:    func() bool { return store.Get().AltSpeedEnabled },
 			AltSpeed: func(on bool) error { return setAltSpeed(eng, store, on) },
-			PauseAll: func() { eng.PauseAll() },
+			PauseAll: func() { _ = eng.PauseAll() },
 			ResumeAll: func() {
 				if err := eng.ResumeAll(); err != nil {
 					logger.Warn("resume all", "err", err)
@@ -491,7 +494,7 @@ func handoff(a *app, args []string, showUI bool) error {
 		if err != nil {
 			return err
 		}
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("running instance: %s", resp.Status)
@@ -514,7 +517,7 @@ func handoff(a *app, args []string, showUI bool) error {
 		var body bytes.Buffer
 		var ctype string
 		if isMagnet(arg) {
-			json.NewEncoder(&body).Encode(map[string]string{"magnet": arg})
+			_ = json.NewEncoder(&body).Encode(map[string]string{"magnet": arg})
 			ctype = "application/json"
 		} else {
 			data, err := readTorrentFile(arg)
@@ -535,7 +538,7 @@ func handoff(a *app, args []string, showUI bool) error {
 		if err != nil {
 			return err
 		}
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			fmt.Fprintf(os.Stderr, "running instance rejected %s: %s\n", arg, resp.Status)
@@ -605,7 +608,7 @@ func setupLogging(dataDir string, verbose bool) (*slog.Logger, func()) {
 	closer := func() {}
 	if f, err := os.OpenFile(filepath.Join(dataDir, "magnetar.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
 		if fi, err := f.Stat(); err == nil && fi.Size() > 10<<20 {
-			f.Truncate(0)
+			_ = f.Truncate(0)
 		}
 		if hasConsole() {
 			w = io.MultiWriter(os.Stderr, f)
@@ -646,14 +649,6 @@ func (l *levelFilter) WithAttrs(attrs []slog.Attr) slog.Handler {
 
 func (l *levelFilter) WithGroup(name string) slog.Handler {
 	return &levelFilter{Handler: l.Handler.WithGroup(name), min: l.min}
-}
-
-func logoSVG() []byte {
-	b, err := fs.ReadFile(web.FS(), "logo.svg")
-	if err != nil {
-		return nil
-	}
-	return b
 }
 
 func fatal(err error) {

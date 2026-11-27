@@ -11,7 +11,6 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 [![CI](https://github.com/nikolap994/magnetar/actions/workflows/ci.yml/badge.svg)](https://github.com/nikolap994/magnetar/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/nikolap994/magnetar/actions/workflows/codeql.yml/badge.svg)](https://github.com/nikolap994/magnetar/actions/workflows/codeql.yml)
 [![Release](https://img.shields.io/github/v/release/nikolap994/magnetar?sort=semver)](https://github.com/nikolap994/magnetar/releases/latest)
-[![Go Report Card](https://goreportcard.com/badge/github.com/nikolap994/magnetar)](https://goreportcard.com/report/github.com/nikolap994/magnetar)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6.svg)](LICENSE)
 
 <img src="docs/screenshot-list.png" alt="Magnetar torrent list with speed limits and turtle mode" width="900">
@@ -25,7 +24,7 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 **A real desktop client**
 - Native installers: **Windows setup `.exe`** and **Ubuntu/Debian `.deb`** (plus portable builds)
 - Opens in its own app window with a **tray icon** (open, pause/resume all, turtle mode, quit)
-- **Click a magnet link in any browser** → Magnetar asks where to save it, just like qBittorrent
+- **Click a magnet link in any browser** → Magnetar shows what's inside and asks where to save it
 - Opens `.torrent` files from your file manager; optional start at sign-in
 - **Updates itself**: one click installs new releases, verified with Magnetar's signing key before anything runs
 
@@ -35,9 +34,9 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 - **Choose the download folder** per torrent with a built-in folder browser, plus a default folder
 - **Categories** with their own folders, **Move files to…** for existing torrents, and automatic moving of completed
   downloads
-- **Resumes like qBittorrent**: remove a torrent but keep its files, add it again later and Magnetar checks what is
+- **Picks up where it left off**: remove a torrent but keep its files, add it again later and Magnetar checks what is
   already on disk and downloads only what is missing
-- **Speed limits like qBittorrent**: global download/upload limits plus *alternative* (turtle) limits you can toggle
+- **Speed limits**: global download/upload limits plus *alternative* (turtle) limits you can toggle
   with one click from the sidebar or tray, or on a **schedule** (e.g. weekdays 9-17)
 - Pause, resume, verify, remove (with or without data), bulk actions and right-click menus
 - Per-file selection and priorities (skip / normal / high), sequential download for previewing video

@@ -50,8 +50,8 @@ func (u *Updater) applyDeb(deb string) error {
 		return fmt.Errorf("could not ask for administrator rights; the verified package was opened for installation: %s", deb)
 	}
 	// apt needs to read the file as root-owned _apt user; make it world-readable.
-	os.Chmod(filepath.Dir(deb), 0o755)
-	os.Chmod(deb, 0o644)
+	_ = os.Chmod(filepath.Dir(deb), 0o755) // apt runs as _apt and must read the package
+	_ = os.Chmod(deb, 0o644)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, pkexec, "/usr/bin/apt-get", "install", "-y", "--allow-downgrades", deb).CombinedOutput()
@@ -81,7 +81,7 @@ func lastLine(b []byte) string {
 
 func openFile(p string) {
 	if x, err := exec.LookPath("xdg-open"); err == nil {
-		exec.Command(x, p).Start()
+		_ = exec.Command(x, p).Start()
 	}
 }
 

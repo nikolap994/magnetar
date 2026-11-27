@@ -36,8 +36,10 @@ vet:
 fmt:
 	gofmt -s -w .
 
-lint: vet
+lint: vet ## gofmt, go vet and golangci-lint (https://golangci-lint.run)
 	@test -z "$$(gofmt -s -l . | tee /dev/stderr)" || (echo "run 'make fmt'" && exit 1)
+	golangci-lint run ./...
+	GOOS=windows golangci-lint run ./...
 
 icons: ## Regenerate .ico/.png icons from assets/icon.png
 	go run ./tools/mkicon

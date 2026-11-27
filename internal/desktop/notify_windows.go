@@ -22,15 +22,15 @@ func ensureAppID() {
 	registerAUMID.Do(func() {
 		icon := filepath.Join(os.Getenv("LOCALAPPDATA"), "Magnetar", "notification-icon.png")
 		if err := os.MkdirAll(filepath.Dir(icon), 0o755); err == nil {
-			os.WriteFile(icon, iconLargePNG, 0o644)
+			_ = os.WriteFile(icon, iconLargePNG, 0o644) // icon is optional
 		}
 		k, _, err := registry.CreateKey(registry.CURRENT_USER, `Software\Classes\AppUserModelId\`+appUserModelID, registry.SET_VALUE)
 		if err != nil {
 			return
 		}
 		defer k.Close()
-		k.SetStringValue("DisplayName", "Magnetar")
-		k.SetStringValue("IconUri", icon)
+		_ = k.SetStringValue("DisplayName", "Magnetar")
+		_ = k.SetStringValue("IconUri", icon)
 	})
 }
 
@@ -51,5 +51,5 @@ func Notify(title, body string) {
 	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", toastScript)
 	cmd.Env = append(os.Environ(), "MG_TITLE="+title, "MG_BODY="+body, "MG_APPID="+appUserModelID)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
-	go cmd.Run()
+	go func() { _ = cmd.Run() }()
 }

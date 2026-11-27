@@ -106,3 +106,22 @@ jobs:
       - run: go test -count=1 ./...
       - name: Build Magnetar.app and .dmg
         run: packaging/macos/build-dmg.sh 0.0.0-ci dist
+
+  lint:
+    name: Lint (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: true
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0

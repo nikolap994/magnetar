@@ -46,19 +46,20 @@ func (s *Server) handleQbit(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, engine.MaxTorrentFileSize*8)
 	switch path {
 	case "auth/logout":
+		//nolint:gosec // Secure is set over HTTPS; plain-HTTP local access cannot use it
 		http.SetCookie(w, &http.Cookie{Name: qbitCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
 			SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil})
 		qbitOK(w)
 	case "app/version":
-		io.WriteString(w, qbitAppVersion)
+		_, _ = io.WriteString(w, qbitAppVersion)
 	case "app/webapiVersion":
-		io.WriteString(w, qbitAPIVersion)
+		_, _ = io.WriteString(w, qbitAPIVersion)
 	case "app/buildInfo":
 		writeJSON(w, map[string]any{"qt": "", "libtorrent": "", "boost": "", "openssl": "", "bitness": 64, "magnetar": engine.Version})
 	case "app/preferences":
 		writeJSON(w, qbitPreferences(st))
 	case "app/defaultSavePath":
-		io.WriteString(w, st.DownloadDir)
+		_, _ = io.WriteString(w, st.DownloadDir)
 	case "transfer/info":
 		g := s.eng.Stats()
 		status := "connected"
@@ -99,7 +100,7 @@ func (s *Server) handleQbit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func qbitOK(w http.ResponseWriter) { io.WriteString(w, "Ok.") }
+func qbitOK(w http.ResponseWriter) { _, _ = io.WriteString(w, "Ok.") }
 
 func qbitFail(w http.ResponseWriter, code int, err error) { http.Error(w, err.Error(), code) }
 
@@ -116,10 +117,11 @@ func (s *Server) qbitLogin(w http.ResponseWriter, r *http.Request, st config.Set
 	if st.PasswordHash == "" || !auth.VerifyPassword(st.PasswordHash, r.PostForm.Get("password")) {
 		s.limiter.Fail(ip)
 		time.Sleep(300 * time.Millisecond)
-		io.WriteString(w, "Fails.")
+		_, _ = io.WriteString(w, "Fails.")
 		return
 	}
 	s.limiter.Reset(ip)
+	//nolint:gosec // Secure is set over HTTPS; plain-HTTP local access cannot use it
 	http.SetCookie(w, &http.Cookie{Name: qbitCookie, Value: s.keys.NewSession(), Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil})
 	qbitOK(w)
@@ -248,7 +250,7 @@ func qbitTorrent(t engine.Summary) map[string]any {
 func (s *Server) qbitInfo(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	if r.Method == http.MethodPost {
-		r.ParseForm()
+		_ = r.ParseForm() // a malformed form leaves the fields empty, which is rejected below
 		q = r.Form
 	}
 	var want map[string]bool
@@ -363,7 +365,7 @@ func (s *Server) qbitAdd(w http.ResponseWriter, r *http.Request, st config.Setti
 		return
 	}
 	if r.PostForm == nil {
-		r.ParseForm()
+		_ = r.ParseForm() // a malformed form leaves the fields empty, which is rejected below
 	}
 	f := r.Form
 	cat := strings.TrimSpace(f.Get("category"))
@@ -418,7 +420,7 @@ func (s *Server) qbitAdd(w http.ResponseWriter, r *http.Request, st config.Setti
 		}
 	}
 	if len(adds) == 0 {
-		io.WriteString(w, "Fails.")
+		_, _ = io.WriteString(w, "Fails.")
 		return
 	}
 	failed := 0
@@ -429,7 +431,7 @@ func (s *Server) qbitAdd(w http.ResponseWriter, r *http.Request, st config.Setti
 		}
 	}
 	if failed == len(adds) {
-		io.WriteString(w, "Fails.")
+		_, _ = io.WriteString(w, "Fails.")
 		return
 	}
 	qbitOK(w)
@@ -451,7 +453,7 @@ func (s *Server) addCategory(name, savePath string) error {
 }
 
 func (s *Server) qbitCategory(w http.ResponseWriter, r *http.Request, edit bool) {
-	r.ParseForm()
+	_ = r.ParseForm() // a malformed form leaves the fields empty, which is rejected below
 	name := strings.TrimSpace(r.Form.Get("category"))
 	save := strings.TrimSpace(r.Form.Get("savePath"))
 	if name == "" {
@@ -482,13 +484,16 @@ func (s *Server) qbitCategory(w http.ResponseWriter, r *http.Request, edit bool)
 		return
 	}
 	if err := st.Validate(); err == nil && s.eng.ApplySettings(st) == nil {
-		s.store.Update(st)
+		if err := s.store.Update(st); err != nil {
+			qbitFail(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 	qbitOK(w)
 }
 
 func (s *Server) qbitRemoveCategories(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
+	_ = r.ParseForm() // a malformed form leaves the fields empty, which is rejected below
 	drop := map[string]bool{}
 	for _, c := range strings.Split(r.Form.Get("categories"), "\n") {
 		drop[strings.TrimSpace(c)] = true
@@ -502,7 +507,10 @@ func (s *Server) qbitRemoveCategories(w http.ResponseWriter, r *http.Request) {
 	}
 	st.Categories = keep
 	if err := st.Validate(); err == nil && s.eng.ApplySettings(st) == nil {
-		s.store.Update(st)
+		if err := s.store.Update(st); err != nil {
+			qbitFail(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 	qbitOK(w)
 }
@@ -513,7 +521,7 @@ func (s *Server) qbitAction(w http.ResponseWriter, r *http.Request, path string)
 		http.NotFound(w, r)
 		return
 	}
-	r.ParseForm()
+	_ = r.ParseForm() // a malformed form leaves the fields empty, which is rejected below
 	f := r.Form
 	hashes := s.qbitHashes(f.Get("hashes"))
 	var err error
