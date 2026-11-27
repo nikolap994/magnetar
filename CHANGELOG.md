@@ -16,6 +16,15 @@ All notable changes to this project are documented here. The format follows
 - Proxy support (SOCKS5 and HTTP) for trackers and web seeds, and with SOCKS5 optionally for peer connections.
 - Download queue: by default at most 3 downloads, 3 uploads and 5 torrents are active; the rest wait as "Queued"
   and start by themselves. Force start, queue order (top, up, down, bottom) and "don't count slow torrents".
+- RSS feeds with automatic download rules: word or regular-expression filters, exclusions, a smart episode
+  filter that takes each episode only once, and per-rule category, folder and paused state.
+- Create torrents from a file or folder, with trackers, web seeds, piece size and private flag, then save the
+  .torrent file, copy its magnet link or start seeding right away.
+- Import your torrents from qBittorrent, Transmission or uTorrent with their folders, file choices, categories and
+  statistics; files already on disk keep seeding.
+- Watch folder: .torrent files saved into it are added automatically.
+- Folder tree in the Files tab, with priorities for whole folders and a filter for big torrents. Paused and queued
+  torrents show their files too.
 
 ### Fixed
 - Opening a .torrent file now shows the add dialog (name, size, file picker, folder) instead of starting the
