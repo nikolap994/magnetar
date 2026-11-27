@@ -50,28 +50,33 @@ type Summary struct {
 	Error       string     `json:"error,omitempty"`
 	Forced      bool       `json:"forced,omitempty"`
 	Tags        []string   `json:"tags,omitempty"`
-	DownLimit   int64      `json:"downLimit,omitempty"` // bytes/s, 0 = none
-	UpLimit     int64      `json:"upLimit,omitempty"`
-	QueuePos    int        `json:"queuePos"` // 1-based position in the queue (list order)
+	// Availability is the number of complete copies among connected peers
+	// (-1 unknown); Unavailable counts wanted pieces no connected peer has.
+	Availability float64 `json:"availability"`
+	Unavailable  int     `json:"unavailable,omitempty"`
+	DownLimit    int64   `json:"downLimit,omitempty"` // bytes/s, 0 = none
+	UpLimit      int64   `json:"upLimit,omitempty"`
+	QueuePos     int     `json:"queuePos"` // 1-based position in the queue (list order)
 }
 
 func (e *Engine) summaryLocked(m *managed) Summary {
 	s := Summary{
-		Hash:        m.rec.InfoHash,
-		Name:        m.rec.Name,
-		SavePath:    m.rec.SavePath,
-		AddedAt:     m.rec.AddedAt,
-		CompletedAt: m.rec.CompletedAt,
-		Sequential:  m.rec.Sequential,
-		Category:    m.rec.Category,
-		DownRate:    int64(m.downRate),
-		UpRate:      int64(m.upRate),
-		ETA:         -1,
-		Error:       m.err,
-		Forced:      m.rec.Forced,
-		Tags:        m.rec.Tags,
-		DownLimit:   m.rec.DownLimitKBps * 1024,
-		UpLimit:     m.rec.UpLimitKBps * 1024,
+		Hash:         m.rec.InfoHash,
+		Name:         m.rec.Name,
+		SavePath:     m.rec.SavePath,
+		AddedAt:      m.rec.AddedAt,
+		CompletedAt:  m.rec.CompletedAt,
+		Sequential:   m.rec.Sequential,
+		Category:     m.rec.Category,
+		DownRate:     int64(m.downRate),
+		UpRate:       int64(m.upRate),
+		ETA:          -1,
+		Availability: -1,
+		Error:        m.err,
+		Forced:       m.rec.Forced,
+		Tags:         m.rec.Tags,
+		DownLimit:    m.rec.DownLimitKBps * 1024,
+		UpLimit:      m.rec.UpLimitKBps * 1024,
 	}
 	s.Downloaded, s.Uploaded = m.totals()
 	t := m.t
@@ -79,6 +84,9 @@ func (e *Engine) summaryLocked(m *managed) Summary {
 		if t.Info() != nil {
 			s.Size = t.Length()
 			s.Completed = t.BytesCompleted()
+		}
+		if h, ok := t.Health(); ok {
+			s.Availability, s.Unavailable = math.Round(h.Copies*100)/100, h.Missing
 		}
 		st := t.Stats()
 		s.Peers = st.ActivePeers

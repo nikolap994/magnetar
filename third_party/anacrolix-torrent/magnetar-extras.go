@@ -53,3 +53,43 @@ func (cl *Client) BanPeerIP(ip net.IP) {
 	defer cl.unlock()
 	cl.banPeerIP(ip)
 }
+
+// SwarmHealth describes how much of a torrent the connected peers can supply.
+type SwarmHealth struct {
+	// Copies is the number of complete copies among connected peers (the
+	// "distributed copies" figure): the lowest piece availability plus the
+	// share of pieces that are more available than that.
+	Copies float64
+	// Missing is the number of wanted pieces we lack that no connected peer
+	// has: while it is above zero the download cannot finish with these peers.
+	Missing int
+}
+
+// Health reports the swarm health; ok is false until the metadata is known.
+func (t *Torrent) Health() (h SwarmHealth, ok bool) {
+	t.cl.rLock()
+	defer t.cl.rUnlock()
+	if !t.haveInfo() || t.numPieces() == 0 {
+		return h, false
+	}
+	n := t.numPieces()
+	low, above := -1, 0
+	avail := make([]int, n)
+	for i := range n {
+		a := t.piece(i).availability()
+		avail[i] = a
+		if low < 0 || a < low {
+			low = a
+		}
+	}
+	for i := range n {
+		if avail[i] > low {
+			above++
+		}
+		if avail[i] == 0 && !t.pieceComplete(i) && t.wantPieceIndex(i) {
+			h.Missing++
+		}
+	}
+	h.Copies = float64(low) + float64(above)/float64(n)
+	return h, true
+}

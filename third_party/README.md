@@ -12,7 +12,8 @@ through a `replace` directive in `go.mod`. Tests and command-line tools are left
   seed reader in `torrent.go`: per-torrent download and upload limits (`Torrent.SetRateLimits`), applied on top of the
   client-wide limits to peer and web seed traffic.
 - `magnetar-extras.go` (new): `Torrent.TrackerStatuses` (structured tracker status) and `Client.BanPeerIP`
-  (exported wrapper that takes the client lock).
+  (exported wrapper that takes the client lock), `Torrent.Health` (distributed copies and pieces no connected peer
+  has).
 
 To update: copy the new release over this folder (without `*_test.go`, `testdata`, `cmd`, `analysis`), re-apply the
 patches above, and run `make test`.

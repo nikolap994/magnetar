@@ -576,7 +576,9 @@ function subtitle(t) {
 function subtitleText(t) {
   switch (t.state) {
     case "error": return t.error;
-    case "downloading": case "stalled": return `${t.seeds} seeds · ${t.peers} peers` + (t.sequential ? " · sequential" : "");
+    case "downloading": case "stalled":
+      if (t.unavailable > 0 && t.peers > 0) return `${t.peers} peers · ${t.unavailable} pieces not available yet`;
+      return `${t.seeds} seeds · ${t.peers} peers` + (t.availability >= 0 && t.progress < 1 ? ` · availability ${t.availability.toFixed(2)}` : "") + (t.sequential ? " · sequential" : "");
     case "checking": return "Checking existing files…";
     case "moving": return "Moving files…";
     case "metadata": return t.knownPeers ? `Fetching metadata from ${t.knownPeers} peers` : "Searching for peers";
@@ -791,6 +793,9 @@ const TABS = {
         ["Save path", d.savePath, "mono"],
         ["Category", d.category || "-"],
         ["Tags", (d.tags || []).join(", ") || "-"],
+        d.progress < 1 && d.availability >= 0 && ["Availability", d.unavailable > 0
+          ? `${d.availability.toFixed(2)} copies - ${d.unavailable} pieces are not available from connected peers yet. Waiting, adding trackers (Trackers tab) or more seeders usually fixes it.`
+          : `${d.availability.toFixed(2)} complete copies among connected peers`],
         ["Speed limit", d.downLimit || d.upLimit ? `↓ ${d.downLimit ? rate(d.downLimit) : "no limit"} · ↑ ${d.upLimit ? rate(d.upLimit) : "no limit"}` : "Global limits only"],
         ["Info hash", d.hash, "mono"],
         ["Pieces", d.numPieces ? `${d.numPieces.toLocaleString()} × ${bytes(d.pieceSize)}` : "–"],
