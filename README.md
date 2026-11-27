@@ -129,7 +129,8 @@ docker run -d --name magnetar --restart unless-stopped --user "$(id -u):$(id -g)
   -v ./magnetar-config:/config -v /path/to/downloads:/downloads \
   ghcr.io/nikolap994/magnetar:latest
 ```
-Then open `http://<server>:8899`. A ready-made [`compose.yaml`](packaging/docker/compose.yaml) is included. Settings can
+Then open `http://<server>:8899`. A ready-made [`compose.yaml`](packaging/docker/compose.yaml) is included. To play
+downloads on TVs from the container, run it with `--network host` so TVs can discover it. Settings can
 also come from the environment: `MAGNETAR_PASSWORD` (first start only), `MAGNETAR_WEB_PORT`, `MAGNETAR_PEER_PORT`,
 `MAGNETAR_DOWNLOAD_DIR` and `MAGNETAR_ALLOWED_HOSTS` (host names when running behind a reverse proxy). Update by pulling
 the new image.
