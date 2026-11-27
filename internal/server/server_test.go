@@ -157,3 +157,25 @@ func TestDesktopActionsAreLocalOnly(t *testing.T) {
 		t.Fatal("local client refused")
 	}
 }
+
+func TestCommandOnlyFromThisComputer(t *testing.T) {
+	s, keys := newTestServer(t)
+	_ = keys
+	tok := keys.NewLaunchToken()
+	rec := do(s, "GET", "/auth/launch?token="+tok, nil)
+	cookie := rec.Result().Cookies()[0]
+	put := func(remote string) int {
+		req := httptest.NewRequest("PUT", "/api/settings", strings.NewReader(`{"onCompleteCommand":"calc"}`))
+		req.Host = "127.0.0.1:8899"
+		req.RemoteAddr = remote
+		req.Header.Set("X-Magnetar-Request", "1")
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, req)
+		return w.Code
+	}
+	if code := put("192.168.1.20:5000"); code != http.StatusForbidden {
+		t.Fatalf("from the network: %d, want 403", code)
+	}
+}

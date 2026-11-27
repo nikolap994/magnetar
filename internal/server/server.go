@@ -20,6 +20,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/auth"
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/engine"
+	"github.com/nikolap994/magnetar/internal/finish"
 	"github.com/nikolap994/magnetar/internal/rss"
 	"github.com/nikolap994/magnetar/internal/update"
 )
@@ -47,6 +48,7 @@ type Server struct {
 	rss       *rss.Manager
 	host      string
 	restart   func()
+	finish    *finish.Runner
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
@@ -71,6 +73,8 @@ type Options struct {
 	Host string
 	// Restart relaunches Magnetar to apply listen-address changes (optional).
 	Restart func()
+	// Finish holds the "when downloads finish" countdown (optional).
+	Finish *finish.Runner
 }
 
 // Updater is the subset of the update package used by the API.
@@ -83,7 +87,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish}
 	s.routes()
 	return s
 }
@@ -120,6 +124,9 @@ func (s *Server) routes() {
 	m.Handle("GET /api/fs/free", s.authed(s.handleFree))
 	m.HandleFunc("GET /api/v2/", s.handleQbit)
 	m.HandleFunc("POST /api/v2/", s.handleQbit)
+	m.Handle("GET /api/finish", s.authed(s.handleFinish))
+	m.Handle("POST /api/finish/cancel", s.authed(s.handleFinishCancel))
+	m.Handle("POST /api/notify/test", s.authed(s.handleNotifyTest))
 	m.Handle("GET /api/remote", s.authed(s.handleRemote))
 	m.Handle("POST /api/remote", s.authed(s.handleRemoteSet))
 	m.Handle("GET /api/import/sources", s.authed(s.handleImportSources))
@@ -598,11 +605,15 @@ type publicSettings struct {
 	// The proxy password is never sent back to the browser.
 	ProxyPassword    string `json:"proxyPassword,omitempty"`
 	ProxyPasswordSet bool   `json:"proxyPasswordSet"`
+	// Likewise the Telegram bot token.
+	NotifyTelegramToken    string `json:"notifyTelegramToken,omitempty"`
+	NotifyTelegramTokenSet bool   `json:"notifyTelegramTokenSet"`
 }
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	st := s.store.Get()
-	writeJSON(w, publicSettings{Settings: st, PasswordSet: st.PasswordHash != "", ProxyPasswordSet: st.ProxyPassword != ""})
+	writeJSON(w, publicSettings{Settings: st, PasswordSet: st.PasswordHash != "", ProxyPasswordSet: st.ProxyPassword != "",
+		NotifyTelegramTokenSet: st.NotifyTelegramToken != ""})
 }
 
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
@@ -613,6 +624,12 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	next.PasswordHash = cur.PasswordHash // only changed via /api/password
+	// Running programs and powering off can only be set up on this computer,
+	// never from a phone or another device that knows the password.
+	if (next.OnCompleteCommand != cur.OnCompleteCommand || next.WhenDone != cur.WhenDone) && localOnly(r) != nil {
+		writeErr(w, http.StatusForbidden, errors.New("the command to run and the power action can only be changed on the computer running Magnetar"))
+		return
+	}
 	// An empty proxy password keeps the saved one (the UI never receives it);
 	// clearing the username or the proxy removes it.
 	if next.ProxyPassword == "" && next.ProxyUsername != "" && next.ProxyUsername == cur.ProxyUsername && next.ProxyHost == cur.ProxyHost {
@@ -620,6 +637,10 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if next.ProxyType == "" || next.ProxyUsername == "" {
 		next.ProxyPassword = ""
+	}
+	// An empty bot token keeps the saved one unless the chat ID was cleared.
+	if next.NotifyTelegramToken == "" && next.NotifyTelegramChat != "" {
+		next.NotifyTelegramToken = cur.NotifyTelegramToken
 	}
 	if err := next.Validate(); err != nil {
 		writeErr(w, http.StatusBadRequest, err)

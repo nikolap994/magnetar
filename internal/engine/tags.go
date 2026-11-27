@@ -103,3 +103,46 @@ func (e *Engine) SetTorrentLimits(downKBps, upKBps int64, hashes ...string) erro
 	e.dirty = true
 	return nil
 }
+
+// reportErrorsLocked publishes an "error" event once each time a torrent
+// fails, so notifications can tell the user.
+func (e *Engine) reportErrorsLocked() {
+	for _, h := range e.order {
+		m := e.torrents[h]
+		switch {
+		case m.err != "" && !m.errReported:
+			m.errReported = true
+			e.publish(Event{Type: "error", Hash: h, Name: m.rec.Name, Message: m.err})
+		case m.err == "":
+			m.errReported = false
+		}
+	}
+}
+
+// AllDone reports whether nothing is left to download: no torrent that is
+// running or queued still misses data it wants.
+func (e *Engine) AllDone() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for _, h := range e.order {
+		m := e.torrents[h]
+		if m.rec.Paused || m.err != "" {
+			continue
+		}
+		if !m.doneLocked() {
+			return false
+		}
+	}
+	return true
+}
+
+// Finished returns what a finish command needs to know about a torrent.
+func (e *Engine) Finished(hash string) (name, savePath, category string, tags []string, ok bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	m, err := e.get(hash)
+	if err != nil {
+		return "", "", "", nil, false
+	}
+	return m.rec.Name, m.rec.SavePath, m.rec.Category, slices.Clone(m.rec.Tags), true
+}

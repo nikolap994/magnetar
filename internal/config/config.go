@@ -140,6 +140,21 @@ type Settings struct {
 	AutoStart     bool `json:"autoStart"`     // Start (minimised) when the user signs in.
 	Notifications bool `json:"notifications"` // Native notification when a download completes.
 
+	// When downloads finish
+	// WhenDone: "" (nothing), "quit", "sleep" or "shutdown" once nothing is
+	// left to download. Only changeable from this computer.
+	WhenDone string `json:"whenDone,omitempty"`
+	// OnCompleteCommand runs for every finished download (no shell; see
+	// docs for placeholders). Only changeable from this computer.
+	OnCompleteCommand string `json:"onCompleteCommand,omitempty"`
+
+	// Phone notifications
+	NotifyNtfyURL       string `json:"notifyNtfyURL,omitempty"`
+	NotifyTelegramToken string `json:"notifyTelegramToken,omitempty"`
+	NotifyTelegramChat  string `json:"notifyTelegramChat,omitempty"`
+	NotifyWebhookURL    string `json:"notifyWebhookURL,omitempty"`
+	NotifyOnError       bool   `json:"notifyOnError"`
+
 	// Updates
 	AutoUpdateCheck bool `json:"autoUpdateCheck"` // Check GitHub Releases for new versions once a day.
 	// UpdatesPausedUntil hides update offers and skips automatic checks until
@@ -319,6 +334,29 @@ func (s *Settings) Validate() error {
 			errs = append(errs, fmt.Errorf("completed downloads folder: %w", err))
 		}
 		s.MoveCompletedDir = p
+	}
+	switch s.WhenDone {
+	case "", "quit", "sleep", "shutdown":
+	default:
+		errs = append(errs, fmt.Errorf("unknown action %q for when downloads finish", s.WhenDone))
+	}
+	if len(s.OnCompleteCommand) > 4000 || strings.ContainsAny(s.OnCompleteCommand, "\x00\n\r") {
+		errs = append(errs, errors.New("the command to run must be a single line"))
+	}
+	for name, u := range map[string]*string{"ntfy address": &s.NotifyNtfyURL, "webhook address": &s.NotifyWebhookURL} {
+		*u = strings.TrimSpace(*u)
+		if *u == "" {
+			continue
+		}
+		pu, err := url.Parse(*u)
+		if err != nil || (pu.Scheme != "https" && pu.Scheme != "http") || pu.Host == "" || len(*u) > 2000 {
+			errs = append(errs, fmt.Errorf("%s must be an http(s) address", name))
+		}
+	}
+	s.NotifyTelegramToken = strings.TrimSpace(s.NotifyTelegramToken)
+	s.NotifyTelegramChat = strings.TrimSpace(s.NotifyTelegramChat)
+	if len(s.NotifyTelegramToken) > 200 || len(s.NotifyTelegramChat) > 100 || hasControl(s.NotifyTelegramToken) || hasControl(s.NotifyTelegramChat) {
+		errs = append(errs, errors.New("the Telegram bot token or chat ID is not valid"))
 	}
 	if s.WatchDir != "" {
 		p, err := fsutil.CleanAbs(s.WatchDir)

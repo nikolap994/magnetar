@@ -29,6 +29,9 @@ import (
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/desktop"
 	"github.com/nikolap994/magnetar/internal/engine"
+	"github.com/nikolap994/magnetar/internal/finish"
+	"github.com/nikolap994/magnetar/internal/logsafe"
+	"github.com/nikolap994/magnetar/internal/notify"
 	"github.com/nikolap994/magnetar/internal/rss"
 	"github.com/nikolap994/magnetar/internal/server"
 	"github.com/nikolap994/magnetar/internal/update"
@@ -213,6 +216,8 @@ func run() error {
 	go updater.Run(ctx)
 	feeds := rss.New(dataDir, eng, eng.HTTPClient, logger.With("component", "rss"))
 	go feeds.Run(ctx)
+	finisher := finish.New(logger, stop)
+	go onFinished(ctx, eng, store, finisher, logger)
 
 	// Relaunch with the same flags (listen-address changes). A service manager
 	// restarts headless instances itself, so they only report it.
@@ -234,6 +239,7 @@ func run() error {
 		AutoStart: desktop.SetAutostart,
 		Updater:   updater,
 		RSS:       feeds,
+		Finish:    finisher,
 		Host:      settings.WebHost,
 		Restart:   relaunch,
 		ShowUI:    func(magnet string) { a.showUI(srv, eng, magnet) },
@@ -358,6 +364,55 @@ func desktopFeedback(ctx context.Context, eng *engine.Engine, store *config.Stor
 			desktop.SetTrayTooltip(tip)
 		}
 	}
+}
+
+// onFinished runs the user's command for each finished download, sends phone
+// notifications, and starts the "when downloads finish" countdown once
+// nothing is left to download.
+func onFinished(ctx context.Context, eng *engine.Engine, store *config.Store, fin *finish.Runner, log *slog.Logger) {
+	events, cancel := eng.Subscribe()
+	defer cancel()
+	for {
+		var ev engine.Event
+		select {
+		case <-ctx.Done():
+			return
+		case e, ok := <-events:
+			if !ok {
+				return
+			}
+			ev = e
+		}
+		s := store.Get()
+		switch ev.Type {
+		case "completed":
+			if name, save, cat, tags, ok := eng.Finished(ev.Hash); ok {
+				finish.RunCommand(log, s.OnCompleteCommand, finish.Torrent{Name: name, Hash: ev.Hash, SavePath: save, Category: cat, Tags: tags})
+			}
+			pushNotify(ctx, eng, s, log, "Download complete", ev.Name)
+			if s.WhenDone != "" && eng.AllDone() {
+				fin.Schedule(s.WhenDone)
+				eng.Broadcast(engine.Event{Type: "finish", Message: s.WhenDone})
+			}
+		case "error":
+			if s.NotifyOnError {
+				pushNotify(ctx, eng, s, log, "Download problem", ev.Name+": "+ev.Message)
+			}
+		}
+	}
+}
+
+func pushNotify(ctx context.Context, eng *engine.Engine, s config.Settings, log *slog.Logger, title, body string) {
+	if !notify.Configured(s) {
+		return
+	}
+	go func() {
+		nctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		if err := notify.Send(nctx, eng.HTTPClient(), s, title, body); err != nil {
+			log.Warn("phone notification", "err", logsafe.Err(err))
+		}
+	}()
 }
 
 func humanRate(b int64) string {

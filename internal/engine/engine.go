@@ -106,6 +106,7 @@ type managed struct {
 	checkExisting bool
 	checking      bool
 	moving        bool
+	errReported   bool
 	startedAt     time.Time
 }
 
@@ -1100,6 +1101,7 @@ func (e *Engine) loop() {
 		e.mu.Lock()
 		e.tickLocked()
 		e.queueLocked(time.Now())
+		e.reportErrorsLocked()
 		e.checkInterfaceLocked(time.Now())
 		e.expirePreviewsLocked()
 		saveEvery++

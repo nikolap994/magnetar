@@ -201,6 +201,7 @@ function connect() {
     if (n.type === "shutdown") { showStopped(); return; }
     if (n.type === "ui-add") { openAdd(n.message, true); window.focus(); return; }
     if (n.type === "ui-focus") { window.focus(); return; }
+    if (n.type === "finish") { checkFinish(); return; }
     if (n.type === "completed") {
       toast("Download complete: " + n.name); // the desktop notification comes from Magnetar itself
     } else if (n.type === "error") toast(n.name + ": " + n.message, "err");
@@ -276,6 +277,35 @@ function renderTags() {
   }));
 }
 // Per-torrent speed limits.
+// "When downloads finish" countdown with a Cancel button.
+const FINISH_TEXT = { quit: "Magnetar will quit", sleep: "The computer will go to sleep", shutdown: "The computer will shut down" };
+let finishTimer = null;
+async function checkFinish() {
+  let f;
+  try { f = await api("/api/finish"); } catch { return; }
+  clearInterval(finishTimer);
+  $("#finish-bar").hidden = !f.action;
+  if (!f.action) return;
+  const at = new Date(f.at).getTime();
+  const tick = () => {
+    const s = Math.max(0, Math.round((at - Date.now()) / 1000));
+    $("#finish-text").textContent = `Downloads finished. ${FINISH_TEXT[f.action] || f.action} in ${s} s.`;
+    if (s === 0) clearInterval(finishTimer);
+  };
+  tick();
+  finishTimer = setInterval(tick, 1000);
+}
+$("#finish-cancel").addEventListener("click", async () => {
+  try { await api("/api/finish/cancel", { method: "POST" }); } catch (e) { fail(e); }
+  clearInterval(finishTimer);
+  $("#finish-bar").hidden = true;
+  toast("Cancelled");
+});
+$("#btn-notify-test").addEventListener("click", async () => {
+  try { await api("/api/notify/test", { method: "POST" }); toast("Test message sent"); } catch (e) { fail(e); }
+});
+checkFinish();
+
 let limitTargets = [];
 function openLimitDialog(hashes) {
   limitTargets = hashes;
@@ -1310,7 +1340,10 @@ function handleIncomingLinks() {
 const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit", "proxyPort", "maxActiveDownloads", "maxActiveUploads", "maxActiveTorrents"]);
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
+  // Optional fields left out of the response when empty still belong to the form.
+  for (const k of ["proxyPassword", "proxyUsername", "whenDone", "onCompleteCommand", "notifyNtfyURL", "notifyTelegramToken", "notifyTelegramChat", "notifyWebhookURL"]) state.settings[k] ??= "";
   state.settings.proxyPassword = "";
+  state.settings.notifyTelegramToken = "";
   $("#watch-cat").replaceChildren(h("option", { value: "", text: "No category" }),
     ...(state.settings.categories || []).map((c) => h("option", { value: c.name, text: c.name })));
   await fillInterfaces(state.settings.bindInterface);
@@ -1331,6 +1364,7 @@ async function openSettings() {
   $("#qbit-port").textContent = location.port || state.settings.webPort;
   $('#settings-form [name="qbitAPI"]').disabled = !state.settings.passwordSet;
   $("#proxy-pass").placeholder = state.settings.proxyPasswordSet ? "Saved - leave empty to keep" : "";
+  $('#settings-form [name="notifyTelegramToken"]').placeholder = state.settings.notifyTelegramTokenSet ? "Saved - leave empty to keep" : "";
   syncProxy();
   $("#dlg-settings").showModal();
 }
