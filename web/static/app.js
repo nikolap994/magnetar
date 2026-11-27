@@ -221,7 +221,9 @@ function visible() {
   const f = FILTERS.find((x) => x.id === state.filter) || FILTERS[0];
   const q = state.query.trim().toLowerCase();
   const cat = state.category;
+  const tag = state.tag;
   const list = state.torrents.filter((t) => f.match(t) && (cat == null || (t.category || "") === cat) &&
+    (tag == null || (t.tags || []).includes(tag)) &&
     (!q || t.name.toLowerCase().includes(q) || t.hash.includes(q)));
   const { key, dir } = state.sort;
   list.sort((a, b) => {
@@ -236,6 +238,7 @@ function visible() {
 function render() {
   renderFilters();
   renderCategories();
+  renderTags();
   renderStats();
   renderList();
   renderBulk();
@@ -251,6 +254,76 @@ function renderCategories() {
       icon(c.name == null ? "all" : "tag"), h("span", { text: c.label }), h("span", { class: "count", text: count || "" }));
   }));
 }
+
+// Tags come from the torrents themselves; the section hides when none are used.
+state.tag = null;
+function allTags() {
+  const seen = new Map();
+  for (const t of state.torrents) for (const g of t.tags || []) if (!seen.has(g.toLowerCase())) seen.set(g.toLowerCase(), g);
+  return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}
+function renderTags() {
+  const tags = allTags();
+  if (state.tag != null && !tags.includes(state.tag)) state.tag = null;
+  $("#tag-section").hidden = !tags.length;
+  $("#tag-suggest").replaceChildren(...tags.map((t) => h("option", { value: t })));
+  if (!tags.length) return;
+  const items = [{ name: null, label: "All tags" }, ...tags.map((t) => ({ name: t, label: t }))];
+  $("#tag-filters").replaceChildren(...items.map((x) => {
+    const count = x.name == null ? state.torrents.length : state.torrents.filter((t) => (t.tags || []).includes(x.name)).length;
+    return h("button", { class: state.tag === x.name ? "active" : "", onclick: () => { state.tag = x.name; render(); } },
+      icon(x.name == null ? "all" : "hash"), h("span", { text: x.label }), h("span", { class: "count", text: count || "" }));
+  }));
+}
+let tagTargets = [];
+function openTagsDialog(hashes) {
+  tagTargets = hashes;
+  const ts = hashes.map(byHash).filter(Boolean);
+  const tags = allTags();
+  $("#tags-title").textContent = hashes.length > 1 ? `Tags for ${hashes.length} torrents` : "Tags";
+  const list = $("#tags-list");
+  list.replaceChildren(...(tags.length ? tags.map((g) => {
+    const n = ts.filter((t) => (t.tags || []).includes(g)).length;
+    const cb = h("input", { type: "checkbox", checked: n > 0, dataset: { tag: g } });
+    cb.indeterminate = n > 0 && n < ts.length;
+    cb.dataset.initial = n === ts.length ? "all" : n ? "some" : "none";
+    return h("label", {}, cb, h("span", { class: "tag-chip", text: g }));
+  }) : [h("p", { class: "empty", text: "No tags yet. Type one below." })]));
+  $("#tags-new").value = "";
+  $("#dlg-tags").returnValue = "";
+  $("#dlg-tags").showModal();
+  $("#tags-new").focus();
+}
+$("#tags-new").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const v = $("#tags-new").value.trim();
+  if (!v) return;
+  const existing = $$("#tags-list input").find((x) => x.dataset.tag.toLowerCase() === v.toLowerCase());
+  if (existing) { existing.checked = true; existing.indeterminate = false; }
+  else {
+    $("#tags-list .empty")?.remove();
+    $("#tags-list").append(h("label", {}, h("input", { type: "checkbox", checked: true, dataset: { tag: v, initial: "none" } }), h("span", { class: "tag-chip", text: v })));
+  }
+  $("#tags-new").value = "";
+});
+$("#tags-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  const pending = $("#tags-new").value.trim();
+  const add = [], remove = [];
+  for (const cb of $$("#tags-list input")) {
+    if (cb.indeterminate) continue; // unchanged mixed state
+    if (cb.checked && cb.dataset.initial !== "all") add.push(cb.dataset.tag);
+    if (!cb.checked && cb.dataset.initial !== "none") remove.push(cb.dataset.tag);
+  }
+  if (pending) add.push(...pending.split(","));
+  try {
+    await api("/api/actions", { method: "POST", body: { action: "tags", hashes: tagTargets, addTags: add, removeTags: remove } });
+    $("#dlg-tags").close();
+    toast("Tags updated");
+  } catch (e) { fail(e); }
+});
 
 function renderFilters() {
   const nav = $("#filters");
@@ -430,7 +503,8 @@ function updateRow(row, t) {
 function subtitle(t) {
   const s = subtitleText(t);
   const f = t.forced && t.state !== "paused" ? "Forced · " : "";
-  return f + (t.category ? `${t.category} · ${s}` : s);
+  const tags = (t.tags || []).length ? t.tags.join(", ") + " · " : "";
+  return f + (t.category ? `${t.category} · ` : "") + tags + s;
 }
 function subtitleText(t) {
   switch (t.state) {
@@ -478,6 +552,7 @@ for (const b of $$("#bulk [data-bulk]")) {
     const hashes = [...state.selected];
     if (b.dataset.bulk === "remove") confirmRemove(hashes);
     else if (b.dataset.bulk === "category") openCategoryDialog(hashes);
+    else if (b.dataset.bulk === "tags") openTagsDialog(hashes);
     else if (b.dataset.bulk === "move") moveTo(hashes);
     else act(b.dataset.bulk, hashes);
   });
@@ -527,6 +602,7 @@ function contextMenu(e, hash) {
     item("Verify data", "refresh", () => act("recheck", targets)),
     item(t.sequential ? "Disable sequential" : "Download sequentially", "down", () => setSequential(hash, !t.sequential)),
     item("Category…", "tag", () => openCategoryDialog(targets)),
+    item("Tags…", "hash", () => openTagsDialog(targets)),
     item("Play", "play", () => playTorrent(hash)),
     item("Open folder", "folder", () => openFolder(hash)),
     item("Move files to…", "move", () => moveTo(targets)),
@@ -645,6 +721,7 @@ const TABS = {
       kv([
         ["Save path", d.savePath, "mono"],
         ["Category", d.category || "-"],
+        ["Tags", (d.tags || []).join(", ") || "-"],
         ["Info hash", d.hash, "mono"],
         ["Pieces", d.numPieces ? `${d.numPieces.toLocaleString()} × ${bytes(d.pieceSize)}` : "–"],
         ["Peers", `${d.peers} connected · ${d.seeds} seeds · ${d.knownPeers} known`],
@@ -872,6 +949,7 @@ async function openAdd(prefill = "", fromLink = false) {
     $("#add-magnets").value = prefill;
     $("#add-path").value = state.settings.downloadDir;
     state.pendingFiles = [];
+    $("#add-tags").value = "";
     renderPending();
     dlg.showModal();
     (prefill ? $("#add-submit") : $("#add-magnets")).focus();
@@ -1123,6 +1201,7 @@ $("#add-form").addEventListener("submit", async (ev) => {
     try {
       const res = await api("/api/torrents", { method: "POST", body: {
         previewHash: pv.hash, skipFiles: [...pv.skip], savePath: $("#add-path").value.trim(), category: $("#add-cat").value,
+        tags: $("#add-tags").value.split(",").map((x) => x.trim()).filter(Boolean),
         paused: $("#add-paused").checked, sequential: $("#add-seq").checked } });
       pv.used = true;
       const r = res[0] || {};
@@ -1140,6 +1219,7 @@ $("#add-form").addEventListener("submit", async (ev) => {
   fd.append("paused", $("#add-paused").checked);
   fd.append("sequential", $("#add-seq").checked);
   fd.append("category", $("#add-cat").value);
+  fd.append("tags", $("#add-tags").value);
   state.pendingFiles.forEach((f) => fd.append("torrents", f, f.name));
   $("#add-submit").disabled = true;
   try {

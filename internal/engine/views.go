@@ -48,6 +48,7 @@ type Summary struct {
 	Category    string     `json:"category,omitempty"`
 	Error       string     `json:"error,omitempty"`
 	Forced      bool       `json:"forced,omitempty"`
+	Tags        []string   `json:"tags,omitempty"`
 	QueuePos    int        `json:"queuePos"` // 1-based position in the queue (list order)
 }
 
@@ -65,6 +66,7 @@ func (e *Engine) summaryLocked(m *managed) Summary {
 		ETA:         -1,
 		Error:       m.err,
 		Forced:      m.rec.Forced,
+		Tags:        m.rec.Tags,
 	}
 	s.Downloaded, s.Uploaded = m.totals()
 	t := m.t

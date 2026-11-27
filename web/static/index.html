@@ -57,6 +57,7 @@
     <symbol id="i-ft-doc" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 19V5M8 7h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-ft-torrent" viewBox="0 0 24 24"><path d="M7 4v8a5 5 0 0 0 10 0V4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 7h3M14 7h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-rows" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-hash" viewBox="0 0 24 24"><path d="M9 4 7 20M17 4l-2 16M4 9h16M3 15h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -70,6 +71,10 @@
       <div class="side-section">
         <div class="side-head"><span>Categories</span><button class="btn icon xs" id="btn-manage-cats" title="Manage categories"><svg><use href="#i-plus"/></svg></button></div>
         <nav id="cat-filters" class="filters" aria-label="Categories"></nav>
+      </div>
+      <div class="side-section" id="tag-section" hidden>
+        <div class="side-head"><span>Tags</span></div>
+        <nav id="tag-filters" class="filters" aria-label="Tags"></nav>
       </div>
       <div class="side-stats">
         <div class="speed-card" id="speed-card" role="button" tabindex="0" title="Speed limits">
@@ -112,6 +117,7 @@
           <button class="btn ghost" data-bulk="pause" title="Pause"><svg><use href="#i-pause"/></svg></button>
           <button class="btn ghost" data-bulk="recheck" title="Verify data"><svg><use href="#i-refresh"/></svg></button>
           <button class="btn ghost" data-bulk="category" title="Set category"><svg><use href="#i-tag"/></svg></button>
+          <button class="btn ghost" data-bulk="tags" title="Tags"><svg><use href="#i-hash"/></svg></button>
           <button class="btn ghost" data-bulk="move" title="Move files to…"><svg><use href="#i-move"/></svg></button>
           <button class="btn ghost danger" data-bulk="remove" title="Remove"><svg><use href="#i-trash"/></svg></button>
         </div>
@@ -235,6 +241,10 @@
       <label class="field">
         <span>Category</span>
         <select id="add-cat"><option value="">No category</option></select>
+      </label>
+      <label class="field">
+        <span>Tags <em>(optional, separated by commas)</em></span>
+        <input id="add-tags" type="text" list="tag-suggest" spellcheck="false" placeholder="e.g. 4K, keep">
       </label>
       <div class="row">
         <label class="switch"><input type="checkbox" id="add-paused"><span></span>Start paused</label>
@@ -523,6 +533,20 @@
       </footer>
     </form>
   </dialog>
+
+  <!-- Tags -->
+  <dialog id="dlg-tags" class="dialog small">
+    <form method="dialog" id="tags-form">
+      <header><h2 id="tags-title">Tags</h2></header>
+      <div id="tags-list" class="tags-list"></div>
+      <label class="field"><span>New tag</span><input id="tags-new" type="text" list="tag-suggest" spellcheck="false" placeholder="Type a tag and press Enter"></label>
+      <footer>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" value="ok">Apply</button>
+      </footer>
+    </form>
+  </dialog>
+  <datalist id="tag-suggest"></datalist>
 
   <!-- Player -->
   <dialog id="dlg-player" class="dialog player">

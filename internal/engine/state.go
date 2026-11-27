@@ -37,6 +37,8 @@ type record struct {
 	Completed      int64       `json:"completed,omitempty"`
 	// Forced torrents ignore the queue limits ("Force start").
 	Forced bool `json:"forced,omitempty"`
+	// Tags are free-form labels; a torrent can have several.
+	Tags []string `json:"tags,omitempty"`
 }
 
 type stateFile struct {

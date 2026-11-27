@@ -110,6 +110,7 @@ func (s *Server) routes() {
 	m.Handle("POST /api/torrents/{hash}/open-folder", s.authed(s.handleOpenFolder))
 	m.Handle("POST /api/actions", s.authed(s.handleActions))
 	m.Handle("GET /api/stats", s.authed(s.handleStats))
+	m.Handle("GET /api/tags", s.authed(func(w http.ResponseWriter, r *http.Request) { writeJSON(w, s.eng.Tags()) }))
 	m.Handle("GET /api/statistics", s.authed(func(w http.ResponseWriter, r *http.Request) { writeJSON(w, s.eng.Statistics()) }))
 	m.Handle("GET /api/settings", s.authed(s.handleGetSettings))
 	m.Handle("PUT /api/settings", s.authed(s.handlePutSettings))
@@ -394,6 +395,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 			Category:   r.FormValue("category"),
 			Paused:     r.FormValue("paused") == "true",
 			Sequential: r.FormValue("sequential") == "true",
+			Tags:       strings.Split(r.FormValue("tags"), ","),
 		}
 		for _, fh := range r.MultipartForm.File["torrents"] {
 			if fh.Size > engine.MaxTorrentFileSize {
@@ -430,6 +432,7 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 			SavePath    string   `json:"savePath"`
 			Paused      bool     `json:"paused"`
 			Sequential  bool     `json:"sequential"`
+			Tags        []string `json:"tags"`
 		}
 		if err := readJSON(r, &req); err != nil {
 			writeErr(w, http.StatusBadRequest, err)
@@ -441,12 +444,12 @@ func (s *Server) handleAdd(w http.ResponseWriter, r *http.Request) {
 				prios[i] = engine.PrioritySkip
 			}
 			add(engine.AddOptions{PreviewHash: req.PreviewHash, FilePriorities: prios, SavePath: req.SavePath, Category: req.Category,
-				Paused: req.Paused, Sequential: req.Sequential}, req.PreviewHash)
+				Paused: req.Paused, Sequential: req.Sequential, Tags: req.Tags}, req.PreviewHash)
 		}
 		mags := req.Magnets
 		mags = append(mags, splitMagnets(req.Magnet)...)
 		for _, mag := range mags {
-			add(engine.AddOptions{Magnet: mag, SavePath: req.SavePath, Category: req.Category, Paused: req.Paused, Sequential: req.Sequential}, mag)
+			add(engine.AddOptions{Magnet: mag, SavePath: req.SavePath, Category: req.Category, Paused: req.Paused, Sequential: req.Sequential, Tags: req.Tags}, mag)
 		}
 	}
 	if len(results) == 0 {
@@ -491,6 +494,8 @@ func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 		DeleteData bool     `json:"deleteData"`
 		Category   string   `json:"category"`
 		Path       string   `json:"path"`
+		AddTags    []string `json:"addTags"`
+		RemoveTags []string `json:"removeTags"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -512,6 +517,8 @@ func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 		err = s.eng.SetCategory(req.Category, req.Hashes...)
 	case "move":
 		err = s.eng.Move(req.Path, req.Hashes...)
+	case "tags":
+		err = s.eng.EditTags(req.AddTags, req.RemoveTags, req.Hashes...)
 	case "forceStart":
 		err = s.eng.ForceStart(true, req.Hashes...)
 	case "unforce":

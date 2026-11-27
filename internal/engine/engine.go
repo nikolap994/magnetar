@@ -403,6 +403,8 @@ type AddOptions struct {
 	Category string
 	// Totals carried over from another client when importing.
 	Downloaded, Uploaded int64
+	// Tags to set on the new torrent.
+	Tags []string
 }
 
 // Add adds a torrent from a magnet link or .torrent file contents.
@@ -420,6 +422,10 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 			return "", perr
 		}
 		opts.TorrentFile, opts.Magnet = file, magnet
+	}
+	tags, err := CleanTags(opts.Tags)
+	if err != nil {
+		return "", err
 	}
 	for i, p := range opts.FilePriorities {
 		if i < 0 || p < PrioritySkip || p > PriorityHigh {
@@ -514,6 +520,7 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 		Paused:     opts.Paused,
 		Sequential: opts.Sequential,
 		Category:   opts.Category,
+		Tags:       tags,
 		AddedAt:    time.Now().UTC(),
 	}
 	for i, p := range opts.FilePriorities {

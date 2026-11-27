@@ -81,8 +81,8 @@ func (s *Server) handleQbit(w http.ResponseWriter, r *http.Request) {
 	case "torrents/removeCategories":
 		s.qbitRemoveCategories(w, r)
 	case "torrents/tags":
-		writeJSON(w, []string{})
-	case "torrents/createTags", "torrents/addTags", "torrents/removeTags", "torrents/deleteTags",
+		writeJSON(w, s.eng.Tags())
+	case "torrents/createTags", "torrents/deleteTags",
 		"torrents/setShareLimits", "torrents/toggleFirstLastPiecePrio", "torrents/setSuperSeeding", "torrents/setAutoManagement":
 		qbitOK(w) // accepted; Magnetar has no equivalent
 	case "torrents/info":
@@ -235,7 +235,7 @@ func qbitTorrent(t engine.Summary) map[string]any {
 	return map[string]any{
 		"hash": t.Hash, "infohash_v1": t.Hash, "name": t.Name, "size": t.Size, "total_size": t.Size,
 		"progress": t.Progress, "dlspeed": t.DownRate, "upspeed": t.UpRate, "eta": eta,
-		"state": qbitState(t), "category": t.Category, "tags": "",
+		"state": qbitState(t), "category": t.Category, "tags": strings.Join(t.Tags, ", "),
 		"save_path": t.SavePath, "content_path": filepath.Join(t.SavePath, t.Name), "download_path": "",
 		"ratio": t.Ratio, "added_on": t.AddedAt.Unix(), "completion_on": completion,
 		"amount_left": max(t.Size-t.Completed, 0), "completed": t.Completed,
@@ -526,6 +526,13 @@ func (s *Server) qbitAction(w http.ResponseWriter, r *http.Request, path string)
 	hashes := s.qbitHashes(f.Get("hashes"))
 	var err error
 	switch path {
+	case "torrents/addTags", "torrents/removeTags":
+		tags := strings.Split(f.Get("tags"), ",")
+		if path == "torrents/addTags" {
+			err = s.eng.EditTags(tags, nil, hashes...)
+		} else {
+			err = s.eng.EditTags(nil, tags, hashes...)
+		}
 	case "torrents/pause", "torrents/stop":
 		err = s.eng.Pause(hashes...)
 	case "torrents/resume", "torrents/start":
