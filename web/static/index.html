@@ -415,6 +415,16 @@
               <p class="muted">Open Magnetar in your phone's browser on the same Wi-Fi to add magnet links, watch progress and pause or resume downloads.</p>
               <div id="remote-box"></div>
             </div>
+            <div class="card">
+              <h3>Sonarr, Radarr and other apps</h3>
+              <p class="muted">Let media apps such as Sonarr, Radarr, Lidarr, Prowlarr and autobrr send downloads to Magnetar. They connect as if Magnetar were qBittorrent.</p>
+              <label class="switch"><input type="checkbox" name="qbitAPI"><span></span>Allow apps to connect (qBittorrent-compatible)</label>
+              <ol class="remote-steps" id="qbit-help">
+                <li>In the app, add a <b>qBittorrent</b> download client.</li>
+                <li>Host: this computer's address (<code>localhost</code> when the app runs here), Port: <code id="qbit-port">8899</code>.</li>
+                <li>Username: anything. Password: your Magnetar password (set it below).</li>
+              </ol>
+            </div>
             <h4 class="sub">Advanced</h4>
             <label class="field"><span>Listen address <em>(127.0.0.1 = this computer only)</em></span><input name="webHost" type="text" spellcheck="false"></label>
             <label class="field"><span>Port</span><input name="webPort" type="number" min="1" max="65535"></label>

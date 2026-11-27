@@ -1155,6 +1155,8 @@ async function openSettings() {
   renderCatEditor(state.settings.categories || []);
   renderDays();
   renderRemote();
+  $("#qbit-port").textContent = location.port || state.settings.webPort;
+  $('#settings-form [name="qbitAPI"]').disabled = !state.settings.passwordSet;
   $("#proxy-pass").placeholder = state.settings.proxyPasswordSet ? "Saved - leave empty to keep" : "";
   syncProxy();
   $("#dlg-settings").showModal();
