@@ -111,7 +111,7 @@ func TestUTorrent(t *testing.T) {
 		t.Fatalf("%v %v", ts, err)
 	}
 	g := ts[0]
-	if g.Hash != hash || g.SavePath != "/music" || !g.Paused || g.Category != "Music" || g.FilePriorities[1] != 0 || g.FilePriorities[2] != 2 {
+	if g.Hash != hash || g.SavePath != filepath.Dir(filepath.Join("/music", "Album")) || !g.Paused || g.Category != "Music" || g.FilePriorities[1] != 0 || g.FilePriorities[2] != 2 {
 		t.Fatalf("%+v", g)
 	}
 }
