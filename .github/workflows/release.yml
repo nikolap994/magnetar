@@ -32,7 +32,7 @@ jobs:
       - name: Check release configuration
         run: |
           if [ -z "$UPDATE_PUBLIC_KEY" ]; then
-            echo "::error::Repository variable UPDATE_PUBLIC_KEY is not set (see docs/SIGNING.md)"; exit 1
+            echo "::error::Repository variable UPDATE_PUBLIC_KEY is not set"; exit 1
           fi
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
@@ -97,7 +97,7 @@ jobs:
           MAGNETAR_UPDATE_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
         run: |
           if [ -z "$MAGNETAR_UPDATE_KEY" ]; then
-            echo "::error::Secret UPDATE_SIGNING_KEY is not set (see docs/SIGNING.md)"; exit 1
+            echo "::error::Secret UPDATE_SIGNING_KEY is not set"; exit 1
           fi
           make sign-checksums
           go run ./tools/signsums verify "$UPDATE_PUBLIC_KEY" dist/SHA256SUMS
@@ -139,7 +139,7 @@ jobs:
           \`\`\`sh
           gh attestation verify <file> --repo ${GITHUB_REPOSITORY}
           \`\`\`
-          See [docs/SIGNING.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/docs/SIGNING.md).
+          See [Verify your download](https://github.com/${GITHUB_REPOSITORY}#verify-your-download).
           NOTES
           prerelease=""
           case "$version" in *-*) prerelease="--prerelease" ;; esac
@@ -160,7 +160,7 @@ jobs:
         run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
 
   # Opens a pull request on microsoft/winget-pkgs for every new release.
-  # Enable after the first version has been accepted into winget (see docs/DISTRIBUTION.md):
+  # Runs when the WINGET_ENABLED variable is set:
   # repository variable WINGET_ENABLED=true and secret WINGET_TOKEN (classic PAT, public_repo).
   winget:
     needs: release

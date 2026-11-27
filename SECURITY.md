@@ -27,4 +27,4 @@ run code as your OS user.
 ## Verifying releases
 
 All release artifacts are signed with Sigstore and have build-provenance attestations. See
-[docs/SIGNING.md](docs/SIGNING.md).
+[Verify your download](README.md#verify-your-download).

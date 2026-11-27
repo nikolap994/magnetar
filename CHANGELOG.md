@@ -25,7 +25,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Security
 - Stricter path validation: any ".." in a user-chosen folder or a torrent's file path is refused, checked before the
-  path is cleaned. This closes all remaining CodeQL path-injection findings.
+  path is cleaned.
 - Torrent names and error messages are stripped of control characters before they are written to the log.
 
 ### Changed
@@ -55,8 +55,8 @@ All notable changes to this project are documented here. The format follows
 - Quitting from the tray now also closes the app window.
 
 ### Distribution
-- Releases include a source archive with vendored Go modules for offline builds (Flathub).
-- winget manifests and an optional automatic winget submission; a Flathub manifest; a project website.
+- Releases include a source archive with all dependencies for building offline.
+- A project website at <https://nikolap994.github.io/magnetar/>.
 
 ## [0.2.0] - 2026-11-26
 

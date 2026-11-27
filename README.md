@@ -81,8 +81,8 @@ Download from the [latest release](https://github.com/nikolap994/magnetar/releas
 Uninstall from **Settings → Apps → Installed apps → Magnetar**. Your downloads and settings are kept.
 A portable `.zip` is also available (run `magnetar.exe register` once to handle magnet links).
 
-> Until the project's Authenticode certificate is in place (see [docs/SIGNING.md](docs/SIGNING.md)), SmartScreen may
-> show *"Windows protected your PC"*. Verify the download (see below), then click **More info → Run anyway**.
+> Windows SmartScreen may show *"Windows protected your PC"* for new releases. Click **More info → Run anyway**,
+> or [verify the download](#verify-your-download) first.
 
 ### Ubuntu / Debian / Linux Mint / Pop!_OS
 ```sh
@@ -110,14 +110,23 @@ make release    # → dist/: Windows setup + zip, .deb, .tar.gz for amd64 and ar
 ```
 
 ### Verify your download
-Every release is built in GitHub Actions, signed with [Sigstore](https://www.sigstore.dev/) and carries a
-[build-provenance attestation](https://docs.github.com/actions/security-guides/using-artifact-attestations), so you can prove a binary was built from this repository:
+Every release is built in GitHub Actions from a tagged commit, signed with [Sigstore](https://www.sigstore.dev/) and
+carries a [build-provenance attestation](https://docs.github.com/actions/security-guides/using-artifact-attestations),
+so you can prove a file was built from this repository. Use whichever check you prefer:
 
 ```sh
-gh attestation verify magnetar_<version>_linux_amd64.tar.gz --repo nikolap994/magnetar
-```
+# Build provenance (needs the GitHub CLI)
+gh attestation verify magnetar_<version>_windows_amd64_setup.exe --repo nikolap994/magnetar
 
-See [docs/SIGNING.md](docs/SIGNING.md) for cosign and checksum verification.
+# Sigstore signature of the checksum list (needs cosign)
+cosign verify-blob SHA256SUMS --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/nikolap994/magnetar/\.github/workflows/release\.yml@refs/tags/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+# Your file against the checksums
+sha256sum --ignore-missing -c SHA256SUMS                       # Linux
+Get-FileHash .\magnetar_<version>_windows_amd64_setup.exe        # Windows: compare with SHA256SUMS
+```
 
 ## Usage
 
@@ -144,8 +153,9 @@ in **Settings → Web interface**.
 ### Updates
 
 Magnetar checks GitHub Releases once a day and shows **Update to x.y.z** in the toolbar when a new version is out.
-Click it to read the release notes and **Install & restart** - the download is verified against Magnetar's signing
-key and checksum before it is installed, and transfers resume after the restart. Turn automatic checks off in
+Click it to read the release notes and **Install & restart**. Before anything is installed, the list of checksums must
+carry a valid signature from Magnetar's release key (compiled into the app) and the downloaded file must match it, so
+a tampered download or a compromised mirror can never install foreign code. Transfers resume after the restart. Turn automatic checks off in
 **Settings → About**. (Versions before 0.2.0 must be updated manually once.)
 
 ### Keyboard shortcuts
