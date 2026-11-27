@@ -178,8 +178,9 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 	e.queueLocked(time.Now())
 	e.mu.Unlock()
 
-	e.wg.Add(1)
+	e.wg.Add(2)
 	go e.loop()
+	go e.watchLoop()
 	return e, nil
 }
 

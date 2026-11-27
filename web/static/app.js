@@ -1120,6 +1120,8 @@ const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "w
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
   state.settings.proxyPassword = "";
+  $("#watch-cat").replaceChildren(h("option", { value: "", text: "No category" }),
+    ...(state.settings.categories || []).map((c) => h("option", { value: c.name, text: c.name })));
   await fillInterfaces(state.settings.bindInterface);
   const form = $("#settings-form");
   for (const el of form.elements) {

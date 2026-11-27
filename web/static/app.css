@@ -529,6 +529,7 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .dialog.link-mode.show-link #add-magnets-field { display: flex; }
 
 /* Network settings */
+.switch-inline { align-self: end; margin-bottom: 10px; }
 .three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .card .small { font-size: 12.5px; margin: 6px 0 0; }
 .pill.queued { color: var(--muted); background: rgba(148, 163, 184, .14); }

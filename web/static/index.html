@@ -266,6 +266,20 @@
               </div>
             </div>
             <div class="card">
+              <h3>Watch folder</h3>
+              <p class="muted">.torrent files saved into this folder are added automatically, then renamed to <code>.torrent.added</code>.</p>
+              <div class="field"><span>Folder <em>(empty = off)</em></span>
+                <div class="path-row">
+                  <input name="watchDir" id="set-watch" type="text" spellcheck="false" placeholder="e.g. /home/you/Downloads/torrents" aria-label="Watch folder">
+                  <button type="button" class="btn ghost" data-browse="#set-watch"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
+                </div>
+              </div>
+              <div class="two">
+                <label class="field"><span>Category</span><select name="watchCategory" id="watch-cat"><option value="">No category</option></select></label>
+                <label class="switch switch-inline"><input type="checkbox" name="watchPaused"><span></span>Add paused</label>
+              </div>
+            </div>
+            <div class="card">
               <h3>Categories</h3>
               <p class="muted">Group torrents and give each group its own download folder (optional).</p>
               <div id="cat-editor" class="cat-editor"></div>

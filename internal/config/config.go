@@ -107,6 +107,11 @@ type Settings struct {
 	// Move finished downloads to MoveCompletedDir (category folders take precedence).
 	MoveCompletedEnabled bool   `json:"moveCompletedEnabled"`
 	MoveCompletedDir     string `json:"moveCompletedDir"`
+	// Watch folder: .torrent files saved here are added automatically and
+	// renamed to .torrent.added (or .torrent.invalid).
+	WatchDir      string `json:"watchDir"`
+	WatchCategory string `json:"watchCategory,omitempty"`
+	WatchPaused   bool   `json:"watchPaused"`
 
 	// Seeding
 	SeedAfterComplete bool    `json:"seedAfterComplete"`
@@ -300,6 +305,16 @@ func (s *Settings) Validate() error {
 			errs = append(errs, fmt.Errorf("completed downloads folder: %w", err))
 		}
 		s.MoveCompletedDir = p
+	}
+	if s.WatchDir != "" {
+		p, err := fsutil.CleanAbs(s.WatchDir)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("watch folder: %w", err))
+		}
+		s.WatchDir = p
+	}
+	if s.WatchCategory != "" && !s.HasCategory(s.WatchCategory) {
+		errs = append(errs, fmt.Errorf("watch folder category %q does not exist", s.WatchCategory))
 	}
 	if s.MoveCompletedEnabled && s.MoveCompletedDir == "" {
 		errs = append(errs, errors.New("choose a folder for completed downloads"))
