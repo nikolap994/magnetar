@@ -56,6 +56,9 @@ func (e *Engine) loadStats() {
 }
 
 func (e *Engine) saveStatsLocked() error {
+	if e.frozen.Load() {
+		return nil
+	}
 	b, err := json.Marshal(e.stats.lifetime)
 	if err != nil {
 		return err

@@ -538,6 +538,15 @@
                 <a class="btn ghost" href="https://github.com/nikolap994/magnetar/issues/new/choose" target="_blank" rel="noopener noreferrer"><svg><use href="#i-alert"/></svg><span>Report an issue</span></a>
               </div>
               <p class="muted small">MIT License · Contributions welcome</p>
+              <div class="card">
+                <h3>Backup</h3>
+                <p class="muted">One file with your settings, torrent list, RSS rules, statistics and banned peers - for a new computer or just in case. Downloaded files are not included. The backup contains saved passwords and tokens, so keep it private.</p>
+                <div class="row">
+                  <a class="btn ghost" id="btn-backup" href="/api/backup" download><svg><use href="#i-down"/></svg><span>Download backup</span></a>
+                  <label class="btn ghost" for="restore-file"><svg><use href="#i-up"/></svg><span>Restore from backup…</span></label>
+                  <input type="file" id="restore-file" accept=".zip,application/zip" hidden>
+                </div>
+              </div>
               <div class="card update-card">
                 <h3>Updates</h3>
                 <p class="muted" id="update-status">Checking…</p>

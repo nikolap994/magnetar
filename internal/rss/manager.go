@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nikolap994/magnetar/internal/config"
@@ -67,7 +68,11 @@ type Manager struct {
 	st stored
 
 	refreshing sync.Mutex
+	frozen     atomic.Bool
 }
+
+// Freeze stops saving RSS state (a backup is about to be restored).
+func (m *Manager) Freeze() { m.frozen.Store(true) }
 
 // New loads the RSS state from dataDir. client returns the HTTP client to use
 // (it follows the proxy settings).
@@ -441,6 +446,9 @@ func (m *Manager) saveOrLogLocked() {
 }
 
 func (m *Manager) saveLocked() error {
+	if m.frozen.Load() {
+		return nil
+	}
 	if len(m.st.Seen) > maxSeen {
 		// Forget the oldest entries; feeds rarely keep articles that long.
 		type kv struct {

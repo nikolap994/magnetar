@@ -29,6 +29,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/desktop"
 	"github.com/nikolap994/magnetar/internal/engine"
+	"github.com/nikolap994/magnetar/internal/backup"
 	"github.com/nikolap994/magnetar/internal/finish"
 	"github.com/nikolap994/magnetar/internal/logsafe"
 	"github.com/nikolap994/magnetar/internal/notify"
@@ -138,6 +139,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// A backup restored from Settings is applied before anything is loaded.
+	if restored, err := backup.ApplyPending(cfgDir, dataDir); err != nil {
+		return fmt.Errorf("restore backup: %w", err)
+	} else if restored {
+		fmt.Fprintln(os.Stderr, "magnetar: backup restored")
+	}
 	store, err := config.Load(cfgDir)
 	if err != nil {
 		return err
@@ -240,6 +247,8 @@ func run() error {
 		Updater:   updater,
 		RSS:       feeds,
 		Finish:    finisher,
+		ConfigDir: cfgDir,
+		DataDir:   dataDir,
 		Host:      settings.WebHost,
 		Restart:   relaunch,
 		ShowUI:    func(magnet string) { a.showUI(srv, eng, magnet) },

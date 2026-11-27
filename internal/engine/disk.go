@@ -53,3 +53,7 @@ func (e *Engine) finalPathLocked(m *managed) string {
 	}
 	return ""
 }
+
+// Freeze stops saving the session and statistics, so a restored backup is
+// not overwritten while Magnetar restarts.
+func (e *Engine) Freeze() { e.frozen.Store(true) }

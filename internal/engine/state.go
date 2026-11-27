@@ -77,6 +77,9 @@ func (e *Engine) loadState() ([]*record, error) {
 
 // saveStateLocked writes the session. Callers must hold e.mu.
 func (e *Engine) saveStateLocked() error {
+	if e.frozen.Load() {
+		return nil
+	}
 	sf := stateFile{Version: 1}
 	for _, h := range e.order {
 		m := e.torrents[h]

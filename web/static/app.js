@@ -301,6 +301,21 @@ $("#finish-cancel").addEventListener("click", async () => {
   $("#finish-bar").hidden = true;
   toast("Cancelled");
 });
+$("#restore-file").addEventListener("change", async () => {
+  const f = $("#restore-file").files[0];
+  $("#restore-file").value = "";
+  if (!f) return;
+  if (!confirm("Restore this backup? Your current settings and torrent list are replaced, and Magnetar restarts. Downloaded files are not touched.")) return;
+  const fd = new FormData();
+  fd.append("backup", f, f.name);
+  try {
+    const r = await api("/api/backup/restore", { method: "POST", form: fd });
+    if (r.restarting) {
+      toast(`Restoring ${r.torrents} torrents - Magnetar is restarting…`);
+      setTimeout(() => location.reload(), 5000);
+    } else toast(`Backup ready (${r.torrents} torrents). Restart Magnetar to finish restoring.`);
+  } catch (e) { fail(e); }
+});
 $("#btn-notify-test").addEventListener("click", async () => {
   try { await api("/api/notify/test", { method: "POST" }); toast("Test message sent"); } catch (e) { fail(e); }
 });

@@ -49,6 +49,8 @@ type Server struct {
 	host      string
 	restart   func()
 	finish    *finish.Runner
+	cfgDir    string
+	dataDir   string
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
@@ -75,6 +77,8 @@ type Options struct {
 	Restart func()
 	// Finish holds the "when downloads finish" countdown (optional).
 	Finish *finish.Runner
+	// ConfigDir and DataDir are backed up and restored (optional).
+	ConfigDir, DataDir string
 }
 
 // Updater is the subset of the update package used by the API.
@@ -87,7 +91,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir}
 	s.routes()
 	return s
 }
@@ -132,6 +136,8 @@ func (s *Server) routes() {
 	m.HandleFunc("POST /api/v2/", s.handleQbit)
 	m.Handle("GET /api/search", s.authed(s.handleSearch))
 	m.Handle("POST /api/search/open", s.authed(s.handleSearchOpen))
+	m.Handle("GET /api/backup", s.authed(s.handleBackup))
+	m.Handle("POST /api/backup/restore", s.authed(s.handleRestore))
 	m.Handle("GET /api/finish", s.authed(s.handleFinish))
 	m.Handle("POST /api/finish/cancel", s.authed(s.handleFinishCancel))
 	m.Handle("POST /api/notify/test", s.authed(s.handleNotifyTest))
