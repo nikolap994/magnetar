@@ -5,6 +5,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-27
+
+### Added
+- Find subtitles for a video in the built-in player through OpenSubtitles, using your own API key; saved subtitles
+  are remembered and offered automatically next time.
+- Allow Magnetar through Windows Defender Firewall with one approval, from the connection help and phone-access
+  settings. A blocked firewall is a common reason torrents find no peers and phones cannot connect.
+
+### Changed
+- Fresh torrents connect to peers much faster, so large public torrents start downloading quickly instead of
+  trickling in a few connections at a time.
+- A magnet link clicked while the interface is open in an ordinary browser tab now brings Magnetar's own window to
+  the front.
+
+### Fixed
+- Updating Magnetar no longer recreates a desktop shortcut you had deleted.
+- The HTTPS toggle is no longer crowded against the QR code in phone-access settings.
+
 ## [0.5.0] - 2026-11-27
 
 ### Added
