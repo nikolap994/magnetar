@@ -131,7 +131,10 @@
           <img class="empty-logo" src="/logo.svg" alt="">
           <h2>No torrents yet</h2>
           <p>Paste a magnet link anywhere, drop a <code>.torrent</code> file on this window, or click <b>Add torrent</b>.</p>
-          <button class="btn primary" id="btn-add-empty"><svg><use href="#i-plus"/></svg><span>Add torrent</span></button>
+          <div class="row center">
+            <button class="btn primary" id="btn-add-empty"><svg><use href="#i-plus"/></svg><span>Add torrent</span></button>
+            <button class="btn ghost" id="btn-import-empty"><svg><use href="#i-down"/></svg><span>Import from qBittorrent, Transmission or uTorrent</span></button>
+          </div>
           <a class="empty-link" href="https://github.com/nikolap994/magnetar" target="_blank" rel="noopener noreferrer"><svg><use href="#i-github"/></svg>Free &amp; open source - star Magnetar on GitHub</a>
         </div>
       </section>
@@ -268,6 +271,11 @@
                 <input name="moveCompletedDir" id="set-done" type="text" spellcheck="false" placeholder="e.g. /home/you/Videos" aria-label="Completed downloads folder">
                 <button type="button" class="btn ghost" data-browse="#set-done"><svg><use href="#i-folder"/></svg><span>Browse</span></button>
               </div>
+            </div>
+            <div class="card">
+              <h3>Switching from another client?</h3>
+              <p class="muted">Bring over your torrents from qBittorrent, Transmission or uTorrent with their folders, file choices, categories and statistics. Files already on disk are checked and keep seeding.</p>
+              <div class="row"><button type="button" class="btn ghost" id="btn-import"><svg><use href="#i-down"/></svg><span>Import torrents…</span></button></div>
             </div>
             <div class="card">
               <h3>Watch folder</h3>
@@ -481,6 +489,44 @@
         <button type="button" class="btn ghost sm" id="pl-open"><svg><use href="#i-external"/></svg><span>Open in system player</span></button>
         <button type="button" class="btn ghost sm" id="pl-reveal"><svg><use href="#i-folder"/></svg><span>Show in folder</span></button>
       </div>
+    </form>
+  </dialog>
+
+  <!-- Import -->
+  <dialog id="dlg-import" class="dialog wide">
+    <form method="dialog" id="import-form">
+      <header><h2>Import torrents</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div id="im-step1">
+        <p class="muted">Magnetar looked for other BitTorrent apps on this computer.</p>
+        <div id="im-sources" class="im-sources"></div>
+        <details class="more" id="im-manual">
+          <summary>Choose the data folder yourself (portable installs)</summary>
+          <div class="two">
+            <label class="field"><span>App</span><select id="im-client"></select></label>
+            <div class="field"><span>Data folder</span>
+              <div class="path-row">
+                <input id="im-dir" type="text" spellcheck="false" aria-label="Data folder">
+                <button type="button" class="btn ghost" id="im-browse"><svg><use href="#i-folder"/></svg></button>
+              </div>
+            </div>
+          </div>
+          <p class="muted small">qBittorrent: the <code>BT_backup</code> folder. Transmission: the folder with <code>torrents</code> and <code>resume</code>. uTorrent: the folder with <code>resume.dat</code>.</p>
+          <button type="button" class="btn ghost sm" id="im-scan">Show torrents</button>
+        </details>
+      </div>
+      <div id="im-step2" hidden>
+        <p class="notice" id="im-warn"></p>
+        <div class="row im-head">
+          <label class="switch"><input type="checkbox" id="im-all" checked><span></span><span id="im-count"></span></label>
+        </div>
+        <div class="im-list" id="im-list"></div>
+      </div>
+      <footer>
+        <span class="error" id="im-err"></span>
+        <button type="button" class="btn ghost" id="im-back" hidden>Back</button>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" id="im-go" value="default" hidden>Import</button>
+      </footer>
     </form>
   </dialog>
 

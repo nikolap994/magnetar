@@ -1113,6 +1113,7 @@ function handleIncomingLinks() {
   else if (hash === "#stats") openStatistics();
   else if (hash === "#rss") openRSS();
   else if (hash === "#create") openCreate();
+  else if (hash === "#import") openImport();
   else if (hash === "#rss:rules") openRSS("rules");
   else if (/^#play=[0-9a-f]{40}$/i.test(hash)) playTorrent(hash.slice(6).toLowerCase());
   else if (hash === "#add") openAdd();
@@ -1435,6 +1436,80 @@ async function playTorrent(hash) {
 $("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = null; });
 $("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
 $("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
+
+/* ---------- import from other clients ---------- */
+const imp = { client: "", dir: "", list: [], names: {} };
+async function openImport() {
+  $("#im-err").textContent = "";
+  showImportStep(1);
+  $("#im-sources").replaceChildren(h("p", { class: "muted", text: "Looking for other apps…" }));
+  $("#dlg-import").showModal();
+  try {
+    const r = await api("/api/import/sources");
+    imp.names = r.clients;
+    $("#im-client").replaceChildren(...Object.entries(r.clients).map(([k, v]) => h("option", { value: k, text: v })));
+    $("#im-sources").replaceChildren(...(r.sources.length ? r.sources.map((s) => h("button", { type: "button", class: "im-source", onclick: () => scanImport(s.client, s.dir) },
+      h("b", { text: s.name }), h("span", { text: `${s.count} torrent${s.count === 1 ? "" : "s"}` }), h("span", { text: s.dir })))
+      : [h("p", { class: "muted", text: "No other BitTorrent app was found in its usual place. Choose its data folder below." })]));
+    $("#im-manual").open = !r.sources.length;
+  } catch (e) { $("#im-err").textContent = e.message; }
+}
+function showImportStep(n) {
+  $("#im-step1").hidden = n !== 1;
+  $("#im-step2").hidden = n !== 2;
+  $("#im-back").hidden = n !== 2;
+  $("#im-go").hidden = n !== 2;
+}
+async function scanImport(client, dir) {
+  $("#im-err").textContent = "";
+  try {
+    imp.list = await api("/api/import/scan", { method: "POST", body: { client, dir, hashes: [] } });
+    imp.client = client;
+    imp.dir = dir;
+  } catch (e) { $("#im-err").textContent = e.message; return; }
+  const name = imp.names[client] || client;
+  $("#im-warn").textContent = `Quit ${name} before importing, so the two apps don't write to the same files at once. Your torrents stay in ${name}; remove them there once Magnetar has taken over.`;
+  const fresh = imp.list.filter((t) => !t.exists);
+  $("#im-list").replaceChildren(...(imp.list.length ? imp.list.map((t) => {
+    const cb = h("input", { type: "checkbox", checked: !t.exists, disabled: t.exists, dataset: { hash: t.hash } });
+    cb.addEventListener("change", importCount);
+    return h("label", { class: "im-row" + (t.exists ? " done" : "") }, cb,
+      h("span", { text: t.name }),
+      h("span", { class: "m", text: t.exists ? "Already in Magnetar" : [t.savePath, t.category, t.paused ? "paused" : ""].filter(Boolean).join(" · ") }),
+      h("span", { class: "sz", text: bytes(t.size) }));
+  }) : [h("p", { class: "rss-empty", text: "No torrents found in this folder." })]));
+  $("#im-all").checked = fresh.length > 0;
+  importCount();
+  showImportStep(2);
+}
+function importCount() {
+  const boxes = $$("#im-list input:not(:disabled)");
+  const n = boxes.filter((b) => b.checked).length;
+  $("#im-count").textContent = `${n} of ${boxes.length} torrents selected`;
+  $("#im-go").disabled = n === 0;
+  $("#im-go").textContent = n ? `Import ${n} torrent${n === 1 ? "" : "s"}` : "Import";
+}
+$("#im-all").addEventListener("change", () => { $$("#im-list input:not(:disabled)").forEach((b) => { b.checked = $("#im-all").checked; }); importCount(); });
+$("#im-back").addEventListener("click", () => showImportStep(1));
+$("#im-scan").addEventListener("click", () => scanImport($("#im-client").value, $("#im-dir").value.trim()));
+$("#im-browse").addEventListener("click", () => pickFolder($("#im-dir").value.trim(), (p) => { $("#im-dir").value = p; }));
+$("#import-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  const hashes = $$("#im-list input:checked:not(:disabled)").map((b) => b.dataset.hash);
+  if (!hashes.length) return;
+  $("#im-go").disabled = true;
+  try {
+    const r = await api("/api/import", { method: "POST", body: { client: imp.client, dir: imp.dir, hashes } });
+    $("#dlg-import").close();
+    toast(`Imported ${r.added} torrent${r.added === 1 ? "" : "s"}` + (r.existing ? ` (${r.existing} already here)` : "") + ". Existing files are being checked.");
+    r.failed.slice(0, 5).forEach((f) => toast(f, "err"));
+    loadCategories();
+  } catch (e) { $("#im-err").textContent = e.message; }
+  finally { $("#im-go").disabled = false; }
+});
+$("#btn-import").addEventListener("click", openImport);
+$("#btn-import-empty").addEventListener("click", openImport);
 
 /* ---------- create torrent ---------- */
 const creating = { id: null, poll: null };
