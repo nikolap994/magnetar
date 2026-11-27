@@ -1709,6 +1709,35 @@ $("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = nul
 $("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
 $("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
 
+/* ---------- clipboard: offer copied magnet links ---------- */
+// Off by default; a per-device choice kept in this browser. Reading the
+// clipboard needs the page to be focused, so it is checked on focus.
+const clip = { on: localStorage.getItem("mg.clip") === "1", seen: new Set(JSON.parse(sessionStorage.getItem("mg.clipSeen") || "[]")) };
+$("#clip-watch").checked = clip.on;
+$("#clip-watch").addEventListener("change", async () => {
+  clip.on = $("#clip-watch").checked;
+  localStorage.setItem("mg.clip", clip.on ? "1" : "0");
+  if (clip.on) checkClipboard(); // asks for permission right away
+});
+async function checkClipboard() {
+  if (!clip.on || !navigator.clipboard?.readText || $("#dlg-add").open) return;
+  let text;
+  try { text = (await navigator.clipboard.readText()).trim(); } catch { return; }
+  const m = /^magnet:\?[^\s]+$/i.exec(text) || (/^[a-f0-9]{40}$/i.test(text) ? [text] : null);
+  if (!m || clip.seen.has(text)) return;
+  clip.seen.add(text);
+  sessionStorage.setItem("mg.clipSeen", JSON.stringify([...clip.seen].slice(-50)));
+  const ih = (/btih:([a-z0-9]+)/i.exec(text) || [, text])[1].toLowerCase();
+  if (state.torrents.some((t) => t.hash === ih)) return;
+  const name = magnetName(text) || "a torrent";
+  const el = h("div", { class: "toast ok" }, icon("copy"), h("span", { class: "t", text: `You copied a magnet link for ${name}.` }),
+    h("button", { class: "btn primary sm", onclick: () => { el.remove(); openAdd(text, true); } }, h("span", { text: "Add" })),
+    h("button", { class: "btn ghost sm", onclick: () => el.remove() }, h("span", { text: "No" })));
+  $("#toasts").append(el);
+  setTimeout(() => el.remove(), 15000);
+}
+window.addEventListener("focus", () => setTimeout(checkClipboard, 150));
+
 /* ---------- narrow screens: overflow menu ---------- */
 $("#btn-more").addEventListener("click", (e) => {
   e.stopPropagation();
