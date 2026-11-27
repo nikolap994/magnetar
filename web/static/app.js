@@ -1330,6 +1330,8 @@ function handleIncomingLinks() {
   else if (hash === "#stats") openStatistics();
   else if (hash === "#rss") openRSS();
   else if (hash === "#create") openCreate();
+  else if (hash === "#search") openSearch();
+  else if (hash.startsWith("#search=")) { openSearch(); $("#sq").value = decodeURIComponent(hash.slice(8)); $("#sq-go").click(); }
   else if (hash === "#import") openImport();
   else if (hash === "#rss:rules") openRSS("rules");
   else if (/^#play=[0-9a-f]{40}$/i.test(hash)) playTorrent(hash.slice(6).toLowerCase());
@@ -1359,6 +1361,7 @@ async function openSettings() {
   $("#settings-err").textContent = "";
   refreshRates($("#settings-form"));
   renderCatEditor(state.settings.categories || []);
+  renderIndexerEditor(state.settings.indexers);
   renderDays();
   renderRemote();
   $("#qbit-port").textContent = location.port || state.settings.webPort;
@@ -1404,6 +1407,7 @@ $("#settings-form").addEventListener("submit", async (ev) => {
     body[el.name] = el.type === "checkbox" ? el.checked : NUMERIC.has(el.name) ? Number(el.value || 0) : el.value.trim();
   }
   body.categories = readCatEditor();
+  body.indexers = readIndexerEditor();
   try {
     const res = await api("/api/settings", { method: "PUT", body });
     $("#dlg-settings").close();
@@ -1806,6 +1810,84 @@ $("#import-form").addEventListener("submit", async (ev) => {
 });
 $("#btn-import").addEventListener("click", openImport);
 $("#btn-import-empty").addEventListener("click", openImport);
+
+/* ---------- search ---------- */
+const srch = { results: [], sort: "seeders" };
+function openSearch() {
+  $("#dlg-search").returnValue = "";
+  if (!$("#dlg-search").open) $("#dlg-search").showModal();
+  $("#sq").focus();
+  $("#sq").select();
+}
+$("#btn-search").addEventListener("click", openSearch);
+$("#search-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  const q = $("#sq").value.trim();
+  if (!q) return;
+  $("#sq-status").textContent = "Searching…";
+  $("#sq-go").disabled = true;
+  try {
+    const r = await api("/api/search?q=" + encodeURIComponent(q));
+    srch.results = r.results;
+    $("#sq-status").textContent = `${r.results.length} result${r.results.length === 1 ? "" : "s"}` + (r.errors.length ? ` · ${r.errors.join(" · ")}` : "");
+    renderSearch();
+  } catch (e) {
+    $("#sq-status").textContent = e.message;
+    if (e.status === 409) { $("#dlg-search").close(); openSettings().then(() => $('.settings-nav [data-sec="search"]').click()); }
+  } finally { $("#sq-go").disabled = false; }
+});
+$$(".sr-table th[data-k]").forEach((th) => th.addEventListener("click", () => { srch.sort = th.dataset.k; renderSearch(); }));
+function renderSearch() {
+  const k = srch.sort;
+  const list = [...srch.results].sort((a, b) => {
+    const x = a[k], y = b[k];
+    if (typeof x === "string") return k === "date" ? String(y).localeCompare(String(x)) : x.localeCompare(y);
+    return (y || 0) - (x || 0);
+  });
+  $$(".sr-table th[data-k]").forEach((th) => th.classList.toggle("sorted", th.dataset.k === k));
+  $("#sr-body").replaceChildren(...list.map((r) => h("tr", {},
+    h("td", {}, h("span", { class: "ft-wrap" }, fileIcon(r.title)), " ", r.page ? h("a", { href: r.page, target: "_blank", rel: "noopener noreferrer", text: r.title }) : r.title),
+    h("td", { class: "num", text: r.size ? bytes(r.size) : "–" }),
+    h("td", { class: "num seeds", text: String(r.seeders) }),
+    h("td", { class: "num", text: String(r.leechers) }),
+    h("td", { class: "num", text: r.date && !r.date.startsWith("0001") ? new Date(r.date).toLocaleDateString() : "–" }),
+    h("td", { text: r.indexer }),
+    h("td", {}, h("button", { type: "button", class: "btn ghost sm", onclick: (e) => openResult(r, e.currentTarget) }, icon("down"), h("span", { text: "Add" }))))));
+}
+async function openResult(r, btn) {
+  btn.disabled = true;
+  try {
+    const res = await api("/api/search/open", { method: "POST", body: { link: r.link } });
+    if (res.exists) { toast("Already in your list"); return; }
+    $("#dlg-search").close();
+    if (res.magnet) openAdd(res.magnet, true);
+    else openAdd("preview:" + res.preview);
+  } catch (e) { fail(e); }
+  finally { btn.disabled = false; }
+}
+
+/* indexer editor in Settings → Search */
+function addIndexerRow(ix) {
+  const name = h("input", { type: "text", value: ix.name || "", placeholder: "Name", "aria-label": "Indexer name" });
+  const url = h("input", { type: "url", value: ix.url || "", placeholder: "Torznab address", spellcheck: "false", "aria-label": "Torznab address" });
+  const key = h("input", { type: "password", value: "", placeholder: ix.apiKeySet ? "API key saved" : "API key", autocomplete: "off", "aria-label": "API key" });
+  const on = h("input", { type: "checkbox", checked: ix.enabled !== false, "aria-label": "Enabled" });
+  const row = h("div", { class: "ix-row" }, name, url, key, h("label", { class: "switch" }, on, h("span")),
+    h("button", { type: "button", class: "btn icon", title: "Remove", onclick: () => row.remove() }, icon("trash")));
+  $("#ix-editor").append(row);
+}
+function renderIndexerEditor(list) {
+  $("#ix-editor").replaceChildren();
+  (list || []).forEach(addIndexerRow);
+}
+function readIndexerEditor() {
+  return $$("#ix-editor .ix-row").map((r) => {
+    const [name, url, key] = r.querySelectorAll("input");
+    return { name: name.value.trim(), url: url.value.trim(), apiKey: key.value.trim(), enabled: r.querySelector('input[type="checkbox"]').checked };
+  }).filter((x) => x.url);
+}
+$("#ix-add").addEventListener("click", () => addIndexerRow({ enabled: true }));
 
 /* ---------- create torrent ---------- */
 const creating = { id: null, poll: null };

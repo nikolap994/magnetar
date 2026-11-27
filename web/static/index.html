@@ -60,6 +60,7 @@
     <symbol id="i-hash" viewBox="0 0 24 24"><path d="M9 4 7 20M17 4l-2 16M4 9h16M3 15h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m12 16 4-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m16.5 16.5 4 4M8 11h6M11 8v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -126,6 +127,7 @@
         </div>
         <div class="spacer"></div>
         <button class="update-pill" id="update-pill" hidden><svg><use href="#i-update"/></svg><span></span></button>
+        <button class="btn icon" id="btn-search" title="Search torrents"><svg><use href="#i-globe"/></svg></button>
         <button class="btn icon wide-only" id="btn-create" title="Create torrent"><svg><use href="#i-plus-file"/></svg></button>
         <button class="btn icon wide-only" id="btn-rss" title="RSS feeds"><svg><use href="#i-rss"/></svg></button>
         <button class="btn icon wide-only" id="btn-stats" title="Statistics"><svg><use href="#i-chart"/></svg></button>
@@ -285,6 +287,7 @@
           <button type="button" data-sec="privacy">Privacy &amp; security</button>
           <button type="button" data-sec="desktop">Desktop</button>
           <button type="button" data-sec="notify">Notifications</button>
+          <button type="button" data-sec="search">Search</button>
           <button type="button" data-sec="webui">Web interface</button>
           <button type="button" data-sec="about">About</button>
         </nav>
@@ -434,6 +437,15 @@
             <label class="switch"><input type="checkbox" name="anonymousMode"><span></span>Anonymous mode - hide client name and version</label>
             <label class="field"><span>IP blocklist file <em>(P2P/eMule format, .gz supported)</em></span><input name="blocklistPath" type="text" placeholder="/path/to/blocklist.p2p" spellcheck="false"></label>
           </section>
+          <section data-sec="search">
+            <p class="muted">Search through your own indexers with the Torznab API, which Prowlarr and Jackett provide. Magnetar does not include any search sources.</p>
+            <ul class="remote-steps">
+              <li><b>Prowlarr:</b> open an indexer, copy its <em>Torznab feed</em> address (like <code>http://localhost:9696/1/api</code>) and your API key from Settings → General.</li>
+              <li><b>Jackett:</b> use <code>http://localhost:9117/api/v2.0/indexers/all/results/torznab/api</code> to search every indexer at once, with the API key from the top of the Jackett page.</li>
+            </ul>
+            <div id="ix-editor" class="ix-editor"></div>
+            <div class="row"><button type="button" class="btn ghost" id="ix-add"><svg><use href="#i-plus"/></svg><span>Add indexer</span></button></div>
+          </section>
           <section data-sec="notify">
             <p class="muted">Get a message on your phone when a download finishes, even when you're away from the computer.</p>
             <h4 class="sub">ntfy</h4>
@@ -566,6 +578,26 @@
         <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
         <button class="btn primary" value="ok">Apply</button>
       </footer>
+    </form>
+  </dialog>
+
+  <!-- Search -->
+  <dialog id="dlg-search" class="dialog search-dlg">
+    <form method="dialog" id="search-form">
+      <header><h2>Search</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
+      <div class="row search-row">
+        <input id="sq" type="search" class="search-input" placeholder="What are you looking for?" autocomplete="off" spellcheck="false" aria-label="Search for">
+        <button class="btn primary" id="sq-go" value="search"><svg><use href="#i-globe"/></svg><span>Search</span></button>
+      </div>
+      <p class="muted small" id="sq-status"></p>
+      <div class="sr-wrap">
+        <table class="table sr-table">
+          <thead><tr>
+            <th data-k="title">Name</th><th data-k="size">Size</th><th data-k="seeders">Seeds</th><th data-k="leechers">Peers</th><th data-k="date">Added</th><th data-k="indexer">Indexer</th><th></th>
+          </tr></thead>
+          <tbody id="sr-body"></tbody>
+        </table>
+      </div>
     </form>
   </dialog>
 

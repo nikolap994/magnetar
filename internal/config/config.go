@@ -148,6 +148,9 @@ type Settings struct {
 	// docs for placeholders). Only changeable from this computer.
 	OnCompleteCommand string `json:"onCompleteCommand,omitempty"`
 
+	// Search: Torznab indexers (Prowlarr, Jackett, ...).
+	Indexers []Indexer `json:"indexers,omitempty"`
+
 	// Phone notifications
 	NotifyNtfyURL       string `json:"notifyNtfyURL,omitempty"`
 	NotifyTelegramToken string `json:"notifyTelegramToken,omitempty"`
@@ -168,6 +171,14 @@ var PausedForever = time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
 // UpdatesPaused reports whether update offers are paused at now.
 func (s Settings) UpdatesPaused(now time.Time) bool {
 	return !s.UpdatesPausedUntil.IsZero() && now.Before(s.UpdatesPausedUntil)
+}
+
+// Indexer is a Torznab search endpoint.
+type Indexer struct {
+	Name    string `json:"name"`
+	URL     string `json:"url"`
+	APIKey  string `json:"apiKey,omitempty"`
+	Enabled bool   `json:"enabled"`
 }
 
 // Category groups torrents and optionally gives them their own folder.
@@ -334,6 +345,23 @@ func (s *Settings) Validate() error {
 			errs = append(errs, fmt.Errorf("completed downloads folder: %w", err))
 		}
 		s.MoveCompletedDir = p
+	}
+	if len(s.Indexers) > 50 {
+		errs = append(errs, errors.New("at most 50 search indexers"))
+	}
+	for i := range s.Indexers {
+		ix := &s.Indexers[i]
+		ix.Name, ix.URL, ix.APIKey = strings.TrimSpace(ix.Name), strings.TrimSpace(ix.URL), strings.TrimSpace(ix.APIKey)
+		pu, err := url.Parse(ix.URL)
+		if err != nil || (pu.Scheme != "https" && pu.Scheme != "http") || pu.Host == "" || pu.User != nil || len(ix.URL) > 2000 {
+			errs = append(errs, fmt.Errorf("search indexer %q: enter its Torznab address (http or https)", ix.Name))
+		}
+		if ix.Name == "" && pu != nil {
+			ix.Name = pu.Host
+		}
+		if len(ix.Name) > 60 || len(ix.APIKey) > 200 || hasControl(ix.Name) || hasControl(ix.APIKey) {
+			errs = append(errs, fmt.Errorf("search indexer %q: name or API key is not valid", ix.Name))
+		}
 	}
 	switch s.WhenDone {
 	case "", "quit", "sleep", "shutdown":

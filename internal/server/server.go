@@ -124,6 +124,8 @@ func (s *Server) routes() {
 	m.Handle("GET /api/fs/free", s.authed(s.handleFree))
 	m.HandleFunc("GET /api/v2/", s.handleQbit)
 	m.HandleFunc("POST /api/v2/", s.handleQbit)
+	m.Handle("GET /api/search", s.authed(s.handleSearch))
+	m.Handle("POST /api/search/open", s.authed(s.handleSearchOpen))
 	m.Handle("GET /api/finish", s.authed(s.handleFinish))
 	m.Handle("POST /api/finish/cancel", s.authed(s.handleFinishCancel))
 	m.Handle("POST /api/notify/test", s.authed(s.handleNotifyTest))
@@ -608,12 +610,24 @@ type publicSettings struct {
 	// Likewise the Telegram bot token.
 	NotifyTelegramToken    string `json:"notifyTelegramToken,omitempty"`
 	NotifyTelegramTokenSet bool   `json:"notifyTelegramTokenSet"`
+	// Indexer API keys are not sent back either; APIKeySet tells the UI.
+	Indexers []publicIndexer `json:"indexers"`
+}
+
+type publicIndexer struct {
+	config.Indexer
+	APIKey    string `json:"apiKey,omitempty"`
+	APIKeySet bool   `json:"apiKeySet"`
 }
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	st := s.store.Get()
+	ix := make([]publicIndexer, 0, len(st.Indexers))
+	for _, i := range st.Indexers {
+		ix = append(ix, publicIndexer{Indexer: i, APIKeySet: i.APIKey != ""})
+	}
 	writeJSON(w, publicSettings{Settings: st, PasswordSet: st.PasswordHash != "", ProxyPasswordSet: st.ProxyPassword != "",
-		NotifyTelegramTokenSet: st.NotifyTelegramToken != ""})
+		NotifyTelegramTokenSet: st.NotifyTelegramToken != "", Indexers: ix})
 }
 
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
@@ -637,6 +651,16 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if next.ProxyType == "" || next.ProxyUsername == "" {
 		next.ProxyPassword = ""
+	}
+	// An empty indexer API key keeps the saved key of the same address.
+	for i := range next.Indexers {
+		if next.Indexers[i].APIKey == "" {
+			for _, old := range cur.Indexers {
+				if old.URL == next.Indexers[i].URL {
+					next.Indexers[i].APIKey = old.APIKey
+				}
+			}
+		}
 	}
 	// An empty bot token keeps the saved one unless the chat ID was cleared.
 	if next.NotifyTelegramToken == "" && next.NotifyTelegramChat != "" {
