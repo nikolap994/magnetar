@@ -277,7 +277,7 @@ func (e *Engine) Detail(hash string) (Detail, error) {
 	d := Detail{Summary: e.summaryLocked(m), Files: []FileView{}, PeerList: []PeerView{}, Trackers: []string{}}
 	t := m.t
 	if t == nil {
-		d.Magnet = m.rec.Magnet
+		e.stoppedDetailLocked(m, &d)
 		return d, nil
 	}
 	mi := t.Metainfo()

@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anacrolix/torrent/metainfo"
+
 	"github.com/nikolap994/magnetar/internal/config"
 )
 
@@ -91,5 +93,18 @@ func TestQueueLimitsActiveDownloads(t *testing.T) {
 	e.mu.Unlock()
 	if run, q = states(e); len(run) != 4 || len(q) != 0 {
 		t.Fatalf("queue off: running=%v queued=%v", run, q)
+	}
+}
+
+func TestCompletedIn(t *testing.T) {
+	info := &metainfo.Info{PieceLength: 10, Length: 35, Pieces: make([]byte, 4*20)}
+	have := []bool{true, false, true, true}
+	// file spans bytes 5..27: piece 0 (5 bytes), piece 1 (missing), piece 2 (8 bytes)
+	if got := completedIn(info, have, 5, 23); got != 13 {
+		t.Fatalf("got %d, want 13", got)
+	}
+	// last, short piece: bytes 30..34
+	if got := completedIn(info, have, 30, 5); got != 5 {
+		t.Fatalf("got %d, want 5", got)
 	}
 }
