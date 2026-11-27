@@ -27,8 +27,8 @@ type Result struct {
 	Seeders  int       `json:"seeders"`
 	Leechers int       `json:"leechers"`
 	Date     time.Time `json:"date,omitzero"`
-	Link     string    `json:"link"`              // magnet or http(s) link to the .torrent
-	Page     string    `json:"page,omitempty"`    // details page on the indexer
+	Link     string    `json:"link"`           // magnet or http(s) link to the .torrent
+	Page     string    `json:"page,omitempty"` // details page on the indexer
 	InfoHash string    `json:"infoHash,omitempty"`
 }
 
