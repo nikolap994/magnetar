@@ -51,6 +51,8 @@ type Server struct {
 	finish    *finish.Runner
 	cfgDir    string
 	dataDir   string
+	httpsPort int
+	httpsFP   string
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
@@ -79,6 +81,9 @@ type Options struct {
 	Finish *finish.Runner
 	// ConfigDir and DataDir are backed up and restored (optional).
 	ConfigDir, DataDir string
+	// HTTPSPort and HTTPSFingerprint describe HTTPS phone access, if running.
+	HTTPSPort        int
+	HTTPSFingerprint string
 }
 
 // Updater is the subset of the update package used by the API.
@@ -91,7 +96,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint}
 	s.routes()
 	return s
 }

@@ -130,6 +130,9 @@ type Settings struct {
 	// Web UI
 	WebHost string `json:"webHost"` // Defaults to 127.0.0.1 (local only).
 	WebPort int    `json:"webPort"`
+	// RemoteHTTPS serves other devices over HTTPS (self-signed) on WebPort+1;
+	// plain HTTP then only answers on this computer.
+	RemoteHTTPS bool `json:"remoteHTTPS"`
 	// Argon2id hash of the web UI password. Required when WebHost is not loopback.
 	PasswordHash string `json:"passwordHash,omitempty"`
 	// Extra Host header values allowed when serving the UI beyond loopback (DNS rebinding guard).

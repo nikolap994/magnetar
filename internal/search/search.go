@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -209,6 +210,10 @@ func clean(s string) string {
 	}, strings.TrimSpace(s))
 }
 
+// webURL accepts plain http(s) addresses: a host name or IP address, an
+// optional port and a path, without user credentials or odd characters.
+var webURL = regexp.MustCompile(`^https?://(\[[0-9a-fA-F:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)(:[0-9]{1,5})?(/[^\s]*)?$`)
+
 // errMagnet carries a magnet link an indexer redirected to.
 type errMagnet struct{ link string }
 
@@ -220,8 +225,11 @@ func Fetch(ctx context.Context, base *http.Client, link string) (torrent []byte,
 	if strings.HasPrefix(strings.ToLower(link), "magnet:?") {
 		return nil, link, nil
 	}
+	if len(link) > 4096 || !webURL.MatchString(link) {
+		return nil, "", errors.New("not a download link")
+	}
 	u, err := url.Parse(link)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
+	if err != nil || u.Host == "" || u.User != nil {
 		return nil, "", errors.New("not a download link")
 	}
 	client := *base

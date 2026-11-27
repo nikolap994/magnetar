@@ -1794,13 +1794,22 @@ async function renderRemote() {
     kids.push(h("div", { class: "remote-urls" }, ...(rs.urls.length ? rs.urls.map((u) =>
       h("div", { class: "remote-url" }, u.qr ? h("img", { src: u.qr, alt: "QR code for " + u.url }) : null, h("code", { text: u.url })))
       : [h("p", { class: "muted", text: "This computer has no home-network address right now. Connect it to your Wi-Fi or network." })])));
+    const https = h("input", { type: "checkbox", checked: !!state.settings.remoteHTTPS });
+    https.addEventListener("change", () => setRemote(true, https.checked));
+    kids.push(h("label", { class: "switch" }, https, h("span"), "Encrypt with HTTPS (recommended on shared networks)"));
+    if (rs.https && rs.fingerprint) {
+      kids.push(h("p", { class: "muted small", text: "The first time, your phone warns that the certificate is not trusted, because Magnetar made it itself. Check that the fingerprint matches, then continue:" }),
+        h("code", { class: "fingerprint", text: rs.fingerprint }));
+    }
     kids.push(h("div", { class: "row" }, h("button", { type: "button", class: "btn ghost", onclick: () => setRemote(false) }, h("span", { text: "Turn off phone access" }))));
   }
   box.replaceChildren(...kids.filter(Boolean));
 }
-async function setRemote(enabled) {
+async function setRemote(enabled, https) {
   try {
-    const rs = await api("/api/remote", { method: "POST", body: { enabled, restart: true } });
+    const body = { enabled, restart: true };
+    if (https !== undefined) { body.https = https; state.settings.remoteHTTPS = https; }
+    const rs = await api("/api/remote", { method: "POST", body });
     if (rs.restartRequired && rs.canRestart) {
       toast("Magnetar is restarting…");
       setTimeout(() => location.reload(), 4000);

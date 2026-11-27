@@ -26,6 +26,8 @@ type remoteStatus struct {
 	RestartRequired bool        `json:"restartRequired"`
 	CanRestart      bool        `json:"canRestart"`
 	URLs            []remoteURL `json:"urls"`
+	HTTPS           bool        `json:"https"`
+	Fingerprint     string      `json:"fingerprint,omitempty"`
 }
 
 // lanAddresses lists this computer's private IPv4 addresses (home and office
@@ -79,10 +81,14 @@ func (s *Server) remoteStatus() remoteStatus {
 		CanRestart:  s.restart != nil,
 		URLs:        []remoteURL{},
 	}
-	rs.RestartRequired = st.WebHost != s.host
+	rs.RestartRequired = st.WebHost != s.host || (rs.Enabled && st.RemoteHTTPS != (s.httpsPort > 0))
+	rs.HTTPS, rs.Fingerprint = s.httpsPort > 0, s.httpsFP
 	if rs.Enabled {
 		for _, ip := range lanAddresses() {
 			u := "http://" + net.JoinHostPort(ip, strconv.Itoa(s.port))
+			if s.httpsPort > 0 {
+				u = "https://" + net.JoinHostPort(ip, strconv.Itoa(s.httpsPort))
+			}
 			rs.URLs = append(rs.URLs, remoteURL{URL: u, QR: qrDataURL(u)})
 		}
 	}
@@ -97,8 +103,9 @@ func (s *Server) handleRemote(w http.ResponseWriter, r *http.Request) {
 // needs a password; Magnetar restarts to listen on the new address.
 func (s *Server) handleRemoteSet(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Enabled bool `json:"enabled"`
-		Restart bool `json:"restart"`
+		Enabled bool  `json:"enabled"`
+		Restart bool  `json:"restart"`
+		HTTPS   *bool `json:"https"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -108,6 +115,9 @@ func (s *Server) handleRemoteSet(w http.ResponseWriter, r *http.Request) {
 	if req.Enabled && st.PasswordHash == "" {
 		writeErr(w, http.StatusBadRequest, errors.New("set a password first, so only you can open Magnetar from other devices"))
 		return
+	}
+	if req.HTTPS != nil {
+		st.RemoteHTTPS = *req.HTTPS
 	}
 	if req.Enabled {
 		st.WebHost = "0.0.0.0"

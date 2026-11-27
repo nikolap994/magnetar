@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -35,6 +36,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/notify"
 	"github.com/nikolap994/magnetar/internal/rss"
 	"github.com/nikolap994/magnetar/internal/server"
+	"github.com/nikolap994/magnetar/internal/tlsutil"
 	"github.com/nikolap994/magnetar/internal/update"
 	"github.com/nikolap994/magnetar/web"
 )
@@ -180,7 +182,14 @@ func run() error {
 		profile:  filepath.Join(dataDir, "window"),
 		noUI:     *headless,
 	}
-	webAddr := net.JoinHostPort(settings.WebHost, strconv.Itoa(settings.WebPort))
+	// With HTTPS phone access, plain HTTP only serves this computer and other
+	// devices use HTTPS on the next port.
+	httpsMode := settings.RemoteHTTPS && !config.IsLoopback(settings.WebHost)
+	httpHost := settings.WebHost
+	if httpsMode {
+		httpHost = "127.0.0.1"
+	}
+	webAddr := net.JoinHostPort(httpHost, strconv.Itoa(settings.WebPort))
 
 	if *afterUpd {
 		update.CleanupOld()
@@ -192,6 +201,20 @@ func run() error {
 			return handoff(a, flag.Args(), !*noBrowser)
 		}
 		return fmt.Errorf("listen on %s: %w", webAddr, err)
+	}
+
+	var tlsLn net.Listener
+	var httpsPort int
+	var fingerprint string
+	if httpsMode {
+		if cert, err := tlsutil.Load(cfgDir, localIPs()); err != nil {
+			logger.Error("HTTPS certificate", "err", err)
+		} else if raw, err := listenWeb(net.JoinHostPort(settings.WebHost, strconv.Itoa(settings.WebPort+1)), *afterUpd); err != nil {
+			logger.Error("HTTPS listener", "err", err)
+		} else {
+			tlsLn = tls.NewListener(raw, tlsutil.Config(cert))
+			httpsPort, fingerprint = settings.WebPort+1, tlsutil.Fingerprint(cert)
+		}
 	}
 
 	eng, err := engine.New(settings, dataDir, logger)
@@ -240,21 +263,26 @@ func run() error {
 	}
 	var srv *server.Server
 	srv = server.New(eng, store, keys, web.FS(), logger, server.Options{
-		Port:      settings.WebPort,
-		Shutdown:  stop,
-		Register:  register,
-		AutoStart: desktop.SetAutostart,
-		Updater:   updater,
-		RSS:       feeds,
-		Finish:    finisher,
-		ConfigDir: cfgDir,
-		DataDir:   dataDir,
-		Host:      settings.WebHost,
-		Restart:   relaunch,
-		ShowUI:    func(magnet string) { a.showUI(srv, eng, magnet) },
+		Port:             settings.WebPort,
+		Shutdown:         stop,
+		Register:         register,
+		AutoStart:        desktop.SetAutostart,
+		Updater:          updater,
+		RSS:              feeds,
+		Finish:           finisher,
+		ConfigDir:        cfgDir,
+		DataDir:          dataDir,
+		HTTPSPort:        httpsPort,
+		HTTPSFingerprint: fingerprint,
+		Host:             settings.WebHost,
+		Restart:          relaunch,
+		ShowUI:           func(magnet string) { a.showUI(srv, eng, magnet) },
 	})
-	errc := make(chan error, 1)
+	errc := make(chan error, 2)
 	go func() { errc <- srv.Serve(ctx, ln) }()
+	if tlsLn != nil {
+		go func() { errc <- srv.Serve(ctx, tlsLn) }()
+	}
 
 	// macOS delivers clicked magnet links and opened .torrent files as
 	// events to the running app (nothing arrives elsewhere).
@@ -439,6 +467,18 @@ func humanRate(b int64) string {
 
 // listenWeb binds the web UI. Right after an update the previous version may
 // still be shutting down, so keep retrying for a while instead of handing off.
+// localIPs are this computer's addresses, for the HTTPS certificate.
+func localIPs() []string {
+	var out []string
+	addrs, _ := net.InterfaceAddrs()
+	for _, a := range addrs {
+		if ipn, ok := a.(*net.IPNet); ok && !ipn.IP.IsLinkLocalUnicast() {
+			out = append(out, ipn.IP.String())
+		}
+	}
+	return out
+}
+
 func listenWeb(addr string, afterUpdate bool) (net.Listener, error) {
 	deadline := time.Now().Add(30 * time.Second)
 	for {
