@@ -43,6 +43,7 @@
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
     <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-rss" viewBox="0 0 24 24"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="6" cy="18" r="1.6" fill="currentColor"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -103,6 +104,7 @@
         </div>
         <div class="spacer"></div>
         <button class="update-pill" id="update-pill" hidden><svg><use href="#i-update"/></svg><span></span></button>
+        <button class="btn icon" id="btn-rss" title="RSS feeds"><svg><use href="#i-rss"/></svg></button>
         <button class="btn icon" id="btn-stats" title="Statistics"><svg><use href="#i-chart"/></svg></button>
         <button class="btn icon" id="btn-theme" title="Toggle theme"><svg><use href="#i-moon"/></svg></button>
         <button class="btn icon" id="btn-settings" title="Settings"><svg><use href="#i-gear"/></svg></button>
@@ -477,6 +479,43 @@
         <button type="button" class="btn ghost sm" id="pl-open"><svg><use href="#i-external"/></svg><span>Open in system player</span></button>
         <button type="button" class="btn ghost sm" id="pl-reveal"><svg><use href="#i-folder"/></svg><span>Show in folder</span></button>
       </div>
+    </form>
+  </dialog>
+
+  <!-- RSS -->
+  <dialog id="dlg-rss" class="dialog rss">
+    <form method="dialog">
+      <header>
+        <h2>RSS feeds</h2>
+        <div class="seg" role="tablist" aria-label="RSS">
+          <button type="button" role="tab" data-rss="feeds" aria-selected="true">Feeds</button>
+          <button type="button" role="tab" data-rss="rules" aria-selected="false">Download rules</button>
+        </div>
+        <button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button>
+      </header>
+      <section class="rss-pane" id="rss-feeds">
+        <div class="row rss-add">
+          <input type="url" id="rss-url" placeholder="Feed address, e.g. https://example.com/rss" spellcheck="false" aria-label="Feed address">
+          <button type="button" class="btn primary" id="rss-add"><svg><use href="#i-plus"/></svg><span>Add feed</span></button>
+          <button type="button" class="btn ghost" id="rss-refresh" title="Refresh all feeds"><svg><use href="#i-refresh"/></svg><span>Refresh</span></button>
+        </div>
+        <div class="rss-split">
+          <ul class="rss-list" id="rss-feed-list" aria-label="Feeds"></ul>
+          <div class="rss-items" id="rss-items"></div>
+        </div>
+      </section>
+      <section class="rss-pane" id="rss-rules" hidden>
+        <div class="rss-split">
+          <div>
+            <ul class="rss-list" id="rss-rule-list" aria-label="Rules"></ul>
+            <button type="button" class="btn ghost sm" id="rss-rule-new"><svg><use href="#i-plus"/></svg><span>New rule</span></button>
+          </div>
+          <div class="rss-editor" id="rss-editor">
+            <p class="muted">Rules download new articles automatically. Create one to get started, for example “my show 1080p” to get every new episode of a show.</p>
+          </div>
+        </div>
+      </section>
+      <footer><span class="error" id="rss-err"></span><span class="muted small">Feeds are checked every 30 minutes by default.</span></footer>
     </form>
   </dialog>
 

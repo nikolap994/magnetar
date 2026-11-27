@@ -1111,6 +1111,8 @@ function handleIncomingLinks() {
   else if (hash.startsWith("#settings:")) openSettings().then(() => $(`.settings-nav [data-sec="${hash.slice(10)}"]`)?.click());
   else if (hash === "#speed") openSpeed();
   else if (hash === "#stats") openStatistics();
+  else if (hash === "#rss") openRSS();
+  else if (hash === "#rss:rules") openRSS("rules");
   else if (/^#play=[0-9a-f]{40}$/i.test(hash)) playTorrent(hash.slice(6).toLowerCase());
   else if (hash === "#add") openAdd();
 }
@@ -1417,6 +1419,188 @@ async function playTorrent(hash) {
 $("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = null; });
 $("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
 $("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
+
+/* ---------- RSS ---------- */
+const rss = { data: { feeds: [], rules: [] }, feed: null, rule: null, rules: [], testTimer: null };
+const rssErr = (e) => { $("#rss-err").textContent = e ? e.message || String(e) : ""; };
+async function openRSS(tab = "feeds") {
+  if (!state.settings) { try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); } }
+  try { rss.data = await api("/api/rss"); } catch (e) { return fail(e); }
+  rss.rules = structuredClone(rss.data.rules);
+  if (!rss.data.feeds.some((f) => f.id === rss.feed)) rss.feed = rss.data.feeds[0]?.id || null;
+  if (!rss.rules.some((r) => r.id === rss.rule)) rss.rule = rss.rules[0]?.id || null;
+  rssErr();
+  rssTab(tab);
+  renderFeeds();
+  renderRules();
+  if (!$("#dlg-rss").open) $("#dlg-rss").showModal();
+}
+function rssTab(name) {
+  $$("#dlg-rss [data-rss]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.rss === name)));
+  $("#rss-feeds").hidden = name !== "feeds";
+  $("#rss-rules").hidden = name !== "rules";
+}
+$$("#dlg-rss [data-rss]").forEach((b) => b.addEventListener("click", () => rssTab(b.dataset.rss)));
+$("#btn-rss").addEventListener("click", () => openRSS());
+
+function ago(t) {
+  if (!t || t.startsWith("0001")) return "never";
+  const s = Math.max(0, (Date.now() - new Date(t)) / 1000);
+  return s < 60 ? "just now" : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : new Date(t).toLocaleDateString();
+}
+function renderFeeds() {
+  const list = $("#rss-feed-list");
+  if (!rss.data.feeds.length) {
+    list.replaceChildren(h("li", { class: "rss-empty", text: "No feeds yet. Paste a feed address above." }));
+    $("#rss-items").replaceChildren();
+    return;
+  }
+  list.replaceChildren(...rss.data.feeds.map((f) => h("li", { class: (f.id === rss.feed ? "active" : "") + (f.enabled ? "" : " off"), onclick: () => { rss.feed = f.id; renderFeeds(); } },
+    icon("rss"),
+    h("span", { class: "grow" }, h("span", { class: "t", text: f.title || f.url, title: f.url }),
+      h("span", { class: "s" + (f.lastError ? " err" : ""), text: f.lastError ? f.lastError : `${f.items.length} articles · checked ${ago(f.lastChecked)}` })),
+    h("button", { type: "button", class: "btn icon sm", title: "Remove feed", onclick: (e) => { e.stopPropagation(); removeFeed(f); } }, icon("trash")))));
+  renderItems();
+}
+function renderItems() {
+  const f = rss.data.feeds.find((x) => x.id === rss.feed);
+  const box = $("#rss-items");
+  if (!f) { box.replaceChildren(); return; }
+  if (!f.items.length) { box.replaceChildren(h("div", { class: "rss-empty", text: f.lastError ? "This feed could not be loaded." : "No torrent articles in this feed." })); return; }
+  box.replaceChildren(...f.items.map((it) => h("div", { class: "rss-item" },
+    h("span", { text: it.title }),
+    h("span", { class: "m", text: [it.size ? bytes(it.size) : "", it.published && !it.published.startsWith("0001") ? new Date(it.published).toLocaleString() : ""].filter(Boolean).join(" · ") || " " }),
+    h("button", { type: "button", class: "btn ghost sm", onclick: async (e) => {
+      e.currentTarget.disabled = true;
+      try { await api("/api/rss/download", { method: "POST", body: { feed: f.id, key: it.key } }); toast("Torrent added"); }
+      catch (err) { fail(err); }
+      finally { e.currentTarget.disabled = false; }
+    } }, icon("down"), h("span", { text: "Download" })))));
+}
+$("#rss-add").addEventListener("click", async () => {
+  const url = $("#rss-url").value.trim();
+  if (!url) return;
+  $("#rss-add").disabled = true;
+  rssErr();
+  try {
+    const f = await api("/api/rss/feeds", { method: "POST", body: { url } });
+    $("#rss-url").value = "";
+    rss.feed = f.id;
+    await openRSS("feeds");
+    if (f.lastError) rssErr(new Error("Added, but the feed could not be loaded: " + f.lastError));
+  } catch (e) { rssErr(e); }
+  finally { $("#rss-add").disabled = false; }
+});
+$("#rss-url").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#rss-add").click(); } });
+$("#rss-refresh").addEventListener("click", async () => {
+  $("#rss-refresh").disabled = true;
+  try { rss.data = await api("/api/rss/refresh", { method: "POST", body: {} }); renderFeeds(); } catch (e) { rssErr(e); }
+  finally { $("#rss-refresh").disabled = false; }
+});
+async function removeFeed(f) {
+  if (!confirm(`Remove the feed “${f.title || f.url}”?`)) return;
+  try { await api(`/api/rss/feeds/${f.id}`, { method: "DELETE" }); await openRSS("feeds"); } catch (e) { rssErr(e); }
+}
+
+function renderRules() {
+  const list = $("#rss-rule-list");
+  list.replaceChildren(...rss.rules.map((r) => h("li", { class: (r.id === rss.rule ? "active" : "") + (r.enabled ? "" : " off"), onclick: () => { rss.rule = r.id; renderRules(); } },
+    h("span", { class: "grow" }, h("span", { class: "t", text: r.name || "New rule" }),
+      h("span", { class: "s", text: r.enabled ? (r.mustContain || "no filter yet") : "Off" })))));
+  renderRuleEditor();
+}
+$("#rss-rule-new").addEventListener("click", () => {
+  const r = { id: "new-" + Date.now(), name: "New rule", enabled: true, mustContain: "", mustNotContain: "", useRegex: false, smartEpisodes: true, feeds: [], category: "", savePath: "", paused: false };
+  rss.rules.push(r);
+  rss.rule = r.id;
+  renderRules();
+  $("#rr-name")?.select();
+});
+function renderRuleEditor() {
+  const box = $("#rss-editor");
+  const r = rss.rules.find((x) => x.id === rss.rule);
+  if (!r) {
+    box.replaceChildren(h("p", { class: "muted", text: "Rules download new articles automatically. Create one to get started, for example “my show 1080p” to get every new episode of a show." }));
+    return;
+  }
+  const field = (label, input, hint) => h("label", { class: "field" }, h("span", {}, label, hint ? h("em", { text: ` (${hint})` }) : null), input);
+  const text = (key, attrs = {}) => {
+    const el = h("input", { type: "text", value: r[key] || "", spellcheck: "false", ...attrs });
+    el.addEventListener("input", () => { r[key] = el.value; scheduleRuleTest(r); if (key === "name" || key === "mustContain") renderRuleListOnly(); });
+    return el;
+  };
+  const check = (key, label) => {
+    const el = h("input", { type: "checkbox", checked: !!r[key] });
+    el.addEventListener("change", () => { r[key] = el.checked; scheduleRuleTest(r); renderRuleListOnly(); });
+    return h("label", { class: "switch" }, el, h("span"), label);
+  };
+  const cat = h("select", {}, h("option", { value: "", text: "No category" }),
+    ...(state.settings.categories || []).map((c) => h("option", { value: c.name, text: c.name })));
+  cat.value = r.category || "";
+  cat.addEventListener("change", () => { r.category = cat.value; });
+  const feeds = h("div", { class: "feeds-pick" }, ...rss.data.feeds.map((f) => {
+    const cb = h("input", { type: "checkbox", checked: (r.feeds || []).includes(f.id) });
+    cb.addEventListener("change", () => {
+      r.feeds = (r.feeds || []).filter((x) => x !== f.id);
+      if (cb.checked) r.feeds.push(f.id);
+      scheduleRuleTest(r);
+    });
+    return h("label", {}, cb, " ", f.title || f.url);
+  }));
+  box.replaceChildren(
+    field("Name", text("name", { id: "rr-name" })),
+    check("enabled", "Use this rule"),
+    field("Must contain", text("mustContain", { placeholder: r.useRegex ? "my[ .]show.*1080p" : "my show 1080p" }), r.useRegex ? "regular expression" : "all words; | separates alternatives"),
+    field("Must not contain", text("mustNotContain", { placeholder: r.useRegex ? "720p|cam" : "720p cam" }), r.useRegex ? "regular expression" : "any of these words"),
+    check("useRegex", "Use regular expressions"),
+    check("smartEpisodes", "Smart episode filter - download each episode only once (S01E02, 1x02)"),
+    rss.data.feeds.length ? h("div", { class: "field" }, h("span", {}, "Feeds ", h("em", { text: "(none ticked = all feeds)" })), feeds) : null,
+    h("div", { class: "two" }, field("Category", cat), field("Save to", text("savePath", { placeholder: state.settings.downloadDir }), "optional")),
+    check("paused", "Add paused"),
+    h("div", { class: "field" }, h("span", { text: "Matching articles" }), h("ul", { class: "rss-matches", id: "rr-matches" })),
+    h("div", { class: "row" },
+      h("button", { type: "button", class: "btn primary", onclick: saveRules }, h("span", { text: "Save rules" })),
+      h("button", { type: "button", class: "btn ghost danger", onclick: () => {
+        rss.rules = rss.rules.filter((x) => x.id !== r.id);
+        rss.rule = rss.rules[0]?.id || null;
+        saveRules();
+      } }, icon("trash"), h("span", { text: "Delete rule" }))),
+  );
+  testRule(r);
+}
+function renderRuleListOnly() {
+  const ed = document.activeElement;
+  const list = $("#rss-rule-list");
+  list.replaceChildren(...rss.rules.map((r) => h("li", { class: (r.id === rss.rule ? "active" : "") + (r.enabled ? "" : " off"), onclick: () => { rss.rule = r.id; renderRules(); } },
+    h("span", { class: "grow" }, h("span", { class: "t", text: r.name || "New rule" }),
+      h("span", { class: "s", text: r.enabled ? (r.mustContain || "no filter yet") : "Off" })))));
+  ed?.focus?.();
+}
+function ruleBody(r) {
+  const { id, name, enabled, mustContain, mustNotContain, useRegex, smartEpisodes, feeds, category, savePath, paused, episodes } = r;
+  return { id: id.startsWith("new-") ? "" : id, name, enabled, mustContain, mustNotContain, useRegex, smartEpisodes, feeds: feeds || [], category, savePath, paused, episodes: episodes || [] };
+}
+function scheduleRuleTest(r) { clearTimeout(rss.testTimer); rss.testTimer = setTimeout(() => testRule(r), 300); }
+async function testRule(r) {
+  const ul = $("#rr-matches");
+  if (!ul) return;
+  if (!r.mustContain.trim()) { ul.replaceChildren(h("li", { class: "muted", text: "Enter what titles must contain." })); return; }
+  try {
+    const titles = await api("/api/rss/test", { method: "POST", body: { ...ruleBody(r), name: r.name || "rule" } });
+    ul.replaceChildren(...(titles.length ? titles.map((t) => h("li", { text: t })) : [h("li", { class: "muted", text: "No current articles match. New ones will be checked as they arrive." })]));
+  } catch (e) { ul.replaceChildren(h("li", { class: "error", text: e.message })); }
+}
+async function saveRules() {
+  rssErr();
+  try {
+    const sel = rss.rules.findIndex((x) => x.id === rss.rule);
+    rss.data = await api("/api/rss/rules", { method: "PUT", body: rss.rules.map(ruleBody) });
+    rss.rules = structuredClone(rss.data.rules);
+    rss.rule = rss.rules[Math.max(0, Math.min(sel, rss.rules.length - 1))]?.id || null;
+    renderRules();
+    toast("Rules saved");
+  } catch (e) { rssErr(e); }
+}
 
 /* ---------- statistics ---------- */
 const SVG_NS = "http://www.w3.org/2000/svg";
