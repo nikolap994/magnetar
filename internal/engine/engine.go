@@ -207,7 +207,12 @@ func (e *Engine) storageFor(dir string) storage.ClientImpl {
 	st := storage.NewFileOpts(storage.NewFileClientOpts{
 		ClientBaseDir:   dir,
 		PieceCompletion: noCloseCompletion{e.completion},
-		Logger:          e.log,
+		// Classic read/write instead of memory-mapped files: same speed in
+		// our benchmarks, memory use stays flat instead of growing with the
+		// download, and a file changed by another program (file manager,
+		// antivirus, sync tool, another client) is an error, not a crash.
+		DisableMmap: true,
+		Logger:      e.log,
 	})
 	e.storages[dir] = st
 	return st

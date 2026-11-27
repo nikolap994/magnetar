@@ -30,7 +30,7 @@ jobs:
           check-latest: true
       - name: Format
         if: runner.os == 'Linux'
-        run: test -z "$(gofmt -s -l . | tee /dev/stderr)"
+        run: test -z "$(gofmt -s -l cmd internal tools web | tee /dev/stderr)"
       - name: Vet
         run: go vet ./...
       - name: Test

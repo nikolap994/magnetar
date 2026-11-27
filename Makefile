@@ -34,10 +34,10 @@ vet:
 	GOOS=windows go vet ./...
 
 fmt:
-	gofmt -s -w .
+	gofmt -s -w cmd internal tools web
 
 lint: vet ## gofmt, go vet and golangci-lint (https://golangci-lint.run)
-	@test -z "$$(gofmt -s -l . | tee /dev/stderr)" || (echo "run 'make fmt'" && exit 1)
+	@test -z "$$(gofmt -s -l cmd internal tools web | tee /dev/stderr)" || (echo "run 'make fmt'" && exit 1)
 	golangci-lint run ./...
 	GOOS=windows golangci-lint run ./...
 

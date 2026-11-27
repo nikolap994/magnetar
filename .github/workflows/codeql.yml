@@ -32,5 +32,9 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
+          # Vendored third-party library (see third_party/README.md).
+          config: |
+            paths-ignore:
+              - third_party
       - uses: github/codeql-action/autobuild@v3
       - uses: github/codeql-action/analyze@v3
