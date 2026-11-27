@@ -117,6 +117,8 @@ func (s *Server) routes() {
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))
 	m.Handle("GET /api/fs/free", s.authed(s.handleFree))
+	m.HandleFunc("GET /api/v2/", s.handleQbit)
+	m.HandleFunc("POST /api/v2/", s.handleQbit)
 	m.Handle("GET /api/remote", s.authed(s.handleRemote))
 	m.Handle("POST /api/remote", s.authed(s.handleRemoteSet))
 	m.Handle("GET /api/import/sources", s.authed(s.handleImportSources))
@@ -183,6 +185,22 @@ func (s *Server) secure(next http.Handler) http.Handler {
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			// The qBittorrent-compatible API is used by apps, not browsers: it
+			// cannot carry the custom header, so browsers are kept out by
+			// rejecting any cross-site request (they always send Origin or
+			// Sec-Fetch-Site on cross-site POSTs).
+			if strings.HasPrefix(r.URL.Path, "/api/v2/") {
+				if fs := r.Header.Get("Sec-Fetch-Site"); fs != "" && fs != "same-origin" && fs != "none" {
+					http.Error(w, "cross-origin request blocked", http.StatusForbidden)
+					return
+				}
+				if o := r.Header.Get("Origin"); o != "" && !s.originAllowed(o, r.Host) {
+					http.Error(w, "cross-origin request blocked", http.StatusForbidden)
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
 			// Custom header cannot be set cross-origin without a CORS preflight, which we never grant.
 			if r.Header.Get(csrfHeader) != "1" {
 				http.Error(w, "missing request header", http.StatusForbidden)

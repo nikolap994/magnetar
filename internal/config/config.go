@@ -129,6 +129,9 @@ type Settings struct {
 	// Extra Host header values allowed when serving the UI beyond loopback (DNS rebinding guard).
 	AllowedHosts []string `json:"allowedHosts,omitempty"`
 	OpenBrowser  bool     `json:"openBrowser"`
+	// QBitAPI offers a qBittorrent-compatible API (/api/v2) for apps such as
+	// Sonarr and Radarr. It needs the web password.
+	QBitAPI bool `json:"qbitAPI"`
 
 	// Desktop
 	ShowAddDialog bool `json:"showAddDialog"` // Ask where to save when a magnet link is opened.
@@ -349,6 +352,9 @@ func (s *Settings) Validate() error {
 	}
 	if net.ParseIP(s.WebHost) == nil && s.WebHost != "localhost" {
 		errs = append(errs, errors.New("web host must be an IP address or localhost"))
+	}
+	if s.QBitAPI && s.PasswordHash == "" {
+		s.QBitAPI = false // it can never be used without a password
 	}
 	if !IsLoopback(s.WebHost) && s.PasswordHash == "" {
 		errs = append(errs, errors.New("a password must be set before exposing the web UI beyond this computer"))
