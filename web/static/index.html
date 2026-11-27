@@ -320,7 +320,31 @@
                 <option value="allow">Allow encryption - prefer plaintext</option>
               </select>
             </label>
-            <label class="field"><span>Bind traffic to IP address <em>(e.g. your VPN interface - traffic stops if it goes down)</em></span><input name="bindAddress" type="text" placeholder="All interfaces" spellcheck="false"></label>
+            <h4 class="sub">VPN kill switch</h4>
+            <label class="field"><span>Only use this network connection <em>(pick your VPN - if it disconnects, all torrent traffic stops until it is back)</em></span>
+              <select name="bindInterface" id="bind-iface"><option value="">Any connection</option></select>
+            </label>
+            <label class="field"><span>Or bind to an IP address <em>(advanced; does not follow the VPN when its address changes)</em></span><input name="bindAddress" type="text" placeholder="All addresses" spellcheck="false"></label>
+            <h4 class="sub">Proxy</h4>
+            <label class="field"><span>Proxy type</span>
+              <select name="proxyType" id="proxy-type">
+                <option value="">No proxy</option>
+                <option value="socks5">SOCKS5</option>
+                <option value="http">HTTP</option>
+              </select>
+            </label>
+            <div id="proxy-fields" class="proxy-fields">
+              <div class="row2">
+                <label class="field"><span>Host</span><input name="proxyHost" type="text" spellcheck="false" placeholder="proxy.example.com"></label>
+                <label class="field"><span>Port</span><input name="proxyPort" type="number" min="1" max="65535" placeholder="1080"></label>
+              </div>
+              <div class="row2">
+                <label class="field"><span>Username <em>(optional)</em></span><input name="proxyUsername" type="text" spellcheck="false" autocomplete="off"></label>
+                <label class="field"><span>Password</span><input name="proxyPassword" id="proxy-pass" type="password" autocomplete="new-password"></label>
+              </div>
+              <label class="switch" id="proxy-peers-row"><input type="checkbox" name="proxyPeers"><span></span>Also send peer connections through the proxy</label>
+              <p class="muted small" id="proxy-note"></p>
+            </div>
             <label class="switch"><input type="checkbox" name="anonymousMode"><span></span>Anonymous mode - hide client name and version</label>
             <label class="field"><span>IP blocklist file <em>(P2P/eMule format, .gz supported)</em></span><input name="blocklistPath" type="text" placeholder="/path/to/blocklist.p2p" spellcheck="false"></label>
           </section>

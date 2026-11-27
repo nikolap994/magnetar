@@ -281,10 +281,12 @@ function renderStats() {
   const sec = $("#g-security");
   const parts = [];
   parts.push(s.encryption === "require" ? "Encryption required" : s.encryption === "allow" ? "Encryption optional" : "Encryption preferred");
-  if (s.bindAddress) parts.push("bound to " + s.bindAddress);
+  if (s.bindInterface) parts.push(s.killSwitch ? `${s.bindInterface} is down - traffic stopped` : `only via ${s.bindInterface}`);
+  else if (s.bindAddress) parts.push("bound to " + s.bindAddress);
+  if (s.proxy) parts.push(`${s.proxy === "socks5" ? "SOCKS5" : "HTTP"} proxy${s.proxyPeers ? " for all traffic" : " for trackers"}`);
   if (s.blocklistSize) parts.push(s.blocklistSize.toLocaleString() + " blocked ranges");
   sec.querySelector("span").textContent = parts.join(" · ");
-  sec.classList.toggle("warn", s.encryption === "allow" || s.online === false);
+  sec.classList.toggle("warn", s.encryption === "allow" || s.online === false || !!s.killSwitch);
   drawSpark();
   document.title = s.downRate > 0 ? `↓ ${bytes(s.downRate)}/s · Magnetar` : "Magnetar";
 }
@@ -988,9 +990,11 @@ function handleIncomingLinks() {
 }
 
 /* ---------- settings ---------- */
-const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit"]);
+const NUMERIC = new Set(["altScheduleDays", "seedTimeLimitMin", "listenPort", "webPort", "maxConnsPerTorrent", "maxHalfOpenConns", "downloadLimitKBps", "uploadLimitKBps", "altDownloadLimitKBps", "altUploadLimitKBps", "pieceHashers", "seedRatioLimit", "proxyPort"]);
 async function openSettings() {
   try { state.settings = await api("/api/settings"); } catch (e) { return fail(e); }
+  state.settings.proxyPassword = "";
+  await fillInterfaces(state.settings.bindInterface);
   const form = $("#settings-form");
   for (const el of form.elements) {
     if (!el.name || !(el.name in state.settings)) continue;
@@ -1004,9 +1008,31 @@ async function openSettings() {
   refreshRates($("#settings-form"));
   renderCatEditor(state.settings.categories || []);
   renderDays();
+  $("#proxy-pass").placeholder = state.settings.proxyPasswordSet ? "Saved - leave empty to keep" : "";
+  syncProxy();
   $("#dlg-settings").showModal();
 }
 $("#btn-settings").addEventListener("click", openSettings);
+async function fillInterfaces(current) {
+  let ifs = [];
+  try { ifs = await api("/api/net/interfaces"); } catch { /* keep the list empty */ }
+  const sel = $("#bind-iface");
+  const opts = [h("option", { value: "", text: "Any connection" })];
+  for (const i of ifs) opts.push(h("option", { value: i.name, text: `${i.name} - ${i.addresses.join(", ")}${i.up ? "" : " (down)"}` }));
+  if (current && !ifs.some((i) => i.name === current)) opts.push(h("option", { value: current, text: `${current} (not connected)` }));
+  sel.replaceChildren(...opts);
+}
+function syncProxy() {
+  const t = $("#proxy-type").value;
+  $("#proxy-fields").hidden = !t;
+  $("#proxy-peers-row").hidden = t !== "socks5";
+  const peers = t === "socks5" && $('#settings-form [name="proxyPeers"]').checked;
+  $("#proxy-note").textContent = !t ? "" : peers
+    ? "Trackers and peers go through the proxy. DHT, µTP and UDP trackers are turned off because they cannot be proxied, and incoming connections will mostly fail."
+    : "Trackers and web seeds go through the proxy. Peers still connect directly" + (t === "socks5" ? " unless you turn on the switch above." : " (HTTP proxies cannot carry peer connections).");
+}
+$("#proxy-type").addEventListener("change", syncProxy);
+$('#settings-form [name="proxyPeers"]').addEventListener("change", syncProxy);
 for (const b of $$(".settings-nav button")) {
   b.addEventListener("click", () => {
     $$(".settings-nav button").forEach((x) => x.classList.toggle("active", x === b));
@@ -1404,6 +1430,7 @@ const CONN = {
   connectable: ["Connectable", "Other peers can connect to you - the best speeds are possible."],
   checking: ["Checking connection…", "Magnetar is watching whether other peers can connect to you. This becomes clear a few minutes after a download starts."],
   firewalled: ["Port not reachable", "Peers are not connecting to you, so you can only reach peers that accept incoming connections themselves. Downloads still work but are usually slower."],
+  "vpn-down": ["VPN disconnected", "The network connection Magnetar is bound to (your VPN) is down, so all torrent traffic is stopped to keep your real address hidden. Transfers resume automatically when it reconnects."],
   offline: ["No network", "Magnetar cannot reach the BitTorrent network. Check your internet connection, VPN or the “Bind traffic to IP” setting."],
 };
 function renderConnection() {
@@ -1417,7 +1444,10 @@ $("#g-conn").addEventListener("click", () => {
   $("#conn-title").textContent = CONN[c][0];
   $("#conn-text").textContent = CONN[c][1];
   const step = (...parts) => h("li", {}, ...parts.map((p) => (typeof p === "string" ? p : h("code", { text: p.code }))));
-  const steps = c === "connectable" ? [] : c === "offline" ? [
+  const steps = c === "connectable" ? [] : c === "vpn-down" ? [
+    step("Reconnect your VPN. Magnetar notices within a few seconds and resumes."),
+    step("To stop using the kill switch, choose “Any connection” under Privacy & security."),
+  ] : c === "offline" ? [
     step("Check that this computer is online and the VPN (if any) is connected."),
     step("If “Bind traffic to IP address” is set in Privacy & security, make sure that address still exists."),
     step("Turn on DHT in Connection settings so peers can be found without trackers."),

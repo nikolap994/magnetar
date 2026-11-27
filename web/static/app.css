@@ -514,6 +514,13 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .dialog.link-mode #add-magnets-field, .dialog.link-mode #dropzone { display: none; }
 .dialog.link-mode.show-link #add-magnets-field { display: flex; }
 
+/* Network settings */
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.proxy-fields[hidden] { display: none; }
+.proxy-fields .small { font-size: 12.5px; margin: 6px 0 0; }
+.conn-pill.vpn-down { color: var(--red); border-color: rgba(239, 68, 68, .4); }
+.conn-pill.vpn-down .dot { background: var(--red); }
+
 /* Player and quick look */
 .dialog.player { width: min(1100px, 96vw); }
 .player-stage { background: #000; border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; min-height: 200px; max-height: 70vh; }
