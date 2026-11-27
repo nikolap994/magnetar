@@ -1,0 +1,36 @@
+{
+    "version": "0.3.1",
+    "description": "Fast, secure, open-source BitTorrent client with a modern interface",
+    "homepage": "https://nikolap994.github.io/magnetar/",
+    "license": "MIT",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/nikolap994/magnetar/releases/download/v0.3.1/magnetar_0.3.1_windows_amd64.zip",
+            "hash": "d0df7cd678cbcf24991c86c07a96a837d62ebe7434fb390d087e5cbcae8adbeb",
+            "extract_dir": "magnetar_0.3.1_windows_amd64"
+        },
+        "arm64": {
+            "url": "https://github.com/nikolap994/magnetar/releases/download/v0.3.1/magnetar_0.3.1_windows_arm64.zip",
+            "hash": "237ff1dee86631bcc010e5d0948b41387b4b2210d0e06c8552b1684d689de094",
+            "extract_dir": "magnetar_0.3.1_windows_arm64"
+        }
+    },
+    "bin": "magnetar.exe",
+    "shortcuts": [["magnetar.exe", "Magnetar"]],
+    "post_install": "& \"$dir\\magnetar.exe\" register",
+    "pre_uninstall": "& \"$dir\\magnetar.exe\" unregister",
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/nikolap994/magnetar/releases/download/v$version/magnetar_$version_windows_amd64.zip",
+                "extract_dir": "magnetar_$version_windows_amd64"
+            },
+            "arm64": {
+                "url": "https://github.com/nikolap994/magnetar/releases/download/v$version/magnetar_$version_windows_arm64.zip",
+                "extract_dir": "magnetar_$version_windows_arm64"
+            }
+        },
+        "hash": { "url": "https://github.com/nikolap994/magnetar/releases/download/v$version/SHA256SUMS" }
+    }
+}

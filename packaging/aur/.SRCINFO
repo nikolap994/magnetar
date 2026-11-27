@@ -1,0 +1,18 @@
+pkgbase = magnetar-bin
+	pkgdesc = Fast, secure, open-source BitTorrent client with a modern interface
+	pkgver = 0.3.1
+	pkgrel = 1
+	url = https://github.com/nikolap994/magnetar
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	optdepends = chromium: app window instead of a browser tab
+	optdepends = libappindicator-gtk3: tray icon on GNOME
+	provides = magnetar
+	conflicts = magnetar
+	source_x86_64 = https://github.com/nikolap994/magnetar/releases/download/v0.3.1/magnetar_0.3.1_linux_amd64.tar.gz
+	sha256sums_x86_64 = 72b92e1c34c1cdbca72bfd96af4386b0e6e6de55529b9cbc6de88fcc9b7db6ce
+	source_aarch64 = https://github.com/nikolap994/magnetar/releases/download/v0.3.1/magnetar_0.3.1_linux_arm64.tar.gz
+	sha256sums_aarch64 = d1dd50eaff6124d1fb26961265f88cf2fd04b2841558111527e84359f4b9c97d
+
+pkgname = magnetar-bin

@@ -1,0 +1,36 @@
+# Maintainer: Nikola Pavlović
+pkgname=magnetar-bin
+pkgver=0.3.1
+pkgrel=1
+pkgdesc="Fast, secure, open-source BitTorrent client with a modern interface"
+arch=('x86_64' 'aarch64')
+url="https://github.com/nikolap994/magnetar"
+license=('MIT')
+provides=('magnetar')
+conflicts=('magnetar')
+optdepends=('chromium: app window instead of a browser tab'
+            'libappindicator-gtk3: tray icon on GNOME')
+source_x86_64=("https://github.com/nikolap994/magnetar/releases/download/v${pkgver}/magnetar_${pkgver}_linux_amd64.tar.gz")
+source_aarch64=("https://github.com/nikolap994/magnetar/releases/download/v${pkgver}/magnetar_${pkgver}_linux_arm64.tar.gz")
+sha256sums_x86_64=('72b92e1c34c1cdbca72bfd96af4386b0e6e6de55529b9cbc6de88fcc9b7db6ce')
+sha256sums_aarch64=('d1dd50eaff6124d1fb26961265f88cf2fd04b2841558111527e84359f4b9c97d')
+
+package() {
+  local arch=amd64
+  [ "$CARCH" = aarch64 ] && arch=arm64
+  cd "magnetar_${pkgver}_linux_${arch}"
+  install -Dm755 magnetar "$pkgdir/usr/bin/magnetar"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/magnetar.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=Magnetar
+GenericName=BitTorrent Client
+Comment=Fast, secure BitTorrent client
+Exec=magnetar %U
+Icon=magnetar
+Terminal=false
+Categories=Network;FileTransfer;P2P;
+MimeType=x-scheme-handler/magnet;application/x-bittorrent;
+DESKTOP
+}

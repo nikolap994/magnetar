@@ -69,6 +69,17 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 Download from the [latest release](https://github.com/nikolap994/magnetar/releases/latest).
 
 ### Windows 10 / 11
+With a package manager:
+
+```powershell
+winget install NikolaPavlovic.Magnetar
+# or
+scoop bucket add magnetar https://github.com/nikolap994/magnetar
+scoop install magnetar/magnetar
+```
+
+Or with the installer:
+
 1. Run **`magnetar_<version>_windows_amd64_setup.exe`** (`arm64` for ARM PCs). No administrator rights needed -
    Magnetar installs for your account in `%LOCALAPPDATA%\Programs\Magnetar`.
 2. Choose **Yes** to use Magnetar for magnet links and `.torrent` files.
