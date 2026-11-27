@@ -19,7 +19,6 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          check-latest: true
       - name: Build Magnetar.app and .dmg
         run: packaging/macos/build-dmg.sh "${GITHUB_REF_NAME#v}" dist
       - uses: actions/upload-artifact@v7
@@ -47,7 +46,6 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          check-latest: true
 
       - name: Check release configuration
         run: |
@@ -209,6 +207,8 @@ jobs:
           build-args: VERSION=${{ steps.meta.outputs.version }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - uses: actions/attest-build-provenance@v4
         with:
           subject-name: ghcr.io/${{ github.repository }}
