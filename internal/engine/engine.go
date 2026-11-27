@@ -592,6 +592,7 @@ func (e *Engine) startLocked(m *managed) error {
 	m.t = t
 	m.err = ""
 	m.startedAt = time.Now()
+	t.SetRateLimits(int(m.rec.DownLimitKBps*1024), int(m.rec.UpLimitKBps*1024))
 	m.lastDown, m.lastUp = 0, 0
 	m.seqPieces = nil
 	e.wg.Add(1)

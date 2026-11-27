@@ -58,6 +58,7 @@
     <symbol id="i-ft-torrent" viewBox="0 0 24 24"><path d="M7 4v8a5 5 0 0 0 10 0V4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 7h3M14 7h3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-rows" viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h16M4 18h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-hash" viewBox="0 0 24 24"><path d="M9 4 7 20M17 4l-2 16M4 9h16M3 15h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4 16a8 8 0 1 1 16 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m12 16 4-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
 
@@ -118,6 +119,7 @@
           <button class="btn ghost" data-bulk="recheck" title="Verify data"><svg><use href="#i-refresh"/></svg></button>
           <button class="btn ghost" data-bulk="category" title="Set category"><svg><use href="#i-tag"/></svg></button>
           <button class="btn ghost" data-bulk="tags" title="Tags"><svg><use href="#i-hash"/></svg></button>
+          <button class="btn ghost" data-bulk="limits" title="Speed limit"><svg><use href="#i-gauge"/></svg></button>
           <button class="btn ghost" data-bulk="move" title="Move files to…"><svg><use href="#i-move"/></svg></button>
           <button class="btn ghost danger" data-bulk="remove" title="Remove"><svg><use href="#i-trash"/></svg></button>
         </div>
@@ -527,6 +529,20 @@
       <header><h2 id="cat-title">Set category</h2></header>
       <label class="field"><span>Category</span><select id="cat-select"></select></label>
       <label class="switch"><input type="checkbox" id="cat-move"><span></span>Also move files to the category folder</label>
+      <footer>
+        <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" value="ok">Apply</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Per-torrent speed limits -->
+  <dialog id="dlg-tlimit" class="dialog small">
+    <form method="dialog" id="tlimit-form">
+      <header><h2 id="tlimit-title">Speed limit</h2></header>
+      <p class="muted small">Applies to these torrents on top of the global limits. 0 means no limit of their own.</p>
+      <label class="field"><span>Download</span><input class="rate" id="tl-down" type="number" min="0"></label>
+      <label class="field"><span>Upload</span><input class="rate" id="tl-up" type="number" min="0"></label>
       <footer>
         <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
         <button class="btn primary" value="ok">Apply</button>

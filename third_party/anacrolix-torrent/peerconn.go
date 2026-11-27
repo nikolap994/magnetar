@@ -989,7 +989,8 @@ func (c *PeerConn) mainReadLoop() (err error) {
 	cl := t.cl
 
 	decoder := pp.Decoder{
-		R:         bufio.NewReaderSize(c.r, 1<<17),
+		// Magnetar patch: per-torrent download limit.
+		R:         bufio.NewReaderSize(torrentLimitedReader{t: t, r: c.r}, 1<<17),
 		MaxLength: 4 * pp.Integer(max(int64(t.chunkSize), defaultChunkSize)),
 		Pool:      &t.chunkPool,
 	}
@@ -1379,6 +1380,12 @@ another:
 				res.Cancel()
 				c.setRetryUploadTimer(delay)
 				// Hard to say what to return here.
+				return true
+			}
+			// Magnetar patch: per-torrent upload limit.
+			if d := c.t.reserveTorrentUpload(int(r.Length)); d > 0 {
+				res.Cancel()
+				c.setRetryUploadTimer(d)
 				return true
 			}
 			more := c.sendChunk(r, msg)

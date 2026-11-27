@@ -275,6 +275,28 @@ function renderTags() {
       icon(x.name == null ? "all" : "hash"), h("span", { text: x.label }), h("span", { class: "count", text: count || "" }));
   }));
 }
+// Per-torrent speed limits.
+let limitTargets = [];
+function openLimitDialog(hashes) {
+  limitTargets = hashes;
+  const t = hashes.length === 1 ? byHash(hashes[0]) : null;
+  $("#tlimit-title").textContent = hashes.length > 1 ? `Speed limit for ${hashes.length} torrents` : "Speed limit";
+  setRate($("#tl-down"), t ? Math.round((t.downLimit || 0) / 1024) : 0);
+  setRate($("#tl-up"), t ? Math.round((t.upLimit || 0) / 1024) : 0);
+  $("#dlg-tlimit").returnValue = "";
+  $("#dlg-tlimit").showModal();
+}
+$("#tlimit-form").addEventListener("submit", async (ev) => {
+  if (ev.submitter && ev.submitter.value === "cancel") return;
+  ev.preventDefault();
+  try {
+    await api("/api/actions", { method: "POST", body: { action: "limits", hashes: limitTargets,
+      downKBps: Number($("#tl-down").value || 0), upKBps: Number($("#tl-up").value || 0) } });
+    $("#dlg-tlimit").close();
+    toast("Speed limit saved");
+  } catch (e) { fail(e); }
+});
+
 let tagTargets = [];
 function openTagsDialog(hashes) {
   tagTargets = hashes;
@@ -553,6 +575,7 @@ for (const b of $$("#bulk [data-bulk]")) {
     if (b.dataset.bulk === "remove") confirmRemove(hashes);
     else if (b.dataset.bulk === "category") openCategoryDialog(hashes);
     else if (b.dataset.bulk === "tags") openTagsDialog(hashes);
+    else if (b.dataset.bulk === "limits") openLimitDialog(hashes);
     else if (b.dataset.bulk === "move") moveTo(hashes);
     else act(b.dataset.bulk, hashes);
   });
@@ -603,6 +626,7 @@ function contextMenu(e, hash) {
     item(t.sequential ? "Disable sequential" : "Download sequentially", "down", () => setSequential(hash, !t.sequential)),
     item("Category…", "tag", () => openCategoryDialog(targets)),
     item("Tags…", "hash", () => openTagsDialog(targets)),
+    item("Speed limit…", "gauge", () => openLimitDialog(targets)),
     item("Play", "play", () => playTorrent(hash)),
     item("Open folder", "folder", () => openFolder(hash)),
     item("Move files to…", "move", () => moveTo(targets)),
@@ -722,6 +746,7 @@ const TABS = {
         ["Save path", d.savePath, "mono"],
         ["Category", d.category || "-"],
         ["Tags", (d.tags || []).join(", ") || "-"],
+        ["Speed limit", d.downLimit || d.upLimit ? `↓ ${d.downLimit ? rate(d.downLimit) : "no limit"} · ↑ ${d.upLimit ? rate(d.upLimit) : "no limit"}` : "Global limits only"],
         ["Info hash", d.hash, "mono"],
         ["Pieces", d.numPieces ? `${d.numPieces.toLocaleString()} × ${bytes(d.pieceSize)}` : "–"],
         ["Peers", `${d.peers} connected · ${d.seeds} seeds · ${d.knownPeers} known`],

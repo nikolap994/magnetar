@@ -8,6 +8,9 @@ through a `replace` directive in `go.mod`. Tests and command-line tools are left
 
 - `torrent.go` (`newConnsAllowed`): new peer connections stay allowed while a download speed limit is saturated.
   Upstream refuses them, which stalls seeding and peer discovery whenever a limit or the alternative speed is on.
+- `magnetar-limits.go` (new), `torrent.go` (`limits` field), `peerconn.go` (`mainReadLoop`, `upload`) and the web
+  seed reader in `torrent.go`: per-torrent download and upload limits (`Torrent.SetRateLimits`), applied on top of the
+  client-wide limits to peer and web seed traffic.
 
 To update: copy the new release over this folder (without `*_test.go`, `testdata`, `cmd`, `analysis`), re-apply the
 patches above, and run `make test`.

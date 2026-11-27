@@ -496,6 +496,8 @@ func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 		Path       string   `json:"path"`
 		AddTags    []string `json:"addTags"`
 		RemoveTags []string `json:"removeTags"`
+		DownKBps   int64    `json:"downKBps"`
+		UpKBps     int64    `json:"upKBps"`
 	}
 	if err := readJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
@@ -517,6 +519,8 @@ func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 		err = s.eng.SetCategory(req.Category, req.Hashes...)
 	case "move":
 		err = s.eng.Move(req.Path, req.Hashes...)
+	case "limits":
+		err = s.eng.SetTorrentLimits(req.DownKBps, req.UpKBps, req.Hashes...)
 	case "tags":
 		err = s.eng.EditTags(req.AddTags, req.RemoveTags, req.Hashes...)
 	case "forceStart":

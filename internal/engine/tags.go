@@ -78,3 +78,28 @@ func (e *Engine) Tags() []string {
 	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i]) < strings.ToLower(out[j]) })
 	return out
 }
+
+// maxTorrentLimitKBps is 10 GiB/s: anything above means "no limit" in practice.
+const maxTorrentLimitKBps = 10 << 20
+
+// SetTorrentLimits sets per-torrent download and upload limits in KiB/s
+// (0 removes the limit); they apply on top of the global limits.
+func (e *Engine) SetTorrentLimits(downKBps, upKBps int64, hashes ...string) error {
+	if downKBps < 0 || upKBps < 0 || downKBps > maxTorrentLimitKBps || upKBps > maxTorrentLimitKBps {
+		return errors.New("speed limits must be between 0 (no limit) and 10 GiB/s")
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, h := range hashes {
+		m, err := e.get(h)
+		if err != nil {
+			return err
+		}
+		m.rec.DownLimitKBps, m.rec.UpLimitKBps = downKBps, upKBps
+		if m.t != nil {
+			m.t.SetRateLimits(int(downKBps*1024), int(upKBps*1024))
+		}
+	}
+	e.dirty = true
+	return nil
+}

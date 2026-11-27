@@ -49,6 +49,8 @@ type Summary struct {
 	Error       string     `json:"error,omitempty"`
 	Forced      bool       `json:"forced,omitempty"`
 	Tags        []string   `json:"tags,omitempty"`
+	DownLimit   int64      `json:"downLimit,omitempty"` // bytes/s, 0 = none
+	UpLimit     int64      `json:"upLimit,omitempty"`
 	QueuePos    int        `json:"queuePos"` // 1-based position in the queue (list order)
 }
 
@@ -67,6 +69,8 @@ func (e *Engine) summaryLocked(m *managed) Summary {
 		Error:       m.err,
 		Forced:      m.rec.Forced,
 		Tags:        m.rec.Tags,
+		DownLimit:   m.rec.DownLimitKBps * 1024,
+		UpLimit:     m.rec.UpLimitKBps * 1024,
 	}
 	s.Downloaded, s.Uploaded = m.totals()
 	t := m.t

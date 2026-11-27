@@ -67,6 +67,9 @@ type torrentSlogGroupInput struct {
 // Maintains state of torrent within a Client. Many methods should not be called before the info is
 // available, see .Info and .GotInfo.
 type Torrent struct {
+	// Magnetar patch: per-torrent speed limits (magnetar-limits.go).
+	limits torrentLimits
+
 	// Torrent-level aggregate statistics. First in struct to ensure 64-bit
 	// alignment. See #262.
 	connStats AllConnStats
@@ -3405,7 +3408,8 @@ func (t *Torrent) addWebSeed(url string, opts ...AddWebSeedsOpt) bool {
 	ws.client.ResponseBodyWrapper = func(r io.Reader, interrupt func()) io.Reader {
 		// Make sure to rate limit *after* idle timing.
 		r = newIdleTimeoutReader(r, 30*time.Second, interrupt)
-		return newRateLimitedReader(r, ws.client.ResponseBodyRateLimiter)
+		// Magnetar patch: web seed data also counts against the torrent's own limit.
+		return torrentLimitedReader{t: t, r: newRateLimitedReader(r, ws.client.ResponseBodyRateLimiter)}
 	}
 	g.MakeMapWithCap(&ws.activeRequests, ws.client.MaxRequests)
 	ws.locker = t.cl.locker()
