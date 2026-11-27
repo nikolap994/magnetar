@@ -62,6 +62,9 @@ type Engine struct {
 
 	downRate, upRate float64
 	blocklistSize    int
+	boundIP          net.IP    // address peer traffic is bound to, nil = all
+	killSwitch       bool      // bound interface is down; traffic is stopped
+	lastIfCheck      time.Time // last lookup of the bound interface
 
 	// Speed schedule: last schedule state applied, to act only on boundaries.
 	schedKnown, schedLast bool
@@ -243,24 +246,15 @@ func (e *Engine) newClient(s config.Settings) (*torrent.Client, error) {
 	// Binding peer, tracker and DHT traffic to one address. If that address
 	// disappears (e.g. the VPN drops) sockets fail instead of leaking traffic
 	// over another interface.
-	if s.BindAddress != "" {
-		ip := net.ParseIP(s.BindAddress)
-		host := ip.String()
-		cfg.ListenHost = func(string) string { return host }
-		if ip.To4() != nil {
-			cfg.DisableIPv6 = true
-		} else {
-			cfg.DisableIPv4 = true
-		}
-		d := &net.Dialer{LocalAddr: &net.TCPAddr{IP: ip}, Timeout: 30 * time.Second}
-		cfg.HTTPDialContext = d.DialContext
-		cfg.TrackerDialContext = d.DialContext
-		cfg.TrackerListenPacket = func(network, _ string) (net.PacketConn, error) {
-			return net.ListenPacket(network, net.JoinHostPort(host, "0"))
-		}
-		cfg.NoDefaultPortForwarding = true
-		cfg.LocalServiceDiscovery = nil
+	ip, killed, err := bindIP(s)
+	if err != nil {
+		e.log.Warn("network binding", "err", err)
 	}
+	e.boundIP, e.killSwitch = ip, killed
+	if ip != nil {
+		applyBind(cfg, ip)
+	}
+	applyProxy(cfg, s)
 
 	// Protocol encryption.
 	switch s.Encryption {
@@ -310,6 +304,9 @@ func (e *Engine) newClient(s config.Settings) (*torrent.Client, error) {
 	cl, err := torrent.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("start BitTorrent client: %w", err)
+	}
+	if d := proxyDialer(s, ip); d != nil && !killed {
+		cl.AddDialer(d)
 	}
 	return cl, nil
 }
@@ -1003,7 +1000,10 @@ func (e *Engine) ApplySettings(s config.Settings) error {
 
 func needsRestart(a, b config.Settings) bool {
 	return a.DownloadDir != b.DownloadDir || a.ListenPort != b.ListenPort ||
-		a.BindAddress != b.BindAddress || a.EnableDHT != b.EnableDHT ||
+		a.BindAddress != b.BindAddress || a.BindInterface != b.BindInterface ||
+		a.ProxyType != b.ProxyType || a.ProxyHost != b.ProxyHost || a.ProxyPort != b.ProxyPort ||
+		a.ProxyUsername != b.ProxyUsername || a.ProxyPassword != b.ProxyPassword || a.ProxyPeers != b.ProxyPeers ||
+		a.EnableDHT != b.EnableDHT ||
 		a.EnablePEX != b.EnablePEX || a.EnableLSD != b.EnableLSD ||
 		a.EnableUTP != b.EnableUTP || a.EnableUPnP != b.EnableUPnP ||
 		a.DisableIPv6 != b.DisableIPv6 || a.Encryption != b.Encryption ||
@@ -1059,6 +1059,7 @@ func (e *Engine) loop() {
 		}
 		e.mu.Lock()
 		e.tickLocked()
+		e.checkInterfaceLocked(time.Now())
 		e.expirePreviewsLocked()
 		saveEvery++
 		if e.dirty || saveEvery >= 30 {

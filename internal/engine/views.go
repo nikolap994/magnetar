@@ -143,9 +143,14 @@ type GlobalStats struct {
 	Encryption    string `json:"encryption"`
 	BlocklistSize int    `json:"blocklistSize"`
 	BindAddress   string `json:"bindAddress,omitempty"`
+	BindInterface string `json:"bindInterface,omitempty"`
+	// KillSwitch is true while the bound interface is down and traffic is stopped.
+	KillSwitch bool   `json:"killSwitch,omitempty"`
+	Proxy      string `json:"proxy,omitempty"` // "socks5" / "http" when a proxy is used
+	ProxyPeers bool   `json:"proxyPeers,omitempty"`
 	Version       string `json:"version"`
 	Online        bool   `json:"online"`
-	// Connection is "connectable", "firewalled", "offline" or "checking".
+	// Connection is "connectable", "firewalled", "offline", "vpn-down" or "checking".
 	Connection string `json:"connection"`
 	UPnP       bool   `json:"upnp"`
 }
@@ -162,6 +167,10 @@ func (e *Engine) Stats() GlobalStats {
 		Encryption:    e.settings.Encryption,
 		BlocklistSize: e.blocklistSize,
 		BindAddress:   e.settings.BindAddress,
+		BindInterface: e.settings.BindInterface,
+		KillSwitch:    e.killSwitch,
+		Proxy:         e.settings.ProxyType,
+		ProxyPeers:    e.settings.ProxyPeers,
 		Version:       Version,
 	}
 	down, up := e.settings.EffectiveLimits()
@@ -174,7 +183,10 @@ func (e *Engine) Stats() GlobalStats {
 	}
 	if e.cl != nil {
 		g.Online = true
-		g.UPnP = e.settings.EnableUPnP && e.settings.BindAddress == ""
+		g.UPnP = e.settings.EnableUPnP && e.boundIP == nil && !e.settings.ProxyPeers
+		if e.boundIP != nil && !e.killSwitch {
+			g.BindAddress = e.boundIP.String()
+		}
 		g.ListenPort = e.cl.LocalPort()
 		for _, s := range e.cl.DhtServers() {
 			if st, ok := s.Stats().(dht.ServerStats); ok {
@@ -192,6 +204,8 @@ const firewalledAfter = 5 * time.Minute
 
 func (e *Engine) connectionLocked(g GlobalStats) string {
 	switch {
+	case e.killSwitch:
+		return "vpn-down"
 	case !g.Online || (e.settings.EnableDHT && g.DHTNodes == 0 && g.Peers == 0 && time.Since(e.started) > time.Minute):
 		return "offline"
 	case e.incomingSeen > 0:

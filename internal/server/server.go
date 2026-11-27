@@ -107,6 +107,14 @@ func (s *Server) routes() {
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))
 	m.Handle("GET /api/fs/free", s.authed(s.handleFree))
+	m.Handle("GET /api/net/interfaces", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		ifs, err := engine.Interfaces()
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, ifs)
+	}))
 	m.Handle("POST /api/preview", s.authed(s.handlePreview))
 	m.Handle("GET /api/preview/{hash}", s.authed(s.handlePreviewStatus))
 	m.Handle("DELETE /api/preview/{hash}", s.authed(s.handlePreviewCancel))
@@ -521,11 +529,14 @@ type publicSettings struct {
 	config.Settings
 	PasswordHash string `json:"passwordHash,omitempty"`
 	PasswordSet  bool   `json:"passwordSet"`
+	// The proxy password is never sent back to the browser.
+	ProxyPassword    string `json:"proxyPassword,omitempty"`
+	ProxyPasswordSet bool   `json:"proxyPasswordSet"`
 }
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	st := s.store.Get()
-	writeJSON(w, publicSettings{Settings: st, PasswordSet: st.PasswordHash != ""})
+	writeJSON(w, publicSettings{Settings: st, PasswordSet: st.PasswordHash != "", ProxyPasswordSet: st.ProxyPassword != ""})
 }
 
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
@@ -536,6 +547,14 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	next.PasswordHash = cur.PasswordHash // only changed via /api/password
+	// An empty proxy password keeps the saved one (the UI never receives it);
+	// clearing the username or the proxy removes it.
+	if next.ProxyPassword == "" && next.ProxyUsername != "" && next.ProxyUsername == cur.ProxyUsername && next.ProxyHost == cur.ProxyHost {
+		next.ProxyPassword = cur.ProxyPassword
+	}
+	if next.ProxyType == "" || next.ProxyUsername == "" {
+		next.ProxyPassword = ""
+	}
 	if err := next.Validate(); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return

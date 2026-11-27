@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,14 +24,40 @@ const (
 	EncryptionAllow   = "allow"   // Prefer plaintext but accept encrypted peers.
 )
 
+// Proxy types.
+const (
+	ProxySOCKS5 = "socks5"
+	ProxyHTTP   = "http"
+)
+
+func hasControl(s string) bool {
+	return strings.IndexFunc(s, func(r rune) bool { return r < 32 || r == 127 }) >= 0
+}
+
+// ProxyURL returns the proxy as a URL for HTTP clients, or nil if none is set.
+func (s Settings) ProxyURL() *url.URL {
+	if s.ProxyType == "" {
+		return nil
+	}
+	u := &url.URL{Scheme: s.ProxyType, Host: net.JoinHostPort(s.ProxyHost, strconv.Itoa(s.ProxyPort))}
+	if s.ProxyUsername != "" {
+		u.User = url.UserPassword(s.ProxyUsername, s.ProxyPassword)
+	}
+	return u
+}
+
 // Settings are the user-tunable options. Every field is exposed through the web UI.
 type Settings struct {
 	// Storage
 	DownloadDir string `json:"downloadDir"`
 
 	// Network
-	ListenPort    int    `json:"listenPort"`
-	BindAddress   string `json:"bindAddress"` // IP to bind peer traffic to ("" = all). Use your VPN interface IP to keep traffic on the VPN.
+	ListenPort  int    `json:"listenPort"`
+	BindAddress string `json:"bindAddress"` // IP to bind peer traffic to ("" = all). Use your VPN interface IP to keep traffic on the VPN.
+	// Network interface (by name, e.g. "wg0" or "NordLynx") to bind peer traffic
+	// to. Unlike BindAddress it follows the interface's address across VPN
+	// reconnects; while the interface is down all traffic stops (kill switch).
+	BindInterface string `json:"bindInterface"`
 	EnableDHT     bool   `json:"enableDHT"`
 	EnablePEX     bool   `json:"enablePEX"`
 	EnableLSD     bool   `json:"enableLSD"`
@@ -38,6 +66,16 @@ type Settings struct {
 	DisableIPv6   bool   `json:"disableIPv6"`
 	Encryption    string `json:"encryption"`
 	AnonymousMode bool   `json:"anonymousMode"` // Hide client name/version from peers and trackers.
+
+	// Proxy: "" (none), "socks5" or "http". Trackers and web seeds always use
+	// it; with ProxyPeers (SOCKS5 only) peer connections do too, and UDP
+	// features that cannot be proxied (DHT, uTP, UDP trackers) are turned off.
+	ProxyType     string `json:"proxyType"`
+	ProxyHost     string `json:"proxyHost"`
+	ProxyPort     int    `json:"proxyPort"`
+	ProxyUsername string `json:"proxyUsername,omitempty"`
+	ProxyPassword string `json:"proxyPassword,omitempty"`
+	ProxyPeers    bool   `json:"proxyPeers"`
 
 	// Performance
 	MaxConnsPerTorrent int   `json:"maxConnsPerTorrent"`
@@ -167,6 +205,32 @@ func (s *Settings) Validate() error {
 	s.BindAddress = strings.TrimSpace(s.BindAddress)
 	if s.BindAddress != "" && net.ParseIP(s.BindAddress) == nil {
 		errs = append(errs, errors.New("bind address must be an IP address"))
+	}
+	s.BindInterface = strings.TrimSpace(s.BindInterface)
+	if len(s.BindInterface) > 64 || hasControl(s.BindInterface) {
+		errs = append(errs, errors.New("network interface name is not valid"))
+	}
+	if s.BindInterface != "" && s.BindAddress != "" {
+		errs = append(errs, errors.New("bind either to a network interface or to an IP address, not both"))
+	}
+	s.ProxyHost = strings.TrimSpace(s.ProxyHost)
+	switch s.ProxyType {
+	case "":
+	case ProxySOCKS5, ProxyHTTP:
+		if s.ProxyHost == "" || len(s.ProxyHost) > 253 || hasControl(s.ProxyHost) || strings.ContainsAny(s.ProxyHost, "/@ ") {
+			errs = append(errs, errors.New("proxy host is not valid"))
+		}
+		if s.ProxyPort < 1 || s.ProxyPort > 65535 {
+			errs = append(errs, errors.New("proxy port must be between 1 and 65535"))
+		}
+		if len(s.ProxyUsername) > 255 || len(s.ProxyPassword) > 255 || hasControl(s.ProxyUsername) || hasControl(s.ProxyPassword) {
+			errs = append(errs, errors.New("proxy username or password is not valid"))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("unknown proxy type %q", s.ProxyType))
+	}
+	if s.ProxyType != ProxySOCKS5 {
+		s.ProxyPeers = false
 	}
 	switch s.Encryption {
 	case EncryptionPrefer, EncryptionRequire, EncryptionAllow:

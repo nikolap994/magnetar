@@ -122,3 +122,31 @@ func TestParseClock(t *testing.T) {
 		}
 	}
 }
+
+func TestProxyAndInterfaceValidation(t *testing.T) {
+	s := Defaults()
+	s.ProxyType, s.ProxyHost, s.ProxyPort = ProxyHTTP, "proxy.local", 3128
+	s.ProxyUsername, s.ProxyPassword, s.ProxyPeers = "u", "p@ss", true
+	if err := s.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if s.ProxyPeers {
+		t.Fatal("HTTP proxies cannot carry peer connections")
+	}
+	if u := s.ProxyURL(); u.String() != "http://u:p%40ss@proxy.local:3128" {
+		t.Fatalf("proxy url %s", u)
+	}
+	for _, bad := range []func(*Settings){
+		func(s *Settings) { s.ProxyType = "ftp" },
+		func(s *Settings) { s.ProxyHost = "user@host" },
+		func(s *Settings) { s.ProxyPort = 0 },
+		func(s *Settings) { s.BindInterface, s.BindAddress = "wg0", "10.0.0.2" },
+		func(s *Settings) { s.BindInterface = "wg\n0" },
+	} {
+		c := s
+		bad(&c)
+		if err := c.Validate(); err == nil {
+			t.Fatalf("expected validation error for %+v", c)
+		}
+	}
+}

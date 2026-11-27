@@ -11,6 +11,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0
 	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.48.0
+	golang.org/x/net v0.62.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.48.0
 	golang.org/x/time v0.16.0
@@ -90,7 +91,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	golang.org/x/exp v0.0.0-20251113190631-e25ba8c21ef6 // indirect
-	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sync v0.25.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 	lukechampine.com/blake3 v1.1.6 // indirect
