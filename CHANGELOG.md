@@ -11,6 +11,15 @@ All notable changes to this project are documented here. The format follows
 - Quick look for images and text files (subtitles, .nfo, readme).
 - Open file, Show in folder and Open folder. Programs, scripts and web pages from torrents are never opened
   directly; these actions only work on the computer running Magnetar.
+- VPN kill switch: bind Magnetar to a network connection (for example your VPN) by name. It follows the VPN's
+  address when it reconnects, and all torrent traffic stops while the VPN is down.
+- Proxy support (SOCKS5 and HTTP) for trackers and web seeds, and with SOCKS5 optionally for peer connections.
+- Download queue: by default at most 3 downloads, 3 uploads and 5 torrents are active; the rest wait as "Queued"
+  and start by themselves. Force start, queue order (top, up, down, bottom) and "don't count slow torrents".
+
+### Fixed
+- Opening a .torrent file now shows the add dialog (name, size, file picker, folder) instead of starting the
+  download right away.
 
 ## [0.3.1] - 2026-11-27
 
