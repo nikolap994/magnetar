@@ -221,10 +221,12 @@ func run() error {
 
 	prompted := false
 	for _, arg := range flag.Args() {
-		if isMagnet(arg) && settings.ShowAddDialog && !*headless && !prompted {
-			if err := a.openAddDialog(arg); err == nil {
-				prompted = true
-				continue
+		if settings.ShowAddDialog && !*headless && !prompted {
+			if target := previewArg(eng, arg); target != "" {
+				if err := a.openAddDialog(target); err == nil {
+					prompted = true
+					continue
+				}
 			}
 		}
 		if err := addArg(eng, arg); err != nil && !errors.Is(err, engine.ErrExists) {
@@ -363,6 +365,24 @@ func isAddrInUse(err error) bool {
 		strings.Contains(err.Error(), "Only one usage of each socket address")
 }
 
+// previewArg returns what the add dialog should show for a command-line
+// argument: the magnet link itself, or a preview prepared from a .torrent
+// file so its files can be picked before anything downloads.
+func previewArg(eng *engine.Engine, arg string) string {
+	if isMagnet(arg) {
+		return arg
+	}
+	data, err := readTorrentFile(arg)
+	if err != nil {
+		return ""
+	}
+	info, err := eng.Preview("", data)
+	if err != nil {
+		return ""
+	}
+	return server.PreviewTarget(info.Hash)
+}
+
 func addArg(eng *engine.Engine, arg string) error {
 	if isMagnet(arg) {
 		_, err := eng.Add(engine.AddOptions{Magnet: arg})
@@ -404,10 +424,26 @@ func handoff(a *app, args []string, showUI bool) error {
 	// The running instance owns the single window: ask it to show the add
 	// dialog (or itself) instead of opening another window from here.
 	desktop.AllowFocus()
+	var postUIOpen func(body io.Reader, ctype string) error
 	showOnly := func(magnet string) error {
 		b, _ := json.Marshal(map[string]string{"magnet": magnet})
-		req, _ := http.NewRequest(http.MethodPost, a.base+"/api/ui/open", bytes.NewReader(b))
-		req.Header.Set("Content-Type", "application/json")
+		return postUIOpen(bytes.NewReader(b), "application/json")
+	}
+	showTorrent := func(path string) error {
+		data, err := readTorrentFile(path)
+		if err != nil {
+			return err
+		}
+		var body bytes.Buffer
+		ctype, err := multipartField(&body, "torrent", filepath.Base(path), data)
+		if err != nil {
+			return err
+		}
+		return postUIOpen(&body, ctype)
+	}
+	postUIOpen = func(body io.Reader, ctype string) error {
+		req, _ := http.NewRequest(http.MethodPost, a.base+"/api/ui/open", body)
+		req.Header.Set("Content-Type", ctype)
 		req.Header.Set("X-Magnetar-Request", "1")
 		req.Header.Set("Authorization", "Launch "+a.keys.NewLaunchToken())
 		resp, err := client.Do(req)
@@ -424,8 +460,12 @@ func handoff(a *app, args []string, showUI bool) error {
 
 	prompted := false
 	for _, arg := range args {
-		if isMagnet(arg) && a.settings.ShowAddDialog {
-			if err := showOnly(arg); err == nil {
+		if a.settings.ShowAddDialog && !prompted {
+			show := showOnly
+			if !isMagnet(arg) {
+				show = showTorrent
+			}
+			if err := show(arg); err == nil {
 				prompted = true
 				continue
 			}

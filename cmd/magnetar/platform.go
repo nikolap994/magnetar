@@ -6,8 +6,12 @@ import (
 )
 
 func multipartTorrent(w io.Writer, name string, data []byte) (string, error) {
+	return multipartField(w, "torrents", name, data)
+}
+
+func multipartField(w io.Writer, field, name string, data []byte) (string, error) {
 	mw := multipart.NewWriter(w)
-	fw, err := mw.CreateFormFile("torrents", name)
+	fw, err := mw.CreateFormFile(field, name)
 	if err != nil {
 		return "", err
 	}

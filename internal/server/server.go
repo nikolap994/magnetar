@@ -463,6 +463,12 @@ func (s *Server) handleActions(w http.ResponseWriter, r *http.Request) {
 		err = s.eng.SetCategory(req.Category, req.Hashes...)
 	case "move":
 		err = s.eng.Move(req.Path, req.Hashes...)
+	case "forceStart":
+		err = s.eng.ForceStart(true, req.Hashes...)
+	case "unforce":
+		err = s.eng.ForceStart(false, req.Hashes...)
+	case "queueTop", "queueUp", "queueDown", "queueBottom":
+		err = s.eng.MoveQueue(strings.ToLower(strings.TrimPrefix(req.Action, "queue")), req.Hashes...)
 	case "recheck":
 		for _, h := range req.Hashes {
 			err = errors.Join(err, s.eng.Recheck(h))
@@ -695,7 +701,40 @@ func (s *Server) WindowConnected() bool { return s.windows.Load() > 0 }
 // handleUIOpen shows the app (one window only), optionally with the add
 // dialog for a magnet link. Used by the tray and by a second Magnetar
 // process started for a magnet link.
+//
+// A .torrent file (multipart field "torrent") is read into a preview first,
+// so the add dialog shows its files and asks before anything downloads.
 func (s *Server) handleUIOpen(w http.ResponseWriter, r *http.Request) {
+	if s.showUI == nil {
+		writeErr(w, http.StatusNotImplemented, errors.New("no desktop window in this mode"))
+		return
+	}
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		r.Body = http.MaxBytesReader(w, r.Body, engine.MaxTorrentFileSize+(1<<20))
+		f, _, err := r.FormFile("torrent")
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		defer f.Close()
+		data, err := io.ReadAll(io.LimitReader(f, engine.MaxTorrentFileSize+1))
+		if err != nil || len(data) > engine.MaxTorrentFileSize {
+			writeErr(w, http.StatusBadRequest, errors.New("torrent file is too large or unreadable"))
+			return
+		}
+		info, err := s.eng.Preview("", data)
+		switch {
+		case errors.Is(err, engine.ErrExists):
+			s.showUI("")
+		case err != nil:
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		default:
+			s.showUI(PreviewTarget(info.Hash))
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+		return
+	}
 	var req struct {
 		Magnet string `json:"magnet"`
 	}
@@ -707,13 +746,13 @@ func (s *Server) handleUIOpen(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, errors.New("not a magnet link"))
 		return
 	}
-	if s.showUI == nil {
-		writeErr(w, http.StatusNotImplemented, errors.New("no desktop window in this mode"))
-		return
-	}
 	s.showUI(req.Magnet)
 	writeJSON(w, map[string]bool{"ok": true})
 }
+
+// PreviewTarget names a prepared preview (from a .torrent file) for the add
+// dialog, in place of a magnet link.
+func PreviewTarget(hash string) string { return "preview:" + hash }
 
 func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if s.register == nil {
