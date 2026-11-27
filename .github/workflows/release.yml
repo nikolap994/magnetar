@@ -145,6 +145,20 @@ jobs:
           case "$version" in *-*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" dist/* --title "Magnetar ${version}" --notes-file notes.md $prerelease
 
+  # Rebuilds the website so it shows the new version and its release notes.
+  # It runs from main (the github-pages environment only deploys main); the
+  # release commit there already carries the changelog section.
+  website:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --repo "$GITHUB_REPOSITORY" --ref main
+
   # Opens a pull request on microsoft/winget-pkgs for every new release.
   # Enable after the first version has been accepted into winget (see docs/DISTRIBUTION.md):
   # repository variable WINGET_ENABLED=true and secret WINGET_TOKEN (classic PAT, public_repo).

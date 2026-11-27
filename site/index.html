@@ -86,6 +86,14 @@
     .os-panel[hidden] { display: none; }
     .os-panel h3 { margin: 0 0 4px; font-size: 24px; letter-spacing: -.01em; }
     .os-panel > p { margin: 0 0 22px; color: var(--ink-soft); }
+    /* What's new (filled from CHANGELOG.md by tools/sitegen on every release) */
+    .rel-meta { color: var(--ink-soft); margin: 0 0 28px; }
+    .rel-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; }
+    .rel-group { background: #fff; border: 1.5px solid var(--rule); border-radius: 18px; padding: 22px 24px; }
+    .rel-group h3 { margin: 0 0 10px; font-size: 19px; }
+    .rel-group ul { margin: 0; padding-left: 20px; color: var(--ink-soft); font-size: 16px; }
+    .rel-group li + li { margin-top: 8px; }
+    .rel-group code { font-size: .9em; background: var(--paper); padding: 1px 5px; border-radius: 5px; }
     .steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 18px; }
     .steps li { counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; }
     .steps li::before { content: counter(step); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--piece); color: var(--ink); font-weight: 700; font-size: 15px; }
@@ -122,6 +130,7 @@
       <a class="brand" href="./"><img src="logo.svg" alt="">Magnetar</a>
       <nav class="links" aria-label="Sections">
         <a href="#features">Features</a>
+        <a href="#new">What's new</a>
         <a href="#install">Install</a>
         <a href="#security">Security</a>
         <a href="https://github.com/nikolap994/magnetar">GitHub</a>
@@ -136,7 +145,7 @@
           <div class="cta">
             <a class="btn main" id="dl-main" href="https://github.com/nikolap994/magnetar/releases/latest">Download Magnetar</a>
             <a class="btn plain" href="https://github.com/nikolap994/magnetar">View the source</a>
-            <small id="dl-note">Free, no ads, no tracking. Windows 10/11 and Ubuntu/Debian.</small>
+            <small id="dl-note">Version <!-- release:version -->. Free, no ads, no tracking. Windows 10/11 and Ubuntu/Debian.</small>
           </div>
         </div>
         <figure class="swarm" aria-label="A torrent's pieces arriving from the swarm">
@@ -183,6 +192,11 @@
             </dl>
           </div>
         </div>
+      </section>
+
+      <section id="new">
+        <h2>What's new in <!-- release:version --></h2>
+        <!-- release:notes -->
       </section>
 
       <section id="install">
