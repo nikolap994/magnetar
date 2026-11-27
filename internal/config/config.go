@@ -17,6 +17,19 @@ import (
 	"github.com/nikolap994/magnetar/internal/fsutil"
 )
 
+// builtinTrackers are well-known public trackers added to new public torrents
+// so peers are found even when a magnet's own trackers are dead or missing.
+const builtinTrackers = `udp://tracker.opentrackr.org:1337/announce
+udp://open.demonii.com:1337/announce
+udp://open.stealth.si:80/announce
+udp://tracker.torrent.eu.org:451/announce
+udp://exodus.desync.com:6969/announce
+udp://explodie.org:6969/announce
+udp://tracker.openbittorrent.com:6969/announce
+udp://tracker-udp.gbitt.info:80/announce
+udp://tracker.dler.org:6969/announce
+udp://opentracker.i2p.rocks:6969/announce`
+
 // Encryption policies for peer connections (BitTorrent protocol encryption / MSE).
 const (
 	EncryptionPrefer  = "prefer"  // Try encrypted first, fall back to plaintext.
@@ -247,6 +260,8 @@ func Defaults() Settings {
 		Encryption:         EncryptionPrefer,
 		MaxConnsPerTorrent: 100,
 		MaxHalfOpenConns:   500,
+		AddDefaultTrackers: true,
+		DefaultTrackers:    builtinTrackers,
 		PieceHashers:       4,
 		MinFreeSpaceMB:     1024,
 		QueueEnabled:       true,
