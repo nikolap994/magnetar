@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -183,4 +184,33 @@ func (e *Engine) checkInterfaceLocked(now time.Time) {
 	if err := e.restartLocked(); err != nil {
 		e.log.Error("restart after interface change", "err", err)
 	}
+}
+
+// HTTPClient returns a client for Magnetar's own web requests (RSS feeds and
+// .torrent downloads) that follows the network settings: the proxy, and the
+// bound interface or address. While the kill switch is on it cannot connect.
+func (e *Engine) HTTPClient() *http.Client {
+	e.mu.RLock()
+	s, ip, killed := e.settings, e.boundIP, e.killSwitch
+	e.mu.RUnlock()
+	d := &net.Dialer{Timeout: 30 * time.Second}
+	if ip != nil {
+		d.LocalAddr = &net.TCPAddr{IP: ip}
+	}
+	tr := &http.Transport{
+		DialContext:           d.DialContext,
+		TLSHandshakeTimeout:   15 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+		MaxIdleConns:          4,
+		IdleConnTimeout:       60 * time.Second,
+	}
+	if u := s.ProxyURL(); u != nil {
+		tr.Proxy = http.ProxyURL(u)
+	}
+	if killed {
+		tr.DialContext = func(context.Context, string, string) (net.Conn, error) {
+			return nil, errors.New("the VPN connection is down")
+		}
+	}
+	return &http.Client{Transport: tr, Timeout: 90 * time.Second}
 }

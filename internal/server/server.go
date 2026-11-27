@@ -20,6 +20,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/auth"
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/engine"
+	"github.com/nikolap994/magnetar/internal/rss"
 	"github.com/nikolap994/magnetar/internal/update"
 )
 
@@ -43,6 +44,7 @@ type Server struct {
 	autoStart func(bool) error
 	updater   Updater
 	showUI    func(magnet string)
+	rss       *rss.Manager
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
@@ -61,6 +63,8 @@ type Options struct {
 	// ShowUI brings the app window to the front (opening one if needed),
 	// optionally with the add dialog for a magnet link.
 	ShowUI func(magnet string)
+	// RSS is the feed downloader (optional).
+	RSS *rss.Manager
 }
 
 // Updater is the subset of the update package used by the API.
@@ -73,7 +77,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS}
 	s.routes()
 	return s
 }
@@ -107,6 +111,14 @@ func (s *Server) routes() {
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))
 	m.Handle("GET /api/fs/free", s.authed(s.handleFree))
+	m.Handle("GET /api/rss", s.authed(s.handleRSS))
+	m.Handle("POST /api/rss/feeds", s.authed(s.handleRSSAddFeed))
+	m.Handle("PUT /api/rss/feeds/{id}", s.authed(s.handleRSSUpdateFeed))
+	m.Handle("DELETE /api/rss/feeds/{id}", s.authed(s.handleRSSRemoveFeed))
+	m.Handle("POST /api/rss/refresh", s.authed(s.handleRSSRefresh))
+	m.Handle("PUT /api/rss/rules", s.authed(s.handleRSSRules))
+	m.Handle("POST /api/rss/test", s.authed(s.handleRSSTest))
+	m.Handle("POST /api/rss/download", s.authed(s.handleRSSDownload))
 	m.Handle("GET /api/net/interfaces", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		ifs, err := engine.Interfaces()
 		if err != nil {

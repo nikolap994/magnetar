@@ -29,6 +29,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/desktop"
 	"github.com/nikolap994/magnetar/internal/engine"
+	"github.com/nikolap994/magnetar/internal/rss"
 	"github.com/nikolap994/magnetar/internal/server"
 	"github.com/nikolap994/magnetar/internal/update"
 	"github.com/nikolap994/magnetar/web"
@@ -202,6 +203,8 @@ func run() error {
 	})
 	updater := update.New(engine.Version, logger, func() bool { return store.Get().AutoUpdateCheck }, stop)
 	go updater.Run(ctx)
+	feeds := rss.New(dataDir, eng, eng.HTTPClient, logger.With("component", "rss"))
+	go feeds.Run(ctx)
 
 	var srv *server.Server
 	srv = server.New(eng, store, keys, web.FS(), logger, server.Options{
@@ -210,6 +213,7 @@ func run() error {
 		Register:  register,
 		AutoStart: desktop.SetAutostart,
 		Updater:   updater,
+		RSS:       feeds,
 		ShowUI:    func(magnet string) { a.showUI(srv, eng, magnet) },
 	})
 	errc := make(chan error, 1)
