@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Changelog - Magnetar</title>
+  <meta name="description" content="What's new in every Magnetar release.">
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f3f4fb;
+      --ink: #1d1640;
+      --ink-soft: #4d4870;
+      --violet: #7c3aed;
+      --cyan: #0891b2;
+      --rule: #d8daea;
+      --font: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 400 17px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+    a { color: var(--violet); }
+    a:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+    header.top { display: flex; align-items: center; gap: 28px; padding: 22px 0; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 22px; color: var(--ink); text-decoration: none; letter-spacing: -.01em; }
+    .brand img { width: 34px; height: 34px; }
+    nav.links { margin-left: auto; display: flex; gap: 24px; font-size: 16px; }
+    nav.links a { color: var(--ink-soft); text-decoration: none; }
+    nav.links a:hover, nav.links a[aria-current] { color: var(--ink); }
+
+    .intro { padding: 40px 0 36px; }
+    .intro h1 { font-size: clamp(36px, 5vw, 56px); letter-spacing: -.03em; line-height: 1.05; margin: 0 0 12px; font-weight: 800; }
+    .intro p { color: var(--ink-soft); margin: 0; max-width: 40em; }
+
+    .layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 48px; padding-bottom: 80px; }
+    .versions { position: sticky; top: 24px; align-self: start; }
+    .versions h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-soft); margin: 0 0 10px; }
+    .versions ul { list-style: none; margin: 0; padding: 0; }
+    .versions li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+    .versions li a { font-weight: 700; text-decoration: none; color: var(--ink); }
+    .versions li a:hover { color: var(--violet); }
+    .versions li span { color: var(--ink-soft); font-size: 13px; white-space: nowrap; }
+
+    .release { background: #fff; border: 1.5px solid var(--rule); border-radius: 20px; padding: 28px 32px; margin-bottom: 28px; scroll-margin-top: 20px; }
+    .release header h2 { font-size: 28px; letter-spacing: -.02em; margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .latest { font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(90deg, var(--violet), var(--cyan)); padding: 3px 10px; border-radius: 999px; letter-spacing: .02em; }
+    .rel-date { color: var(--ink-soft); margin: 4px 0 18px; font-size: 15px; }
+    .rel-group { margin-top: 18px; }
+    .rel-group h3 { display: inline-block; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 8px; padding: 3px 10px; border-radius: 8px; background: #eef0fa; color: var(--ink-soft); }
+    .rel-group.added h3 { background: #ecfdf5; color: #047857; }
+    .rel-group.performance h3 { background: #ecfeff; color: #0e7490; }
+    .rel-group.fixed h3 { background: #fff7ed; color: #c2410c; }
+    .rel-group.security h3 { background: #fef2f2; color: #b91c1c; }
+    .rel-group.changed h3 { background: #f5f3ff; color: #6d28d9; }
+    .rel-group ul { margin: 0; padding-left: 20px; }
+    .rel-group li { margin: 6px 0; }
+    .rel-group li::marker { color: var(--violet); }
+    .rel-group code { font-size: .88em; background: var(--paper); padding: 1px 6px; border-radius: 6px; }
+    .rel-links { margin: 20px 0 0; font-size: 15px; }
+
+    footer { border-top: 1.5px solid var(--rule); padding: 36px 0 48px; display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: center; font-size: 16px; color: var(--ink-soft); }
+    footer .me { color: var(--ink); font-weight: 700; }
+    footer .gh { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; color: var(--ink); text-decoration: none; font-weight: 600; }
+    footer .gh svg { width: 22px; height: 22px; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; gap: 24px; }
+      .versions { position: static; }
+      .versions ul { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+      .versions li { border: 0; padding: 0; }
+      .versions li span { display: none; }
+      .release { padding: 22px 20px; }
+      nav.links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="./"><img src="logo.svg" alt="">Magnetar</a>
+      <nav class="links" aria-label="Sections">
+        <a href="./#features">Features</a>
+        <a href="changelog.html" aria-current="page">Changelog</a>
+        <a href="./#install">Install</a>
+        <a href="https://github.com/nikolap994/magnetar">GitHub</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="intro">
+        <h1>Changelog</h1>
+        <p>Everything that changed in each version of Magnetar. Magnetar updates itself, so you get these improvements with one click.</p>
+      </div>
+      <div class="layout">
+        <nav class="versions" aria-label="Versions">
+          <h2>Versions</h2>
+          <ul>
+<!-- changelog:index -->
+          </ul>
+        </nav>
+        <div>
+<!-- changelog:releases -->
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>Made by <a class="me" href="https://github.com/nikolap994">Nikola Pavlović</a></span>
+      <span>MIT License</span>
+      <a href="changelog.html">Changelog</a>
+      <a class="gh" href="https://github.com/nikolap994/magnetar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>
+        Star on GitHub
+      </a>
+    </footer>
+  </div>
+</body>
+</html>

@@ -34,7 +34,7 @@ jobs:
           cp -r site/. _site/
           cp docs/screenshot-*.png _site/screenshots/
           cp assets/logo.svg _site/
-          go run ./tools/sitegen -changelog CHANGELOG.md -page _site/index.html
+          go run ./tools/sitegen -changelog CHANGELOG.md -page _site/index.html -changelog-page _site/changelog.html
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
