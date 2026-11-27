@@ -78,9 +78,9 @@ type Engine struct {
 	stats statsState
 
 	// Connection health: incoming peer connections prove the port is reachable.
-	started      time.Time
-	incoming     atomic.Int64 // incoming peer connections since the client started
-	activeSince  time.Time // when we first had a running torrent with peers
+	started     time.Time
+	incoming    atomic.Int64 // incoming peer connections since the client started
+	activeSince time.Time    // when we first had a running torrent with peers
 
 	subsMu sync.Mutex
 	subs   map[chan Event]struct{}
