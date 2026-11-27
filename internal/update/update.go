@@ -66,6 +66,9 @@ type Status struct {
 	Method      string    `json:"method"`
 	CanInstall  bool      `json:"canInstall"`
 	AutoCheck   bool      `json:"autoCheck"`
+	// Paused: the user paused updates; no automatic checks and no offers.
+	Paused      bool      `json:"paused"`
+	PausedUntil time.Time `json:"pausedUntil,omitzero"`
 }
 
 type release struct {
@@ -96,6 +99,8 @@ type Updater struct {
 	allowURL  func(*url.URL) error
 	// restart shuts Magnetar down after an update has been staged.
 	restart func()
+	// pausedUntil reports when paused updates resume (zero = not paused).
+	pausedUntil func() time.Time
 
 	mu      sync.Mutex
 	status  Status
@@ -163,7 +168,7 @@ func (u *Updater) Run(ctx context.Context) {
 			return
 		case <-t.C:
 		}
-		if u.auto() {
+		if u.auto() && !u.paused() {
 			if _, err := u.Check(ctx); err != nil {
 				u.log.Warn("update check failed", "err", err)
 			}
@@ -172,12 +177,26 @@ func (u *Updater) Run(ctx context.Context) {
 	}
 }
 
+// SetPause tells the updater when paused updates resume (zero = not paused).
+func (u *Updater) SetPause(until func() time.Time) { u.pausedUntil = until }
+
+func (u *Updater) paused() bool {
+	if u.pausedUntil == nil {
+		return false
+	}
+	t := u.pausedUntil()
+	return !t.IsZero() && time.Now().Before(t)
+}
+
 // Status returns the current update status.
 func (u *Updater) Status() Status {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	s := u.status
 	s.AutoCheck = u.auto()
+	if u.paused() {
+		s.Paused, s.PausedUntil = true, u.pausedUntil()
+	}
 	s.CanInstall = s.Available && u.method != MethodUnsupported && u.method != MethodFlatpak && u.method != MethodContainer && len(u.pubKey) == ed25519.PublicKeySize &&
 		s.State != "downloading" && s.State != "installing"
 	return s

@@ -455,7 +455,18 @@
                 <h3>Updates</h3>
                 <p class="muted" id="update-status">Checking…</p>
                 <label class="switch"><input type="checkbox" name="autoUpdateCheck"><span></span>Check for updates automatically (once a day, via GitHub)</label>
-                <div class="row"><button type="button" class="btn ghost" id="btn-check-update"><svg><use href="#i-refresh"/></svg><span>Check now</span></button></div>
+                <div class="row">
+                  <button type="button" class="btn ghost" id="btn-check-update"><svg><use href="#i-refresh"/></svg><span>Check now</span></button>
+                  <label class="inline-field">Pause updates
+                    <select id="upd-pause" aria-label="Pause updates">
+                      <option value="0">Off</option>
+                      <option value="7">For 1 week</option>
+                      <option value="14">For 2 weeks</option>
+                      <option value="30">For 1 month</option>
+                      <option value="-1">Until I resume them</option>
+                    </select>
+                  </label>
+                </div>
               </div>
               <button type="button" class="btn ghost danger" id="btn-quit"><svg><use href="#i-power"/></svg><span>Quit Magnetar</span></button>
             </div>
@@ -703,6 +714,7 @@
       <footer>
         <span id="upd-err" class="error"></span>
         <a class="btn ghost" id="upd-link" target="_blank" rel="noopener noreferrer">Release page</a>
+        <button type="button" class="btn ghost" id="upd-skip" title="Hide update offers for a week">Pause for a week</button>
         <button class="btn ghost" value="cancel" formnovalidate>Later</button>
         <button class="btn primary" id="upd-install" value="install"><svg><use href="#i-update"/></svg><span>Install &amp; restart</span></button>
       </footer>

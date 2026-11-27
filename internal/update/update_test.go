@@ -7,10 +7,12 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestNewer(t *testing.T) {
@@ -155,5 +157,21 @@ func TestExtractBinary(t *testing.T) {
 func TestReleaseKeyEmbedded(t *testing.T) {
 	if !Configured() {
 		t.Fatal("release public key is missing or malformed; updates could not be verified")
+	}
+}
+
+func TestPauseHidesOffers(t *testing.T) {
+	u := New("1.0.0", slog.New(slog.DiscardHandler), func() bool { return true }, func() {})
+	if u.Status().Paused {
+		t.Fatal("not paused by default")
+	}
+	until := time.Now().Add(time.Hour)
+	u.SetPause(func() time.Time { return until })
+	if s := u.Status(); !s.Paused || !s.PausedUntil.Equal(until) {
+		t.Fatalf("status %+v", s)
+	}
+	u.SetPause(func() time.Time { return time.Now().Add(-time.Minute) })
+	if u.Status().Paused {
+		t.Fatal("a pause in the past must have ended")
 	}
 }

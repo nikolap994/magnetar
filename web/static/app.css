@@ -538,6 +538,9 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .conn-pill.vpn-down { color: var(--red); border-color: rgba(239, 68, 68, .4); }
 .conn-pill.vpn-down .dot { background: var(--red); }
 
+.inline-field { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-left: auto; }
+.inline-field select { width: auto; }
+
 /* Phone access */
 .remote-steps { margin: 6px 0 12px; padding-left: 20px; font-size: 13px; }
 .remote-steps li { margin: 4px 0; }

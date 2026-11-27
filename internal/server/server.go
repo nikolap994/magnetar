@@ -152,6 +152,7 @@ func (s *Server) routes() {
 	m.Handle("GET /api/update", s.authed(s.handleUpdateStatus))
 	m.Handle("POST /api/update/check", s.authed(s.handleUpdateCheck))
 	m.Handle("POST /api/update/install", s.authed(s.handleUpdateInstall))
+	m.Handle("POST /api/update/pause", s.authed(s.handleUpdatePause))
 	m.Handle("GET /api/events", s.authed(s.handleEvents))
 	m.Handle("GET /api/debug", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -834,6 +835,39 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, st)
+}
+
+// handleUpdatePause pauses update offers for some days (0 resumes them,
+// -1 pauses until they are resumed by hand).
+func (s *Server) handleUpdatePause(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Days int `json:"days"`
+	}
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	st := s.store.Get()
+	switch {
+	case req.Days == 0:
+		st.UpdatesPausedUntil = time.Time{}
+	case req.Days < 0:
+		st.UpdatesPausedUntil = config.PausedForever
+	case req.Days <= 365:
+		st.UpdatesPausedUntil = time.Now().UTC().Add(time.Duration(req.Days) * 24 * time.Hour)
+	default:
+		writeErr(w, http.StatusBadRequest, errors.New("pause for at most a year, or until resumed"))
+		return
+	}
+	if err := s.store.Update(st); err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	if s.updater == nil {
+		writeJSON(w, map[string]bool{"ok": true})
+		return
+	}
+	writeJSON(w, s.updater.Status())
 }
 
 // handleUpdateInstall starts the download in the background; progress and

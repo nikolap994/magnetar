@@ -23,6 +23,12 @@ All notable changes to this project are documented here. The format follows
 - Import your torrents from qBittorrent, Transmission or uTorrent with their folders, file choices, categories and
   statistics; files already on disk keep seeding.
 - Watch folder: .torrent files saved into it are added automatically.
+- Phone access: one switch opens Magnetar to devices on your home network (password required), with a QR code to
+  scan, and a phone-friendly layout.
+- qBittorrent-compatible API (opt-in) so Sonarr, Radarr, Prowlarr and similar apps can use Magnetar.
+- macOS app for Apple silicon and Intel, and a Docker image for servers and NAS devices.
+- Pause updates for a week, two weeks, a month or until you resume them (off by default).
+- Clearer connection status: "Ready" when nothing is active, faster detection of an unreachable port.
 - Folder tree in the Files tab, with priorities for whole folders and a filter for big torrents. Paused and queued
   torrents show their files too.
 

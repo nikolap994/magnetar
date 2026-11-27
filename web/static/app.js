@@ -1230,6 +1230,11 @@ $("#btn-handler").addEventListener("click", () => {
 /* ---------- updates ---------- */
 function updateStatusText(u) {
   if (!u) return "Update information is not available.";
+  if (u.paused) {
+    const until = new Date(u.pausedUntil);
+    return until.getFullYear() > 9000 ? `Updates are paused until you resume them. You have ${u.current}.`
+      : `Updates are paused until ${until.toLocaleDateString()}. You have ${u.current}.`;
+  }
   if (u.state === "checking") return "Checking for updates…";
   if (u.state === "downloading") return `Downloading Magnetar ${u.latest} and verifying its signature…`;
   if (u.state === "installing") return `Installing Magnetar ${u.latest} - Magnetar will restart…`;
@@ -1242,11 +1247,12 @@ function renderUpdate() {
   const u = state.update;
   const pill = $("#update-pill");
   const busy = u && (u.state === "downloading" || u.state === "installing");
-  pill.hidden = !(u && (u.available || busy));
+  pill.hidden = !(u && ((u.available && !u.paused) || busy));
   pill.classList.toggle("busy", !!busy);
   if (u) {
     pill.querySelector("span").textContent = busy ? (u.state === "downloading" ? "Downloading update…" : "Installing…") : `Update to ${u.latest}`;
     $("#update-status").textContent = updateStatusText(u);
+    $("#upd-pause").value = !u.paused ? "0" : new Date(u.pausedUntil).getFullYear() > 9000 ? "-1" : $("#upd-pause").value === "0" ? "7" : $("#upd-pause").value;
     if ($("#dlg-update").open) fillUpdateDialog();
   }
 }
@@ -1263,6 +1269,15 @@ function fillUpdateDialog() {
     : "This installation cannot update itself - download the new version from the release page.";
   $("#upd-err").textContent = u.state === "error" ? u.error : "";
 }
+async function pauseUpdates(days) {
+  try {
+    state.update = await api("/api/update/pause", { method: "POST", body: { days } });
+    renderUpdate();
+    toast(days === 0 ? "Updates resumed" : "Updates paused");
+  } catch (e) { fail(e); }
+}
+$("#upd-pause").addEventListener("change", () => pauseUpdates(Number($("#upd-pause").value)));
+$("#upd-skip").addEventListener("click", () => { $("#dlg-update").close(); pauseUpdates(7); });
 $("#update-pill").addEventListener("click", () => {
   const u = state.update;
   if (!u || !u.available || u.state === "downloading" || u.state === "installing") return;

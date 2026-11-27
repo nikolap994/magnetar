@@ -142,6 +142,17 @@ type Settings struct {
 
 	// Updates
 	AutoUpdateCheck bool `json:"autoUpdateCheck"` // Check GitHub Releases for new versions once a day.
+	// UpdatesPausedUntil hides update offers and skips automatic checks until
+	// this time (zero = not paused; PausedForever = until resumed).
+	UpdatesPausedUntil time.Time `json:"updatesPausedUntil,omitzero"`
+}
+
+// PausedForever marks updates as paused until the user resumes them.
+var PausedForever = time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC)
+
+// UpdatesPaused reports whether update offers are paused at now.
+func (s Settings) UpdatesPaused(now time.Time) bool {
+	return !s.UpdatesPausedUntil.IsZero() && now.Before(s.UpdatesPausedUntil)
 }
 
 // Category groups torrents and optionally gives them their own folder.

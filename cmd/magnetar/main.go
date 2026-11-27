@@ -206,6 +206,7 @@ func run() error {
 		}
 	})
 	updater := update.New(engine.Version, logger, func() bool { return store.Get().AutoUpdateCheck }, stop)
+	updater.SetPause(func() time.Time { return store.Get().UpdatesPausedUntil })
 	go updater.Run(ctx)
 	feeds := rss.New(dataDir, eng, eng.HTTPClient, logger.With("component", "rss"))
 	go feeds.Run(ctx)
