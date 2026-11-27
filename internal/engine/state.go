@@ -35,6 +35,8 @@ type record struct {
 	Size           int64       `json:"size,omitempty"`
 	Category       string      `json:"category,omitempty"`
 	Completed      int64       `json:"completed,omitempty"`
+	// Forced torrents ignore the queue limits (qBittorrent's "Force start").
+	Forced bool `json:"forced,omitempty"`
 }
 
 type stateFile struct {

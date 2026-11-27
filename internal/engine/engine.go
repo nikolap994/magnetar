@@ -103,6 +103,7 @@ type managed struct {
 	checkExisting bool
 	checking      bool
 	moving        bool
+	startedAt     time.Time
 }
 
 func (m *managed) liveStats() (down, up int64) {
@@ -172,13 +173,9 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 		m := &managed{hash: h, rec: r, baseDown: r.Downloaded, baseUp: r.Uploaded}
 		e.torrents[r.InfoHash] = m
 		e.order = append(e.order, r.InfoHash)
-		if !r.Paused {
-			if err := e.startLocked(m); err != nil {
-				m.err = err.Error()
-				e.log.Warn("restore torrent", "name", logSafe(r.Name), "err", logSafe(err.Error()))
-			}
-		}
 	}
+	// Start what was running, within the queue limits.
+	e.queueLocked(time.Now())
 	e.mu.Unlock()
 
 	e.wg.Add(1)
@@ -499,7 +496,7 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 	m := &managed{hash: spec.InfoHash, rec: rec, checkExisting: true}
 	e.torrents[hash] = m
 	e.order = append(e.order, hash)
-	if !opts.Paused {
+	if !opts.Paused && e.slotForNewLocked(m) {
 		if err := e.startLocked(m); err != nil {
 			delete(e.torrents, hash)
 			e.order = e.order[:len(e.order)-1]
@@ -555,6 +552,7 @@ func (e *Engine) startLocked(m *managed) error {
 	}
 	m.t = t
 	m.err = ""
+	m.startedAt = time.Now()
 	m.lastDown, m.lastUp = 0, 0
 	m.seqPieces = nil
 	e.wg.Add(1)
@@ -702,6 +700,7 @@ func (e *Engine) Pause(hashes ...string) error {
 		}
 		e.stopLocked(m)
 		m.rec.Paused = true
+		m.rec.Forced = false
 	}
 	e.dirty = true
 	return nil
@@ -720,14 +719,15 @@ func (e *Engine) Resume(hashes ...string) error {
 		if err != nil {
 			return err
 		}
-		if m.t == nil {
+		m.rec.Paused = false
+		if m.t == nil && e.slotForNewLocked(m) {
+			m.err = ""
 			if err := e.startLocked(m); err != nil {
 				m.err = err.Error()
 				errs = append(errs, err)
 				continue
 			}
 		}
-		m.rec.Paused = false
 	}
 	e.dirty = true
 	return errors.Join(errs...)
@@ -1059,6 +1059,7 @@ func (e *Engine) loop() {
 		}
 		e.mu.Lock()
 		e.tickLocked()
+		e.queueLocked(time.Now())
 		e.checkInterfaceLocked(time.Now())
 		e.expirePreviewsLocked()
 		saveEvery++

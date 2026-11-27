@@ -21,6 +21,7 @@ const (
 	StateError       = "error"
 	StateChecking    = "checking"
 	StateMoving      = "moving"
+	StateQueued      = "queued"
 )
 
 // Summary is a row in the torrent list.
@@ -46,6 +47,8 @@ type Summary struct {
 	Sequential  bool       `json:"sequential"`
 	Category    string     `json:"category,omitempty"`
 	Error       string     `json:"error,omitempty"`
+	Forced      bool       `json:"forced,omitempty"`
+	QueuePos    int        `json:"queuePos"` // 1-based position in the queue (list order)
 }
 
 func (e *Engine) summaryLocked(m *managed) Summary {
@@ -61,6 +64,7 @@ func (e *Engine) summaryLocked(m *managed) Summary {
 		UpRate:      int64(m.upRate),
 		ETA:         -1,
 		Error:       m.err,
+		Forced:      m.rec.Forced,
 	}
 	s.Downloaded, s.Uploaded = m.totals()
 	t := m.t
@@ -92,6 +96,8 @@ func (e *Engine) summaryLocked(m *managed) Summary {
 		s.State = StateMoving
 	case m.err != "":
 		s.State = StateError
+	case t == nil && m.queuedLocked():
+		s.State = StateQueued
 	case t == nil:
 		s.State = StatePaused
 	case t.Info() == nil:
@@ -122,8 +128,10 @@ func (e *Engine) List() []Summary {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	out := make([]Summary, 0, len(e.order))
-	for _, h := range e.order {
-		out = append(out, e.summaryLocked(e.torrents[h]))
+	for i, h := range e.order {
+		s := e.summaryLocked(e.torrents[h])
+		s.QueuePos = i + 1
+		out = append(out, s)
 	}
 	return out
 }

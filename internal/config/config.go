@@ -94,6 +94,14 @@ type Settings struct {
 	AltScheduleDays    int    `json:"altScheduleDays"`
 	PieceHashers       int    `json:"pieceHashers"`
 
+	// Queue: at most this many torrents are active at once (0 = no limit);
+	// the rest wait as "queued" in list order and start when a slot frees.
+	QueueEnabled       bool `json:"queueEnabled"`
+	MaxActiveDownloads int  `json:"maxActiveDownloads"`
+	MaxActiveUploads   int  `json:"maxActiveUploads"`
+	MaxActiveTorrents  int  `json:"maxActiveTorrents"`
+	QueueSkipSlow      bool `json:"queueSkipSlow"` // slow torrents do not take a slot
+
 	// Organisation
 	Categories []Category `json:"categories"`
 	// Move finished downloads to MoveCompletedDir (category folders take precedence).
@@ -169,6 +177,11 @@ func Defaults() Settings {
 		MaxConnsPerTorrent: 80,
 		MaxHalfOpenConns:   200,
 		PieceHashers:       4,
+		QueueEnabled:       true,
+		MaxActiveDownloads: 3,
+		MaxActiveUploads:   3,
+		MaxActiveTorrents:  5,
+		QueueSkipSlow:      true,
 		SeedAfterComplete:  true,
 		SeedRatioLimit:     0,
 		WebHost:            "127.0.0.1",
@@ -247,6 +260,12 @@ func (s *Settings) Validate() error {
 	}
 	if s.PieceHashers < 1 || s.PieceHashers > 64 {
 		errs = append(errs, errors.New("piece hashers must be between 1 and 64"))
+	}
+	for _, n := range []int{s.MaxActiveDownloads, s.MaxActiveUploads, s.MaxActiveTorrents} {
+		if n < 0 || n > 10000 {
+			errs = append(errs, errors.New("queue limits must be between 0 (no limit) and 10000"))
+			break
+		}
 	}
 	if s.DownloadLimitKBps < 0 || s.UploadLimitKBps < 0 || s.AltDownloadLimitKBps < 0 || s.AltUploadLimitKBps < 0 {
 		errs = append(errs, errors.New("speed limits cannot be negative"))
