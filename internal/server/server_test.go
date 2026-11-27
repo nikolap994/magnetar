@@ -123,3 +123,37 @@ func TestLoginWithoutPasswordFails(t *testing.T) {
 		t.Fatal("login succeeded with no password configured")
 	}
 }
+
+func TestPreviewTypesAreSafe(t *testing.T) {
+	for _, name := range []string{"x.html", "x.htm", "x.svg", "x.js", "x.exe", "x.xhtml", "x"} {
+		if PreviewType(name) != "" {
+			t.Errorf("%s must never be served for preview", name)
+		}
+	}
+	for name, want := range map[string]string{"Movie.MP4": "video/mp4", "a.flac": "audio/flac", "p.jpg": "image/jpeg", "s.srt": "text/plain; charset=utf-8"} {
+		if got := PreviewType(name); got != want {
+			t.Errorf("PreviewType(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestSrtToVTT(t *testing.T) {
+	in := "\xef\xbb\xbf1\r\n00:00:01,500 --> 00:00:04,000\r\nHello, world\r\n"
+	got := string(srtToVTT([]byte(in)))
+	want := "WEBVTT\n\n1\n00:00:01.500 --> 00:00:04.000\nHello, world\n"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestDesktopActionsAreLocalOnly(t *testing.T) {
+	r := httptest.NewRequest("POST", "/", nil)
+	r.RemoteAddr = "192.168.1.20:5000"
+	if localOnly(r) == nil {
+		t.Fatal("remote client allowed to open files")
+	}
+	r.RemoteAddr = "127.0.0.1:5000"
+	if localOnly(r) != nil {
+		t.Fatal("local client refused")
+	}
+}
