@@ -598,14 +598,14 @@ function renderDetail(d, force) {
   pm.hidden = !(d.pieceMap && d.pieceMap.length);
 
   const paused = d.state === "paused";
-  $("#d-actions").replaceChildren(
+  $("#d-actions").replaceChildren(...[
     h("button", { class: "btn ghost sm", onclick: () => act(paused ? "resume" : "pause", [d.hash]) }, icon(paused ? "play" : "pause"), h("span", { text: paused ? "Resume" : "Pause" })),
     h("button", { class: "btn ghost sm", onclick: () => act("recheck", [d.hash]) }, icon("refresh"), h("span", { text: "Verify" })),
     bestMediaFile(d) ? h("button", { class: "btn ghost sm", onclick: () => openPreview(d, bestMediaFile(d)) }, icon("play"), h("span", { text: "Play" })) : null,
     d.files.length ? h("button", { class: "btn ghost sm", onclick: () => openFolder(d.hash) }, icon("folder"), h("span", { text: "Open folder" })) : null,
     h("button", { class: "btn ghost sm", onclick: () => copyMagnet(d.hash) }, icon("copy"), h("span", { text: "Magnet" })),
     h("button", { class: "btn ghost sm danger", onclick: () => confirmRemove([d.hash]) }, icon("trash"), h("span", { text: "Remove" })),
-  );
+  ].filter(Boolean));
 
   const body = $("#d-body");
   // Avoid clobbering focused controls (e.g. a select being changed) during live refresh.
@@ -646,29 +646,37 @@ const TABS = {
   },
   files(d) {
     if (!d.files.length) return h("p", { class: "muted", text: d.state === "paused" ? "Resume the torrent to see its files." : "Waiting for metadata…" });
-    const wrap = h("div", { class: "files" });
-    const all = h("div", { class: "row" },
+    const ui = fileTreeState(d);
+    const filter = h("input", { type: "search", class: "files-filter", placeholder: "Filter files", value: ui.filter, "aria-label": "Filter files" });
+    filter.addEventListener("input", () => { ui.filter = filter.value; renderTree(); });
+    const all = h("div", { class: "row files-head" },
       h("button", { class: "btn ghost sm", onclick: () => setPrio(d.hash, d.files.map((f) => f.index), 1) }, h("span", { text: "Download all" })),
       h("button", { class: "btn ghost sm", onclick: () => setPrio(d.hash, d.files.map((f) => f.index), 0) }, h("span", { text: "Skip all" })),
+      d.files.some((f) => f.path.includes("/")) ? h("button", { class: "btn ghost sm", onclick: () => { ui.collapsed = new Set(); renderTree(); } }, h("span", { text: "Expand all" })) : null,
+      d.files.length > 8 ? filter : null,
     );
-    for (const f of d.files) {
-      const sel = h("select", { class: "sm", "aria-label": "Priority" },
-        h("option", { value: "0", text: "Skip" }), h("option", { value: "1", text: "Normal" }), h("option", { value: "2", text: "High" }));
-      sel.value = String(f.priority);
-      sel.addEventListener("change", () => { setPrio(d.hash, [f.index], +sel.value); sel.blur(); });
-      const bar = h("div", { class: "bar" }, h("i"));
-      bar.firstChild.style.width = (f.progress * 100).toFixed(1) + "%";
-      const kind = fileKind(f.path);
-      const blocked = BLOCKED_EXT.has(extOf(f.path));
-      const acts = h("div", { class: "file-actions" },
-        kind === "video" || kind === "audio" ? h("button", { class: "btn icon", title: "Play", onclick: () => openPreview(d, f) }, icon("play")) : null,
-        kind === "image" || kind === "text" ? h("button", { class: "btn icon", title: "Quick look", onclick: () => openPreview(d, f) }, icon("eye")) : null,
-        f.progress >= 1 && !blocked ? h("button", { class: "btn icon", title: "Open", onclick: () => fileAction(d.hash, f.index, "open") }, icon("external")) : null,
-        f.completed > 0 ? h("button", { class: "btn icon", title: "Show in folder", onclick: () => fileAction(d.hash, f.index, "reveal") }, icon("folder")) : null);
-      wrap.append(h("div", { class: "file" + (f.priority === 0 ? " skip" : "") },
-        h("div", { class: "fp", text: f.path }), acts, sel,
-        h("div", { class: "fm", text: `${bytes(f.completed)} / ${bytes(f.size)} · ${pct(f.progress)}` }), bar));
+    const wrap = h("div", { class: "files", role: "tree" });
+    const tree = buildFileTree(d.files);
+    function renderTree() {
+      const q = ui.filter.trim().toLowerCase();
+      const rows = [];
+      const walk = (node, depth) => {
+        for (const dir of node.dirs) {
+          const files = dir.allFiles.filter((f) => !q || f.path.toLowerCase().includes(q));
+          if (!files.length) continue;
+          const open = q || !ui.collapsed.has(dir.path);
+          rows.push(folderRow(d, dir, depth, open, () => {
+            ui.collapsed.has(dir.path) ? ui.collapsed.delete(dir.path) : ui.collapsed.add(dir.path);
+            renderTree();
+          }));
+          if (open) walk(dir, depth + 1);
+        }
+        for (const f of node.files) if (!q || f.path.toLowerCase().includes(q)) rows.push(fileRow(d, f, depth));
+      };
+      walk(tree, 0);
+      wrap.replaceChildren(...(rows.length ? rows : [h("p", { class: "muted", text: "No files match." })]));
     }
+    renderTree();
     return h("div", {}, all, h("div", { class: "spacer-8" }), wrap);
   },
   peers(d) {
@@ -700,6 +708,92 @@ const TABS = {
     );
   },
 };
+/* ---------- file tree ---------- */
+// Collapsed folders and the filter survive the detail panel's live refresh.
+const fileTrees = new Map();
+function fileTreeState(d) {
+  let ui = fileTrees.get(d.hash);
+  if (!ui) {
+    ui = { filter: "", collapsed: new Set() };
+    // Big torrents start with their sub-folders collapsed.
+    if (d.files.length > 60) {
+      for (const f of d.files) {
+        const parts = f.path.split("/");
+        for (let i = 2; i < parts.length; i++) ui.collapsed.add(parts.slice(0, i).join("/"));
+      }
+    }
+    fileTrees.set(d.hash, ui);
+  }
+  return ui;
+}
+function buildFileTree(files) {
+  const root = { path: "", name: "", dirs: [], files: [], allFiles: [], byName: new Map() };
+  for (const f of files) {
+    const parts = f.path.split("/");
+    let node = root;
+    root.allFiles.push(f);
+    for (let i = 0; i < parts.length - 1; i++) {
+      let next = node.byName.get(parts[i]);
+      if (!next) {
+        next = { path: parts.slice(0, i + 1).join("/"), name: parts[i], dirs: [], files: [], allFiles: [], byName: new Map() };
+        node.byName.set(parts[i], next);
+        node.dirs.push(next);
+      }
+      next.allFiles.push(f);
+      node = next;
+    }
+    node.files.push(f);
+  }
+  const sort = (n) => {
+    n.dirs.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    n.files.sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true }));
+    n.dirs.forEach(sort);
+  };
+  sort(root);
+  return root;
+}
+function prioSelect(value, onchange, mixed) {
+  const sel = h("select", { class: "sm", "aria-label": "Priority" },
+    mixed ? h("option", { value: "", text: "Mixed", disabled: true }) : null,
+    h("option", { value: "0", text: "Skip" }), h("option", { value: "1", text: "Normal" }), h("option", { value: "2", text: "High" }));
+  sel.value = mixed ? "" : String(value);
+  sel.addEventListener("change", () => { onchange(+sel.value); sel.blur(); });
+  return sel;
+}
+function progressBar(p) {
+  const bar = h("div", { class: "bar" }, h("i"));
+  bar.firstChild.style.width = (p * 100).toFixed(1) + "%";
+  return bar;
+}
+function folderRow(d, dir, depth, open, toggle) {
+  const files = dir.allFiles;
+  const size = files.reduce((a, f) => a + f.size, 0), done = files.reduce((a, f) => a + f.completed, 0);
+  const prios = new Set(files.map((f) => f.priority));
+  const prio = prios.size === 1 ? [...prios][0] : null;
+  const name = h("button", { class: "fold", "aria-expanded": String(open), onclick: toggle },
+    h("span", { class: "chev" + (open ? " open" : ""), text: "›" }), icon("folder"), h("span", { text: dir.name }),
+    h("span", { class: "muted", text: ` · ${files.length} file${files.length === 1 ? "" : "s"}` }));
+  return indent(h("div", { class: "file dir" + (prio === 0 ? " skip" : ""), role: "treeitem" },
+    h("div", { class: "fp" }, name),
+    h("div", { class: "file-actions" }),
+    prioSelect(prio, (v) => setPrio(d.hash, files.map((f) => f.index), v), prio === null),
+    h("div", { class: "fm", text: `${bytes(done)} / ${bytes(size)} · ${pct(size ? done / size : 0)}` }), progressBar(size ? done / size : 0)), depth);
+}
+// Inline style attributes are blocked by the CSP; CSSOM is not.
+function indent(el, depth) { el.style.setProperty("--depth", depth); return el; }
+function fileRow(d, f, depth) {
+  const kind = fileKind(f.path);
+  const blocked = BLOCKED_EXT.has(extOf(f.path));
+  const acts = h("div", { class: "file-actions" },
+    kind === "video" || kind === "audio" ? h("button", { class: "btn icon", title: "Play", onclick: () => openPreview(d, f) }, icon("play")) : null,
+    kind === "image" || kind === "text" ? h("button", { class: "btn icon", title: "Quick look", onclick: () => openPreview(d, f) }, icon("eye")) : null,
+    f.progress >= 1 && !blocked ? h("button", { class: "btn icon", title: "Open", onclick: () => fileAction(d.hash, f.index, "open") }, icon("external")) : null,
+    f.completed > 0 ? h("button", { class: "btn icon", title: "Show in folder", onclick: () => fileAction(d.hash, f.index, "reveal") }, icon("folder")) : null);
+  return indent(h("div", { class: "file" + (f.priority === 0 ? " skip" : ""), role: "treeitem" },
+    h("div", { class: "fp", text: f.path.split("/").pop(), title: f.path }), acts,
+    prioSelect(f.priority, (v) => setPrio(d.hash, [f.index], v)),
+    h("div", { class: "fm", text: `${bytes(f.completed)} / ${bytes(f.size)} · ${pct(f.progress)}` }), progressBar(f.progress)), depth);
+}
 async function setPrio(hash, indices, priority) {
   try { await api(`/api/torrents/${hash}/files`, { method: "POST", body: { indices, priority } }); loadDetail(true); }
   catch (e) { fail(e); }
