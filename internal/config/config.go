@@ -130,6 +130,9 @@ type Settings struct {
 	// Web UI
 	WebHost string `json:"webHost"` // Defaults to 127.0.0.1 (local only).
 	WebPort int    `json:"webPort"`
+	// Show each peer's country (flag) in the Peers tab; downloads a small
+	// IP-to-country database the first time.
+	ShowPeerCountries bool `json:"showPeerCountries"`
 	// DLNA shares downloads with TVs and media players on the network
 	// (no password: everyone on the network can watch them).
 	DLNAEnabled bool   `json:"dlnaEnabled"`

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"math"
+	"net"
 	"slices"
 	"sort"
 	"time"
@@ -262,6 +263,7 @@ type PeerView struct {
 	DownRate int64   `json:"downRate"`
 	UpRate   int64   `json:"upRate"`
 	Incoming bool    `json:"incoming"`
+	Country  string  `json:"country,omitempty"` // ISO code, when peer countries are on
 }
 
 // Detail is the full view of one torrent.
@@ -369,6 +371,11 @@ func (e *Engine) Detail(hash string) (Detail, error) {
 		}
 		if v, ok := pc.PeerClientName.Load().(string); ok {
 			pv.Client = v
+		}
+		if fn := e.countryOf; fn != nil {
+			if host, _, err := net.SplitHostPort(pv.Addr); err == nil {
+				pv.Country = fn(net.ParseIP(host))
+			}
 		}
 		d.PeerList = append(d.PeerList, pv)
 	}

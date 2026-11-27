@@ -859,17 +859,24 @@ const TABS = {
     addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addPeer(); } });
     const head = h("div", { class: "row files-head" }, addInput,
       h("button", { class: "btn ghost sm", onclick: addPeer, disabled: d.state === "paused" }, icon("plus"), h("span", { text: "Add peer" })));
-    if (!d.peerList.length) return h("div", {}, head, h("p", { class: "muted", text: d.state === "paused" ? "Torrent is paused." : "No connected peers yet." }));
+    const geoNote = h("p", { class: "muted small", hidden: true });
+    if (state.settings && state.settings.showPeerCountries) {
+      api("/api/geoip").then((g) => {
+        if (g.downloading) { geoNote.textContent = "Downloading the country database…"; geoNote.hidden = false; }
+        else if (g.error) { geoNote.textContent = "Country lookup unavailable: " + g.error; geoNote.hidden = false; }
+      }).catch(() => {});
+    }
+    if (!d.peerList.length) return h("div", {}, head, geoNote, h("p", { class: "muted", text: d.state === "paused" ? "Torrent is paused." : "No connected peers yet." }));
     const ban = async (p) => {
       const ip = p.addr.replace(/^\[/, "").replace(/\]?:\d+$/, "");
       if (!confirm(`Ban ${ip}? Magnetar disconnects it and refuses it from now on.`)) return;
       try { await api("/api/peers/bans", { method: "POST", body: { ips: [ip] } }); toast("Peer banned"); loadDetail(true); }
       catch (e) { fail(e); }
     };
-    return h("div", {}, head, h("table", { class: "table" },
+    return h("div", {}, head, geoNote, h("table", { class: "table" },
       h("thead", {}, h("tr", {}, ["Address", "Client", "Progress", "Down", "Up", "Via", ""].map((x) => h("th", { text: x })))),
       h("tbody", {}, d.peerList.map((p) => h("tr", {},
-        h("td", { class: "mono", text: p.addr, title: p.addr + " (" + p.network + ")" }),
+        h("td", { class: "mono" }, p.country ? h("span", { class: "flag", title: p.country }, flagEmoji(p.country), " ") : null, h("span", { text: p.addr, title: p.addr + " (" + p.network + ")" })),
         h("td", { text: p.client || "–", title: p.client || "" }),
         h("td", { text: pct(p.progress) }),
         h("td", { text: rate(p.downRate) }),
@@ -905,6 +912,13 @@ const TABS = {
     );
   },
 };
+/* two-letter ISO country code -> flag emoji (no image assets). */
+function flagEmoji(cc) {
+  if (!cc || cc.length !== 2) return "";
+  const A = 0x1f1e6;
+  return String.fromCodePoint(A + cc.charCodeAt(0) - 65, A + cc.charCodeAt(1) - 65);
+}
+
 /* ---------- file types ---------- */
 const FILE_TYPES = {
   video: ["mkv", "mp4", "m4v", "avi", "mov", "wmv", "webm", "ts", "m2ts", "mpg", "mpeg", "flv", "ogv", "vob", "3gp"],

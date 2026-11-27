@@ -21,6 +21,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/engine"
 	"github.com/nikolap994/magnetar/internal/finish"
+	"github.com/nikolap994/magnetar/internal/geoip"
 	"github.com/nikolap994/magnetar/internal/rss"
 	"github.com/nikolap994/magnetar/internal/update"
 )
@@ -55,6 +56,7 @@ type Server struct {
 	httpsPort int
 	httpsFP   string
 	applied   func(config.Settings)
+	geo       *geoManager
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
 }
@@ -103,7 +105,9 @@ type Updater interface {
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
 		port: o.Port, shutdown: o.Shutdown, register: o.Register, firewall: o.Firewall, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint, applied: o.Applied}
+	s.geo = &geoManager{db: new(geoip.DB)}
 	s.routes()
+	go s.applyGeo(store.Get().ShowPeerCountries)
 	return s
 }
 
@@ -186,6 +190,7 @@ func (s *Server) routes() {
 	m.Handle("DELETE /api/preview/{hash}", s.authed(s.handlePreviewCancel))
 	m.Handle("POST /api/system/register", s.authed(s.handleRegister))
 	m.Handle("POST /api/system/firewall", s.authed(s.handleFirewall))
+	m.Handle("GET /api/geoip", s.authed(s.handleGeoIP))
 	m.Handle("POST /api/ui/open", s.authedOrLaunch(s.handleUIOpen))
 	m.Handle("GET /api/update", s.authed(s.handleUpdateStatus))
 	m.Handle("POST /api/update/check", s.authed(s.handleUpdateCheck))
@@ -727,6 +732,9 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if s.applied != nil {
 		s.applied(next)
+	}
+	if next.ShowPeerCountries != cur.ShowPeerCountries {
+		s.applyGeo(next.ShowPeerCountries)
 	}
 	restart := cur.WebHost != next.WebHost || cur.WebPort != next.WebPort
 	writeJSON(w, map[string]bool{"ok": true, "restartRequired": restart})

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"net"
 	"slices"
 	"sort"
 	"strings"
@@ -145,4 +146,12 @@ func (e *Engine) Finished(hash string) (name, savePath, category string, tags []
 		return "", "", "", nil, false
 	}
 	return m.rec.Name, m.rec.SavePath, m.rec.Category, slices.Clone(m.rec.Tags), true
+}
+
+// SetCountryLookup sets an optional function that maps a peer IP to its ISO
+// country code (used to show flags in the Peers tab); nil disables it.
+func (e *Engine) SetCountryLookup(fn func(ip net.IP) string) {
+	e.mu.Lock()
+	e.countryOf = fn
+	e.mu.Unlock()
 }
