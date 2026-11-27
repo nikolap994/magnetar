@@ -377,6 +377,8 @@ type AddOptions struct {
 	FilePriorities map[int]int
 	// Category to assign; its folder is used when SavePath is empty.
 	Category string
+	// Totals carried over from another client when importing.
+	Downloaded, Uploaded int64
 }
 
 // Add adds a torrent from a magnet link or .torrent file contents.
@@ -495,7 +497,8 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 			rec.FilePriorities[i] = p
 		}
 	}
-	m := &managed{hash: spec.InfoHash, rec: rec, checkExisting: true}
+	m := &managed{hash: spec.InfoHash, rec: rec, checkExisting: true,
+		baseDown: max(opts.Downloaded, 0), baseUp: max(opts.Uploaded, 0)}
 	e.torrents[hash] = m
 	e.order = append(e.order, hash)
 	if !opts.Paused && e.slotForNewLocked(m) {
