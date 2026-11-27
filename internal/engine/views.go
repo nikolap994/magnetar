@@ -148,8 +148,8 @@ type GlobalStats struct {
 	KillSwitch bool   `json:"killSwitch,omitempty"`
 	Proxy      string `json:"proxy,omitempty"` // "socks5" / "http" when a proxy is used
 	ProxyPeers bool   `json:"proxyPeers,omitempty"`
-	Version       string `json:"version"`
-	Online        bool   `json:"online"`
+	Version    string `json:"version"`
+	Online     bool   `json:"online"`
 	// Connection is "connectable", "firewalled", "offline", "vpn-down" or "checking".
 	Connection string `json:"connection"`
 	UPnP       bool   `json:"upnp"`
