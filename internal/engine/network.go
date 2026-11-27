@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"syscall"
 	"time"
 
 	"github.com/anacrolix/torrent"
@@ -186,6 +187,23 @@ func (e *Engine) checkInterfaceLocked(now time.Time) {
 	}
 }
 
+// refuseSpecialAddrs stops web requests from reaching link-local addresses
+// (including cloud metadata services such as 169.254.169.254), multicast and
+// unspecified addresses. Home-network and local services stay reachable,
+// since feeds and indexers often run there.
+func refuseSpecialAddrs(network, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		return err
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsInterfaceLocalMulticast() ||
+		ip.IsMulticast() || ip.IsUnspecified() {
+		return fmt.Errorf("connections to %s are not allowed", host)
+	}
+	return nil
+}
+
 // HTTPClient returns a client for Magnetar's own web requests (RSS feeds and
 // .torrent downloads) that follows the network settings: the proxy, and the
 // bound interface or address. While the kill switch is on it cannot connect.
@@ -193,7 +211,7 @@ func (e *Engine) HTTPClient() *http.Client {
 	e.mu.RLock()
 	s, ip, killed := e.settings, e.boundIP, e.killSwitch
 	e.mu.RUnlock()
-	d := &net.Dialer{Timeout: 30 * time.Second}
+	d := &net.Dialer{Timeout: 30 * time.Second, Control: refuseSpecialAddrs}
 	if ip != nil {
 		d.LocalAddr = &net.TCPAddr{IP: ip}
 	}

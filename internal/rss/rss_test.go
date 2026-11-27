@@ -113,3 +113,11 @@ func TestAutoDownloadSmartEpisodes(t *testing.T) {
 		t.Fatalf("matches %v", titles)
 	}
 }
+
+func TestFetchRefusesOddURLs(t *testing.T) {
+	for _, u := range []string{"file:///etc/passwd", "ftp://x/y", "http://user:pw@example.com/feed", "http://exa mple.com/", "javascript:alert(1)", "http://"} {
+		if _, err := Fetch(context.Background(), http.DefaultClient, u, 10); err == nil {
+			t.Errorf("%q accepted", u)
+		}
+	}
+}

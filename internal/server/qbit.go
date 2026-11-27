@@ -14,6 +14,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/auth"
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/engine"
+	"github.com/nikolap994/magnetar/internal/logsafe"
 	"github.com/nikolap994/magnetar/internal/rss"
 )
 
@@ -45,7 +46,8 @@ func (s *Server) handleQbit(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, engine.MaxTorrentFileSize*8)
 	switch path {
 	case "auth/logout":
-		http.SetCookie(w, &http.Cookie{Name: qbitCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteStrictMode})
+		http.SetCookie(w, &http.Cookie{Name: qbitCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true,
+			SameSite: http.SameSiteStrictMode, Secure: r.TLS != nil})
 		qbitOK(w)
 	case "app/version":
 		io.WriteString(w, qbitAppVersion)
@@ -423,7 +425,7 @@ func (s *Server) qbitAdd(w http.ResponseWriter, r *http.Request, st config.Setti
 	for _, o := range adds {
 		if _, err := s.eng.Add(o); err != nil && !errors.Is(err, engine.ErrExists) {
 			failed++
-			s.log.Warn("add from external app", "err", err)
+			s.log.Warn("add from external app", "err", logsafe.Err(err))
 		}
 	}
 	if failed == len(adds) {

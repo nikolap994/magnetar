@@ -20,6 +20,7 @@ import (
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/engine"
 	"github.com/nikolap994/magnetar/internal/fsutil"
+	"github.com/nikolap994/magnetar/internal/logsafe"
 )
 
 const (
@@ -337,7 +338,7 @@ func (m *Manager) refresh(ctx context.Context, id string, force bool) {
 		m.saveLocked()
 		m.mu.Unlock()
 		if err != nil {
-			m.log.Warn("RSS feed", "url", f.URL, "err", err)
+			m.log.Warn("RSS feed", "url", logsafe.String(f.URL), "err", logsafe.Err(err))
 		}
 	}
 	m.apply(ctx)
@@ -388,10 +389,10 @@ func (m *Manager) apply(ctx context.Context) {
 	for _, j := range jobs {
 		err := m.add(ctx, j.item, j.rule)
 		if err != nil && !errors.Is(err, engine.ErrExists) {
-			m.log.Warn("RSS download", "title", j.item.Title, "err", err)
+			m.log.Warn("RSS download", "title", logsafe.String(j.item.Title), "err", logsafe.Err(err))
 			continue // try again on the next refresh
 		}
-		m.log.Info("RSS download", "rule", j.rule.Name, "title", j.item.Title)
+		m.log.Info("RSS download", "rule", logsafe.String(j.rule.Name), "title", logsafe.String(j.item.Title))
 		m.mu.Lock()
 		m.st.Seen[j.feedID+"\x00"+j.item.Key] = time.Now().UTC()
 		if j.ep != "" {

@@ -28,6 +28,7 @@ import (
 
 	"github.com/nikolap994/magnetar/internal/config"
 	"github.com/nikolap994/magnetar/internal/fsutil"
+	"github.com/nikolap994/magnetar/internal/logsafe"
 )
 
 // Version is the application version, overridden at build time.
@@ -247,7 +248,7 @@ func (e *Engine) newClient(s config.Settings) (*torrent.Client, error) {
 	// over another interface.
 	ip, killed, err := bindIP(s)
 	if err != nil {
-		e.log.Warn("network binding", "err", err)
+		e.log.Warn("network binding", "err", logsafe.Err(err))
 	}
 	e.boundIP, e.killSwitch = ip, killed
 	if ip != nil {
@@ -1328,13 +1329,4 @@ func (e *Engine) WriteStatus(w io.Writer) {
 
 // logSafe removes line breaks and other control characters from untrusted
 // text (torrent names come from metadata) before it is written to the log.
-func logSafe(s string) string {
-	s = strings.ReplaceAll(s, "\n", " ")
-	s = strings.ReplaceAll(s, "\r", " ")
-	return strings.Map(func(r rune) rune {
-		if r < 32 || r == 127 {
-			return -1
-		}
-		return r
-	}, s)
-}
+func logSafe(s string) string { return logsafe.String(s) }

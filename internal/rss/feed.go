@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -166,11 +167,19 @@ func parseTime(s string) time.Time {
 	return time.Time{}
 }
 
+// webURL accepts plain http(s) addresses: a host name or IP address, an
+// optional port and a path, without user credentials or odd characters.
+var webURL = regexp.MustCompile(`^https?://(\[[0-9a-fA-F:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)(:[0-9]{1,5})?(/[^\s]*)?$`)
+
 // Fetch downloads a URL (feed or .torrent file) with a size limit. Only
-// http and https are allowed.
+// http and https are allowed, and the client refuses link-local addresses
+// such as cloud metadata services.
 func Fetch(ctx context.Context, client *http.Client, rawURL string, limit int64) ([]byte, error) {
+	if len(rawURL) > 4096 || !webURL.MatchString(rawURL) {
+		return nil, errors.New("only http and https links are supported")
+	}
 	u, err := url.Parse(rawURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+	if err != nil || u.Host == "" {
 		return nil, errors.New("only http and https links are supported")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)

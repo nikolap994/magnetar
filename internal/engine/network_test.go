@@ -46,3 +46,16 @@ func TestApplyProxyPeersDisablesUDP(t *testing.T) {
 		t.Fatal("no peer dialer without ProxyPeers")
 	}
 }
+
+func TestHTTPClientRefusesLinkLocal(t *testing.T) {
+	for _, addr := range []string{"169.254.169.254:80", "[fe80::1]:80", "224.0.0.1:80", "0.0.0.0:80"} {
+		if err := refuseSpecialAddrs("tcp", addr, nil); err == nil {
+			t.Errorf("%s allowed", addr)
+		}
+	}
+	for _, addr := range []string{"127.0.0.1:9117", "192.168.1.10:8080", "93.184.216.34:443"} {
+		if err := refuseSpecialAddrs("tcp", addr, nil); err != nil {
+			t.Errorf("%s refused: %v", addr, err)
+		}
+	}
+}
