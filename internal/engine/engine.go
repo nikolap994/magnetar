@@ -174,6 +174,13 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 	for _, r := range recs {
 		h := metainfo.NewHashFromHex(r.InfoHash)
 		m := &managed{hash: h, rec: r, baseDown: r.Downloaded, baseUp: r.Uploaded}
+		if r.Size == 0 {
+			if mi, err := metainfo.LoadFromFile(e.metainfoPath(r.InfoHash)); err == nil {
+				if info, err := mi.UnmarshalInfo(); err == nil {
+					r.Size = info.TotalLength()
+				}
+			}
+		}
 		e.torrents[r.InfoHash] = m
 		e.order = append(e.order, r.InfoHash)
 	}
@@ -483,9 +490,11 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 		}
 	}
 	name := spec.DisplayName
+	var size int64 // known up front for .torrent files, so paused torrents show it
 	if mi != nil {
 		if info, err := mi.UnmarshalInfo(); err == nil {
 			name = info.BestName()
+			size = info.TotalLength()
 		}
 	}
 	if name == "" {
@@ -494,6 +503,7 @@ func (e *Engine) Add(opts AddOptions) (string, error) {
 	rec := &record{
 		InfoHash:   hash,
 		Name:       name,
+		Size:       size,
 		Magnet:     opts.Magnet,
 		SavePath:   savePath,
 		Paused:     opts.Paused,

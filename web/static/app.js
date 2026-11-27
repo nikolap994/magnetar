@@ -2255,6 +2255,16 @@ function showStopped() {
 }
 $("#btn-theme").addEventListener("click", () => applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light"));
 
+// Compact list: more torrents on screen, one line each.
+function applyDensity(compact) {
+  document.documentElement.classList.toggle("compact", compact);
+  $("#btn-density").setAttribute("aria-pressed", String(compact));
+  $("#btn-density").title = compact ? "Comfortable list" : "Compact list";
+  localStorage.setItem("mg.compact", compact ? "1" : "0");
+}
+applyDensity(localStorage.getItem("mg.compact") === "1");
+$("#btn-density").addEventListener("click", () => applyDensity(!document.documentElement.classList.contains("compact")));
+
 /* ---------- keyboard ---------- */
 document.addEventListener("keydown", (e) => {
   const tag = (e.target.tagName || "").toLowerCase();

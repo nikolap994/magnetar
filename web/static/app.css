@@ -326,7 +326,7 @@ h4.sub em { text-transform: none; letter-spacing: 0; font-style: normal; }
 .file.dir .fp { font-weight: 600; }
 .file.skip.dir .fp { text-decoration: none; }
 .fold { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; }
-.fold svg { width: 15px; height: 15px; color: var(--accent); flex: none; }
+.fold svg { width: 15px; height: 15px; color: #fbbf24; flex: none; }
 .fold .muted { font-weight: 400; font-size: 12px; }
 .fold:focus-visible { outline: 2px solid var(--accent); border-radius: 4px; }
 .chev { display: inline-block; width: 12px; text-align: center; transition: transform .15s; color: var(--muted); }
@@ -527,6 +527,17 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .dialog.link-mode #add-magnets-field, .dialog.link-mode #dropzone { display: none; }
 .dialog.link-mode.show-link #add-magnets-field { display: flex; }
+
+/* Compact list */
+.compact .row-t { height: 38px; margin: 0 10px; border-radius: 6px; }
+.compact .t-name { display: flex; align-items: center; gap: 10px; }
+.compact .t-name .n { flex: 1; min-width: 0; }
+.compact .t-name .s { margin: 0; flex: none; }
+.compact .t-name .s > span:last-child { display: none; }
+.compact .progress { flex-direction: row; align-items: center; gap: 8px; }
+.compact .progress .bar { flex: 1; height: 5px; }
+.compact .progress .pct { font-size: 11.5px; min-width: 44px; text-align: right; }
+#btn-density[aria-pressed="true"] { color: var(--accent); }
 
 /* File type icons */
 .ft { width: 16px; height: 16px; flex: none; color: var(--muted); }
