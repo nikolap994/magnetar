@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -236,6 +237,23 @@ func run() error {
 	errc := make(chan error, 1)
 	go func() { errc <- srv.Serve(ctx, ln) }()
 
+	// macOS delivers clicked magnet links and opened .torrent files as
+	// events to the running app (nothing arrives elsewhere).
+	desktop.InstallOpenHandlers()
+	go func() {
+		for req := range desktop.OpenRequests() {
+			if store.Get().ShowAddDialog && !*headless {
+				if target := previewArg(eng, req); target != "" {
+					a.showUI(srv, eng, target)
+					continue
+				}
+			}
+			if err := addArg(eng, req); err != nil && !errors.Is(err, engine.ErrExists) {
+				logger.Warn("could not add", "err", err)
+			}
+		}
+	}()
+
 	if !*headless {
 		go desktopFeedback(ctx, eng, store)
 	}
@@ -266,7 +284,8 @@ func run() error {
 		}
 	}
 
-	if settings.TrayIcon && !*headless {
+	// On macOS the menu bar icon also runs the app's event loop.
+	if (settings.TrayIcon || runtime.GOOS == "darwin") && !*headless {
 		go func() {
 			select {
 			case <-ctx.Done():

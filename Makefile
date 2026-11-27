@@ -99,7 +99,7 @@ source-archive: ## Source tarball with vendored Go modules (offline builds, e.g.
 
 checksums:
 	@rm -rf dist/bin
-	@cd dist && sha256sum *.deb *.tar.gz *.zip *_setup.exe > SHA256SUMS
+	@cd dist && sha256sum *.deb *.tar.gz *.zip *_setup.exe $$(ls *.dmg 2>/dev/null) > SHA256SUMS
 
 sign-checksums: ## Sign dist/SHA256SUMS for the updater (needs MAGNETAR_UPDATE_KEY)
 	go run ./tools/signsums sign dist/SHA256SUMS

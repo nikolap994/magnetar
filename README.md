@@ -6,7 +6,7 @@
 
 **A fast, secure, open-source BitTorrent client with a modern interface.**
 
-Windows installer · Ubuntu/Debian package · No ads · No telemetry
+Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 
 [![CI](https://github.com/nikolap994/magnetar/actions/workflows/ci.yml/badge.svg)](https://github.com/nikolap994/magnetar/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/nikolap994/magnetar/actions/workflows/codeql.yml/badge.svg)](https://github.com/nikolap994/magnetar/actions/workflows/codeql.yml)
@@ -83,6 +83,15 @@ A portable `.zip` is also available (run `magnetar.exe register` once to handle 
 
 > Windows SmartScreen may show *"Windows protected your PC"* for new releases. Click **More info → Run anyway**,
 > or [verify the download](#verify-your-download) first.
+
+### macOS 11 or newer (Apple silicon and Intel)
+1. Open **`magnetar_<version>_macos_universal.dmg`** and drag **Magnetar** to **Applications**.
+2. The first time, right-click Magnetar in Applications and choose **Open** (or allow it in
+   **System Settings → Privacy & Security**), because it is not distributed through the App Store.
+3. Magnetar lives in the menu bar. To open magnet links with it, run `/Applications/Magnetar.app/Contents/MacOS/magnetar register`
+   once, or choose Magnetar when macOS asks.
+
+For the app-window experience install Chrome, Edge or Chromium; otherwise Magnetar opens in your default browser.
 
 ### Ubuntu / Debian / Linux Mint / Pop!_OS
 ```sh
