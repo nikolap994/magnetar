@@ -15,6 +15,7 @@ type dirListing struct {
 	Path   string   `json:"path"`
 	Parent string   `json:"parent"`
 	Dirs   []string `json:"dirs"`
+	Files  []string `json:"files,omitempty"` // with ?files=1 (choosing what to share)
 	Roots  []string `json:"roots"`
 	Sep    string   `json:"sep"`
 }
@@ -40,6 +41,7 @@ func (s *Server) handleDirs(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
+	withFiles := r.URL.Query().Get("files") == "1"
 	out := dirListing{Path: p, Dirs: []string{}, Roots: roots(), Sep: string(filepath.Separator)}
 	if parent := filepath.Dir(p); parent != p {
 		out.Parent = parent
@@ -59,12 +61,15 @@ func (s *Server) handleDirs(w http.ResponseWriter, r *http.Request) {
 		}
 		if isDir {
 			out.Dirs = append(out.Dirs, name)
+		} else if withFiles && e.Type().IsRegular() && len(out.Files) < 2000 {
+			out.Files = append(out.Files, name)
 		}
 		if len(out.Dirs) >= 2000 {
 			break
 		}
 	}
 	sort.Slice(out.Dirs, func(i, j int) bool { return strings.ToLower(out.Dirs[i]) < strings.ToLower(out.Dirs[j]) })
+	sort.Slice(out.Files, func(i, j int) bool { return strings.ToLower(out.Files[i]) < strings.ToLower(out.Files[j]) })
 	writeJSON(w, out)
 }
 

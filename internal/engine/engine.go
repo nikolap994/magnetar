@@ -65,6 +65,7 @@ type Engine struct {
 	boundIP          net.IP    // address peer traffic is bound to, nil = all
 	killSwitch       bool      // bound interface is down; traffic is stopped
 	lastIfCheck      time.Time // last lookup of the bound interface
+	creates          createJobs
 
 	// Speed schedule: last schedule state applied, to act only on boundaries.
 	schedKnown, schedLast bool
