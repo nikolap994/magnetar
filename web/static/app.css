@@ -49,6 +49,7 @@
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
+body { overflow-x: hidden; } /* never let a stray wide element shrink the whole page to a slice on phones */
 body {
   background: var(--bg);
   color: var(--text);
@@ -181,7 +182,7 @@ h4.sub em { text-transform: none; letter-spacing: 0; font-style: normal; }
   color: var(--muted);
 }
 .search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.search input { all: unset; flex: 1; color: var(--text); }
+.search input { all: unset; flex: 1; min-width: 0; color: var(--text); }
 .bulk { display: flex; align-items: center; gap: 4px; padding-left: 8px; }
 .bulk span { color: var(--muted); font-size: 13px; margin-right: 6px; }
 
@@ -773,7 +774,7 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
   .detail { position: fixed; inset: 0 0 0 auto; width: min(520px, 100vw); z-index: 40; box-shadow: var(--shadow); }
   .list-head, .row-t { grid-template-columns: 28px 1fr 120px 76px; }
   .list-head .size, .list-head .rate, .list-head .eta, .row-t .c-size, .row-t .c-rate, .row-t .c-eta { display: none; }
-  .search { width: auto; flex: 1; }
+  .search { width: auto; flex: 1; min-width: 0; }
   .btn.primary span { display: none; }
 }
 .narrow-only, .mobile-bar { display: none; }
@@ -789,6 +790,7 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
   .narrow-only { display: inline-flex; }
   .toolbar { gap: 6px; padding: 10px 10px; }
   .update-pill { gap: 5px; padding: 0 9px; font-size: 12px; }
+  .update-pill span { display: none; }
   .list-head { display: none; }
   .row-t {
     display: grid; height: auto; margin: 4px 8px; padding: 10px 6px 10px 10px; row-gap: 6px;
