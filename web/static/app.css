@@ -665,6 +665,8 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 .remote-https { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .fw-hint { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .fw-hint p { margin: 0 0 8px; }
+.fw-step { margin: 12px 0; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); border: 1px solid var(--accent); }
+.fw-step p { margin: 0 0 10px; font-size: 13.5px; }
 .fingerprint { display: block; font-size: 11px; word-break: break-all; background: var(--panel-2); padding: 8px 10px; border-radius: 8px; margin-top: 6px; }
 
 /* Import */
@@ -723,7 +725,11 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 
 /* Player and quick look */
 .dialog.player { width: min(1100px, 96vw); }
-.player-stage { background: #000; border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; min-height: 200px; max-height: 70vh; }
+.player-stage { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; min-height: 200px; max-height: 70vh; }
+.pl-buffering { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(0, 0, 0, .5); color: #fff; font-size: 14px; pointer-events: none; }
+.pl-buffering[hidden] { display: none; }
+.pl-spinner { width: 42px; height: 42px; border: 3px solid rgba(255, 255, 255, .25); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .player-stage video { width: 100%; max-height: 70vh; display: block; background: #000; }
 .player-stage audio { width: 100%; padding: 40px 24px; }
 .player-stage img { max-width: 100%; max-height: 70vh; display: block; }

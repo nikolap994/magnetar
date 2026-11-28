@@ -49,8 +49,9 @@ func (e *Engine) OpenFile(ctx context.Context, hash string, index int) (*FileStr
 	f := files[index]
 	r := f.NewReader()
 	r.SetContext(ctx)
-	// Read ahead about one percent of the file, between 2 and 32 MiB, so playback stays smooth.
-	r.SetReadahead(min(max(f.Length()/100, 2<<20), 32<<20))
+	// Read well ahead of the play position so streaming a partly-downloaded
+	// video keeps a healthy buffer: about 3% of the file, 8-96 MiB.
+	r.SetReadahead(min(max(f.Length()/32, 8<<20), 96<<20))
 	return &FileStream{Reader: r, Name: path.Base(f.DisplayPath()), Length: f.Length()}, nil
 }
 

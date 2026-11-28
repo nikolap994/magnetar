@@ -1790,6 +1790,18 @@ function stopPlayer() {
   if (el) { el.pause(); el.removeAttribute("src"); el.load(); }
   $("#pl-stage").replaceChildren();
 }
+// streamBufferingOverlay shows "Buffering…" when playback outruns the download,
+// so a partly-downloaded video reads as streaming, not frozen.
+function streamBufferingOverlay(el) {
+  const overlay = h("div", { class: "pl-buffering" }, h("div", { class: "pl-spinner" }), h("div", { text: "Buffering…" }));
+  overlay.hidden = true;
+  let t = null;
+  const show = () => { clearTimeout(t); t = setTimeout(() => { overlay.hidden = false; }, 250); };
+  const hide = () => { clearTimeout(t); overlay.hidden = true; };
+  for (const ev of ["waiting", "stalled", "seeking"]) el.addEventListener(ev, show);
+  for (const ev of ["playing", "canplay", "seeked"]) el.addEventListener(ev, hide);
+  return overlay;
+}
 function playerMessage(text) {
   $("#pl-stage").replaceChildren(h("div", { class: "player-msg", text }));
 }
@@ -1822,8 +1834,8 @@ function openPreview(d, f) {
       "This file can't be played inside Magnetar (its format or codec isn't supported by the built-in player)." +
       (f.progress < 1 ? " Wait until it finishes, then open it in your system player." : " Open it in your system player instead.")));
     el.src = src;
-    $("#pl-stage").replaceChildren(el);
-    $("#pl-status").textContent = f.progress < 1 ? `Streaming while downloading - ${pct(f.progress)} of this file is ready; playing fetches the next parts first.` : "";
+    $("#pl-stage").replaceChildren(el, ...(f.progress < 1 ? [streamBufferingOverlay(el)] : []));
+    $("#pl-status").textContent = f.progress < 1 ? `Streaming while downloading - ${pct(f.progress)} of this file is ready; the next parts download as you watch.` : "";
   } else if (kind === "image") {
     const img = h("img", { alt: f.path });
     img.addEventListener("error", () => playerMessage("The image is not ready yet."));
@@ -1965,13 +1977,6 @@ async function renderRemote() {
   let rs;
   try { rs = await api("/api/remote"); } catch (e) { box.replaceChildren(h("p", { class: "error", text: e.message })); return; }
   const kids = [];
-  const firewallBtn = () => rs.canFirewall ? h("div", { class: "fw-hint" },
-    h("p", { class: "muted small", text: "Can't connect from another device, or downloads find no peers? Allow Magnetar through Windows Defender Firewall (one approval)." }),
-    h("button", { type: "button", class: "btn ghost sm", onclick: async (e) => {
-      e.currentTarget.disabled = true;
-      try { await api("/api/system/firewall", { method: "POST" }); toast("Magnetar is now allowed through the firewall"); }
-      catch (err) { fail(err); } finally { e.currentTarget.disabled = false; }
-    } }, h("span", { text: "Allow through Windows Firewall" }))) : null;
   if (!rs.enabled) {
     kids.push(h("ol", { class: "remote-steps" },
       h("li", { class: rs.passwordSet ? "done" : "", text: "Set a password below, so only you can get in." }),
@@ -1981,7 +1986,18 @@ async function renderRemote() {
       h("span", { text: "Turn on phone access" })));
     if (!rs.passwordSet) kids.push(h("p", { class: "muted small", text: "Set a password first (see Password below)." }));
   } else {
-    kids.push(h("p", { class: "muted small", text: "Only use this on networks you trust, such as your home Wi-Fi. Your computer's firewall may ask to allow Magnetar the first time." }));
+    kids.push(h("p", { class: "muted small", text: "Only use this on networks you trust, such as your home Wi-Fi." }));
+    // On Windows the firewall blocks other devices until Magnetar is allowed, so
+    // make this a clear first step rather than a buried hint.
+    if (rs.canFirewall) {
+      kids.push(h("div", { class: "fw-step" },
+        h("p", { text: "Phones can't connect until Magnetar is allowed through Windows Firewall — one approval." }),
+        h("button", { type: "button", class: "btn primary sm", onclick: async (e) => {
+          e.currentTarget.disabled = true;
+          try { await api("/api/system/firewall", { method: "POST" }); toast("Allowed through the firewall — your phone can connect now"); }
+          catch (err) { fail(err); } finally { e.currentTarget.disabled = false; }
+        } }, h("span", { text: "Allow through Windows Firewall" }))));
+    }
     if (rs.restartRequired) {
       kids.push(h("p", { class: "notice", text: "Restart Magnetar to start accepting connections from your phone." }),
         rs.canRestart ? h("button", { type: "button", class: "btn primary", onclick: () => setRemote(true) }, h("span", { text: "Restart now" })) : null);
@@ -1996,7 +2012,6 @@ async function renderRemote() {
       kids.push(h("p", { class: "muted small", text: "The first time, your phone warns that the certificate is not trusted, because Magnetar made it itself. Check that the fingerprint matches, then continue:" }),
         h("code", { class: "fingerprint", text: rs.fingerprint }));
     }
-    kids.push(firewallBtn());
     kids.push(h("div", { class: "row" }, h("button", { type: "button", class: "btn ghost", onclick: () => setRemote(false) }, h("span", { text: "Turn off phone access" }))));
   }
   box.replaceChildren(...kids.filter(Boolean));
