@@ -103,6 +103,7 @@ func RunWebView2Window(target, profileDir, size string) error {
 		DataPath: dataPath,
 		WindowOptions: webview2.WindowOptions{
 			Title:  "Magnetar",
+			IconId: 1,
 			Width:  uint(width),
 			Height: uint(height),
 			Center: true,

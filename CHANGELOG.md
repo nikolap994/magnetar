@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- The Windows WebView2 app window now uses Magnetar's icon in its title bar.
+
 ## [0.7.4] - 2026-11-28
 
 ### Performance
