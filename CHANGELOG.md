@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.9] - 2026-11-28
+
+### Added
+- Streaming a video while it downloads now keeps a larger buffer and shows a "Buffering…" overlay when playback
+  catches up to the download, so watching a partly-finished file feels like streaming rather than a frozen player.
+
+### Changed
+- Phone access now shows allowing Magnetar through Windows Firewall as a clear first step. Phones cannot connect
+  until it is allowed, so this is no longer a hint buried below the QR code.
+
 ## [0.7.8] - 2026-11-28
 
 ### Performance
