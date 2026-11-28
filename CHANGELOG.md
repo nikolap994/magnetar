@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-28
+
+### Fixed
+- Large multi-file torrents (big game repacks and similar) could stall at 0 bytes on Windows and never start
+  downloading. They now download normally.
+
+### Changed
+- New public torrents get a set of well-known public trackers by default, both while adding and after, so magnets
+  whose own trackers are dead or few still find peers quickly instead of waiting on the DHT alone.
+- Settings save as you change them: the Save and Cancel buttons are gone, replaced by a Done button, a saved
+  indicator, and a "Reset to defaults" option.
+- The details panel is wider, so the Peers tab fits without a horizontal scrollbar.
+
 ## [0.6.0] - 2026-11-27
 
 ### Added
