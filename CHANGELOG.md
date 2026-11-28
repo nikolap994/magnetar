@@ -5,6 +5,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.8] - 2026-11-28
+
+### Performance
+- Pausing, resuming and removing torrents now update the list instantly instead of waiting for the next refresh.
+- Deleting a torrent's data no longer freezes the app; the files are erased in the background while everything else
+  stays responsive.
+- Magnetar holds less data in memory while downloading, so it stays lighter on 4-8 GB machines without losing speed.
+
+### Changed
+- Quitting closes the window right away and finishes saving behind it, so exiting feels instant.
+
 ## [0.7.7] - 2026-11-28
 
 ### Changed

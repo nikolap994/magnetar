@@ -43,6 +43,9 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
+    <release version="0.7.8" date="2026-11-28">
+      <description><p>Snappier pause, resume and remove, background data deletion that no longer freezes the app, a lighter memory footprint while downloading, and an instant-feeling quit.</p></description>
+    </release>
     <release version="0.7.7" date="2026-11-28">
       <description><p>A comparable DHT peer count with a warm restart, a more native-feeling Windows window, and a faster start when the listening port is busy.</p></description>
     </release>
