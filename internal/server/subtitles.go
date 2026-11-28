@@ -21,6 +21,8 @@ import (
 var (
 	hashRe    = regexp.MustCompile(`^[0-9a-f]{40}$`)
 	subNameRe = regexp.MustCompile(`^[a-z-]{1,20}-[0-9]{1,12}\.srt$`)
+	// A subtitle language code such as "en" or "pt-BR" (or none).
+	subLangRe = regexp.MustCompile(`^([A-Za-z]{2,3}(-[A-Za-z]{2,4})?)?$`)
 )
 
 // subDir is where downloaded subtitles for one file are kept (never inside
@@ -108,6 +110,11 @@ func (s *Server) handleSubDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := readJSON(r, &req); err != nil || req.FileID <= 0 {
 		writeErr(w, http.StatusBadRequest, errors.New("choose a subtitle"))
+		return
+	}
+	// The language becomes part of the saved file's name.
+	if !subLangRe.MatchString(req.Language) {
+		writeErr(w, http.StatusBadRequest, errors.New("unknown subtitle language"))
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)

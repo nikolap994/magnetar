@@ -21,7 +21,7 @@ type geoManager struct {
 // it loads the cached database at once and downloads a fresh one in the
 // background if it is missing or old.
 func (s *Server) applyGeo(enabled bool) {
-	if s.geo == nil || s.dataDir == "" {
+	if s.geo == nil || s.dataDir == "" || s.eng == nil {
 		return
 	}
 	g := s.geo

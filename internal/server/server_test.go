@@ -179,3 +179,30 @@ func TestCommandOnlyFromThisComputer(t *testing.T) {
 		t.Fatalf("from the network: %d, want 403", code)
 	}
 }
+
+func TestSubtitleLanguageMustBeACode(t *testing.T) {
+	dir := t.TempDir()
+	store, err := config.Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := auth.LoadKeyring(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := New(nil, store, keys, fstest.MapFS{}, slog.New(slog.DiscardHandler), Options{Port: 8899, Shutdown: func() {}, DataDir: dir})
+	cookie := do(s, "GET", "/auth/launch?token="+keys.NewLaunchToken(), nil).Result().Cookies()[0]
+	for _, lang := range []string{"../../evil", "en/../../x", `..\\x`, "english-language-name"} {
+		req := httptest.NewRequest("POST", "/api/torrents/"+strings.Repeat("a", 40)+"/files/0/subtitles",
+			strings.NewReader(`{"fileId":1,"language":"`+lang+`"}`))
+		req.Host = "127.0.0.1:8899"
+		req.Header.Set("X-Magnetar-Request", "1")
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(cookie)
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, req)
+		if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "language") {
+			t.Errorf("language %q: got %d %s, want 400 unknown subtitle language", lang, w.Code, w.Body.String())
+		}
+	}
+}
