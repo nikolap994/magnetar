@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.7] - 2026-11-28
+
+### Changed
+- The DHT peer count now reflects the whole routing table, so it is comparable to other clients and shows a full
+  count right away on a restart from the nodes Magnetar remembered.
+- The Windows app window feels more native: thinner scrollbars, the toolbar, sidebar and tabs are no longer
+  text-selectable, and the window no longer zooms with Ctrl+scroll or Ctrl+plus/minus.
+
+### Fixed
+- When the chosen listening port is already in use, Magnetar now falls back to a random port after a brief wait
+  instead of taking about three seconds to start.
+
 ## [0.7.6] - 2026-11-28
 
 ### Changed
