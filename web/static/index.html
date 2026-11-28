@@ -127,7 +127,7 @@
           <button class="btn ghost danger" data-bulk="remove" title="Remove"><svg><use href="#i-trash"/></svg></button>
         </div>
         <div class="spacer"></div>
-        <button class="update-pill" id="update-pill" hidden><svg><use href="#i-update"/></svg><span></span></button>
+        <button class="update-pill" id="update-pill" type="button" aria-label="Check for updates" title="Check for updates"><svg><use href="#i-update"/></svg><span>Check updates</span></button>
         <button class="btn icon" id="btn-search" title="Search torrents"><svg><use href="#i-globe"/></svg></button>
         <button class="btn icon wide-only" id="btn-create" title="Create torrent"><svg><use href="#i-plus-file"/></svg></button>
         <button class="btn icon wide-only" id="btn-rss" title="RSS feeds"><svg><use href="#i-rss"/></svg></button>
@@ -502,9 +502,9 @@
             <label class="switch"><input type="checkbox" id="clip-watch"><span></span>Offer to add magnet links I copy (checked when this window comes to the front)</label>
             <div class="card">
               <h3>Magnet links &amp; .torrent files</h3>
-              <p class="muted">Make Magnetar open magnet links clicked in any browser, and .torrent files.</p>
+              <p class="muted">Register Magnetar to open magnet links and .torrent files system-wide. Windows requires you to confirm protected defaults: choose Magnetar → Set default in Default Apps. If .torrent files still open with qBittorrent, set the .torrent file type to Magnetar there.</p>
               <div class="row">
-                <button type="button" class="btn primary" id="btn-register">Make Magnetar the default</button>
+                <button type="button" class="btn primary" id="btn-register">Register system-wide</button>
                 <button type="button" class="btn ghost" id="btn-handler">Only this browser</button>
               </div>
             </div>
@@ -557,14 +557,16 @@
                 <a class="btn ghost" href="https://github.com/nikolap994/magnetar/issues/new/choose" target="_blank" rel="noopener noreferrer"><svg><use href="#i-alert"/></svg><span>Report an issue</span></a>
               </div>
               <p class="muted small">MIT License · Contributions welcome</p>
-              <div class="card">
+              <div class="card backup-card">
                 <h3>Backup</h3>
-                <p class="muted">One file with your settings, torrent list, RSS rules, statistics and banned peers - for a new computer or just in case. Downloaded files are not included. The backup contains saved passwords and tokens, so keep it private.</p>
-                <div class="row">
-                  <a class="btn ghost" id="btn-backup" href="/api/backup" download><svg><use href="#i-down"/></svg><span>Download backup</span></a>
-                  <label class="btn ghost" for="restore-file"><svg><use href="#i-up"/></svg><span>Restore from backup…</span></label>
+                <p class="muted">Move your settings, torrent list, RSS rules, statistics, and banned peers to a new computer. Downloaded files are not included.</p>
+                <p class="backup-warning"><svg><use href="#i-shield"/></svg><span>Backups contain saved passwords and tokens. Keep the file private.</span></p>
+                <div class="backup-actions">
+                  <a class="btn primary" id="btn-backup" href="/api/backup" download><svg><use href="#i-down"/></svg><span>Download backup</span></a>
+                  <button type="button" class="btn ghost" id="btn-restore"><svg><use href="#i-up"/></svg><span>Restore backup</span></button>
                   <input type="file" id="restore-file" accept=".zip,application/zip" hidden>
                 </div>
+                <p class="muted small backup-restore-note">Restoring replaces your settings and torrent list. Downloaded files stay untouched.</p>
               </div>
               <div class="card update-card">
                 <h3>Updates</h3>
@@ -874,23 +876,6 @@
       <footer>
         <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
         <button class="btn primary" value="ok">Apply</button>
-      </footer>
-    </form>
-  </dialog>
-
-  <!-- Update -->
-  <dialog id="dlg-update" class="dialog">
-    <form method="dialog" id="update-form">
-      <header><h2 id="upd-title">Update available</h2><button class="btn icon" value="cancel" formnovalidate><svg><use href="#i-x"/></svg></button></header>
-      <p class="muted" id="upd-sub"></p>
-      <pre class="release-notes" id="upd-notes"></pre>
-      <p class="muted small" id="upd-hint"></p>
-      <footer>
-        <span id="upd-err" class="error"></span>
-        <a class="btn ghost" id="upd-link" target="_blank" rel="noopener noreferrer">Release page</a>
-        <button type="button" class="btn ghost" id="upd-skip" title="Hide update offers for a week">Pause for a week</button>
-        <button class="btn ghost" value="cancel" formnovalidate>Later</button>
-        <button class="btn primary" id="upd-install" value="install"><svg><use href="#i-update"/></svg><span>Install &amp; restart</span></button>
       </footer>
     </form>
   </dialog>

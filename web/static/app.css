@@ -405,6 +405,17 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .about-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 12px; }
 .about-links .btn { text-decoration: none; }
 .about .small { font-size: 12px; margin-bottom: 18px; }
+.about .backup-card { text-align: left; gap: 12px; }
+.backup-card > p { line-height: 1.5; }
+.backup-warning {
+  display: flex; align-items: flex-start; gap: 9px;
+  padding: 10px 12px; border-radius: 9px; background: var(--panel-2);
+  color: var(--muted); font-size: 12.5px;
+}
+.backup-warning svg { width: 16px; height: 16px; flex: none; color: var(--amber); }
+.backup-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.backup-actions .btn { width: 100%; }
+.about .backup-card .backup-restore-note { margin: 0; }
 
 /* Login */
 .login { position: fixed; inset: 0; display: grid; place-items: center;
@@ -723,19 +734,15 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 
 /* Updates */
 .update-pill {
-  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; white-space: nowrap;
   height: 34px; padding: 0 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
   color: #fff; background: linear-gradient(135deg, #22c55e, #06b6d4);
   box-shadow: 0 6px 18px -8px rgba(34, 197, 94, .8);
 }
 .update-pill:hover { filter: brightness(1.08); }
 .update-pill.busy { background: var(--panel-2); color: var(--muted); box-shadow: none; cursor: default; }
+.update-pill:disabled { cursor: default; }
 .update-pill svg { width: 16px; height: 16px; }
-.release-notes {
-  white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 var(--font);
-  background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-s);
-  padding: 12px 14px; margin: 8px 0 4px; max-height: 300px; overflow: auto;
-}
 .update-card { text-align: left; margin: 18px 0; }
 .update-card .switch { margin-bottom: 4px; }
 
@@ -769,7 +776,7 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
   .wide-only { display: none !important; }
   .narrow-only { display: inline-flex; }
   .toolbar { gap: 6px; padding: 10px 10px; }
-  .update-pill span { display: none; }
+  .update-pill { gap: 5px; padding: 0 9px; font-size: 12px; }
   .list-head { display: none; }
   .row-t {
     display: grid; height: auto; margin: 4px 8px; padding: 10px 6px 10px 10px; row-gap: 6px;
@@ -792,6 +799,9 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
   .detail { width: 100vw; }
   .settings-nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
   .settings-nav button { white-space: nowrap; }
+}
+@media (max-width: 480px) {
+  .backup-actions { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 @media (max-width: 760px) {

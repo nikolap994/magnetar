@@ -94,7 +94,7 @@ func install(silent, launch bool) error {
 		switch message("Install "+appName+" "+Version,
 			fmt.Sprintf("%s %s will be installed for your account in:\n%s\n\n"+
 				"Also open magnet links and .torrent files with Magnetar?\n\n"+
-				"Yes - install and use Magnetar for magnet links (recommended)\n"+
+				"Yes - register Magnetar for magnet links and .torrent files (recommended)\n"+
 				"No - install only\nCancel - do not install", appName, Version, dir),
 			mbYesNoCancel|mbIconQ) {
 		case idYes:
@@ -132,14 +132,20 @@ func install(silent, launch bool) error {
 	}
 	// Updates (/launch) keep whatever default-app choice the user has made.
 	if associate && !launch {
-		hidden(target, "register").Run()
+		if err := hidden(target, "register").Run(); err != nil {
+			if silent {
+				return fmt.Errorf("register magnet link and .torrent handlers: %w", err)
+			}
+			message(appName, fmt.Sprintf("Magnetar was installed, but couldn't register its file handlers:\n\n%v", err), mbIconError|mbOK)
+		}
 	}
 	procNotify.Call(0x08000000, 0, 0, 0)
 
 	done := appName + " is installed.\n\nLaunch it now?"
 	if associate {
-		done = appName + " is installed.\n\nThe first time you click a magnet link, Windows may ask which app to use - " +
-			"choose Magnetar and tick \"Always\".\n\nLaunch it now?"
+		done = appName + " is installed.\n\nWindows requires you to confirm protected defaults in Settings → Apps → " +
+			"Default apps → Magnetar → Set default. If .torrent files still open with qBittorrent, choose Magnetar for " +
+			"the .torrent file type in Default Apps.\n\nLaunch it now?"
 	}
 	if launch || (!silent && message(appName, done, mbYesNo|mbIconInfo) == idYes) {
 		exec.Command(target).Start()

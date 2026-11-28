@@ -83,21 +83,24 @@ Download from the [latest release](https://github.com/nikolap994/magnetar/releas
 ### Windows 10 / 11
 1. Run **`magnetar_<version>_windows_amd64_setup.exe`** (`arm64` for ARM PCs). No administrator rights needed -
    Magnetar installs for your account in `%LOCALAPPDATA%\Programs\Magnetar`.
-2. Choose **Yes** to use Magnetar for magnet links and `.torrent` files.
+2. Choose **Yes** to register Magnetar for magnet links and `.torrent` files.
 3. Start Magnetar from the Start Menu or desktop. It lives in the tray (bottom-right).
 
-> **First magnet click:** Windows protects your default apps, so the first time you click a magnet link it may ask
-> *"How do you want to open this?"* - pick **Magnetar** and tick **Always**. You can also set it in
-> **Settings → Apps → Default apps → Magnetar**.
+> **Windows protects default apps:** Magnetar registers both handlers, but Windows requires you to confirm protected
+> defaults in **Settings → Apps → Default apps → Magnetar → Set default**. If `.torrent` files still open with
+> qBittorrent, select the `.torrent` file type in Default Apps and choose Magnetar. The file icon changes once Windows
+> assigns that type to Magnetar.
 
 Uninstall from **Settings → Apps → Installed apps → Magnetar**. Your downloads and settings are kept.
-A portable `.zip` is also available (run `magnetar.exe register` once to handle magnet links).
+A portable `.zip` is also available (run `magnetar.exe register` to register the handlers; Windows may ask you to
+confirm the defaults in **Settings → Apps → Default apps**).
 
 > Windows SmartScreen may show *"Windows protected your PC"* for new releases. Click **More info → Run anyway**,
 > or [verify the download](#verify-your-download) first.
 
-The app window uses the WebView2 Runtime when available. If WebView2 cannot start, Magnetar falls back to an installed
-Edge, Chrome or Chromium app window, then to your default browser.
+The app window uses the WebView2 Runtime when available. On Windows 11 its title bar follows the system theme and uses
+rounded corners and Mica where supported. If WebView2 cannot start, Magnetar falls back to an installed Edge, Chrome or
+Chromium app window, then to your default browser.
 
 ### macOS 11 or newer (Apple silicon and Intel)
 1. Open **`magnetar_<version>_macos_universal.dmg`** and drag **Magnetar** to **Applications**.
@@ -190,11 +193,11 @@ in **Settings → Web interface**.
 
 ### Updates
 
-Magnetar checks GitHub Releases once a day and shows **Update to x.y.z** in the toolbar when a new version is out.
-Click it to read the release notes and **Install & restart**. Before anything is installed, the list of checksums must
-carry a valid signature from Magnetar's release key (compiled into the app) and the downloaded file must match it, so
-a tampered download or a compromised mirror can never install foreign code. Transfers resume after the restart. Turn automatic checks off in
-**Settings → About**. (Versions before 0.2.0 must be updated manually once.)
+Magnetar checks GitHub Releases once a day. The main toolbar always has **Check updates**; when an update is available,
+it becomes **Update** and installs directly when clicked. Before anything is installed, the list of checksums must carry
+a valid signature from Magnetar's release key (compiled into the app) and the downloaded file must match it, so a
+tampered download or a compromised mirror can never install foreign code. Transfers resume after the restart. Turn
+automatic checks off in **Settings → About**. (Versions before 0.2.0 must be updated manually once.)
 
 ### Keyboard shortcuts
 

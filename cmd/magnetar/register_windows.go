@@ -80,30 +80,43 @@ func register() error {
 	// Tell Explorer that associations changed.
 	shell32 := syscall.NewLazyDLL("shell32.dll")
 	shell32.NewProc("SHChangeNotify").Call(0x08000000, 0, 0, 0) // SHCNE_ASSOCCHANGED
-	fmt.Println("Magnetar is now the handler for magnet links and .torrent files.")
+	fmt.Println("Magnetar is registered for magnet links and .torrent files.")
 	if userChoiceElsewhere() {
 		// Windows protects the user's default-app choice; open the page where
-		// they can pick Magnetar with one click.
-		openDefaultAppsSettings()
+		// they can assign both registered associations to Magnetar.
+		if err := openDefaultAppsSettings(); err != nil {
+			return fmt.Errorf("open Windows Default Apps settings: %w", err)
+		}
 	}
 	return nil
 }
 
 // userChoiceElsewhere reports whether Windows has a protected per-user choice
-// (UserChoice) for magnet links that points to another application.
+// (UserChoice) for either association that points to another application.
 func userChoiceElsewhere() bool {
-	k, err := registry.OpenKey(registry.CURRENT_USER,
-		`Software\Microsoft\Windows\Shell\Associations\UrlAssociations\magnet\UserChoice`, registry.QUERY_VALUE)
-	if err != nil {
-		return false
+	choices := []struct {
+		path string
+		want string
+	}{
+		{`Software\Microsoft\Windows\Shell\Associations\UrlAssociations\magnet\UserChoice`, "Magnetar.Magnet"},
+		{`Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.torrent\UserChoice`, "Magnetar.Torrent"},
 	}
-	defer k.Close()
-	progID, _, _ := k.GetStringValue("ProgId")
-	return progID != "" && progID != "Magnetar.Magnet"
+	for _, choice := range choices {
+		k, err := registry.OpenKey(registry.CURRENT_USER, choice.path, registry.QUERY_VALUE)
+		if err != nil {
+			continue
+		}
+		progID, _, _ := k.GetStringValue("ProgId")
+		k.Close()
+		if progID != "" && progID != choice.want {
+			return true
+		}
+	}
+	return false
 }
 
-func openDefaultAppsSettings() {
-	_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", "ms-settings:defaultapps?registeredAppUser=Magnetar").Start()
+func openDefaultAppsSettings() error {
+	return exec.Command("rundll32", "url.dll,FileProtocolHandler", "ms-settings:defaultapps?registeredAppUser=Magnetar").Start()
 }
 
 func unregister() error {

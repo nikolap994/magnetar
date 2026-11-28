@@ -5,6 +5,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-11-28
+
+### Changed
+- The main toolbar now always shows an update control; it checks on demand and installs an available update directly
+  from the **Update** button without a version-details dialog.
+- The backup panel now separates its actions and highlights its privacy warning.
+- The WebView2 window now follows the Windows theme, with rounded corners and Mica on supported Windows 11 builds.
+- External links opened inside WebView2 now use the operating system's default browser.
+
+### Fixed
+- Windows handler registration now detects a conflicting `.torrent` default as well as a conflicting magnet handler,
+  and opens Default Apps settings so both can be assigned to Magnetar. The installer and UI now distinguish registering
+  handlers from changing Windows-protected defaults.
+
 ## [0.7.5] - 2026-11-28
 
 ### Fixed
