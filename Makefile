@@ -28,6 +28,7 @@ run: build ## Build and run
 
 test: ## Run tests (with the race detector when cgo is available)
 	CGO_ENABLED=1 go test -race -count=1 ./... 2>/dev/null || go test -count=1 ./...
+	cd third_party/anacrolix-torrent && GOWORK=off go test -count=1 ./storage/
 
 vet:
 	go vet ./...

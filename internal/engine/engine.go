@@ -214,7 +214,11 @@ func (e *Engine) storageFor(dir string) storage.ClientImpl {
 	st := storage.NewFileOpts(storage.NewFileClientOpts{
 		ClientBaseDir:   dir,
 		PieceCompletion: noCloseCompletion{e.completion},
-		Logger:          e.log,
+		// Plain read/write instead of memory-mapped files: with mapping, the
+		// pages of every file being downloaded count as Magnetar's own memory
+		// (many GB on large torrents) and Windows had to sync whole files.
+		DisableMmap: true,
+		Logger:      e.log,
 	})
 	e.storages[dir] = st
 	return st

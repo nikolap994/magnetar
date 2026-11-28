@@ -9,10 +9,22 @@ import (
 	"sync"
 )
 
+// Magnetar patch: cached write handles are reference counted. Writes and
+// piece hashing use the cached handle outside the lock, so closing it in
+// rename or closeWriters while they ran made them fail with "file already
+// closed", which disables a torrent's download. Now a handle is closed only
+// when its last user is done. Files are opened with openFile, so renaming
+// works on Windows while handles are still open.
 type classicFileIo struct {
 	mu      sync.Mutex
-	writers map[string]*os.File
+	writers map[string]*classicHandle
 	closed  bool
+}
+
+type classicHandle struct {
+	f        *os.File
+	refs     int
+	detached bool // removed from writers; closed when refs reaches 0
 }
 
 func newClassicFileIo() fileIo {
@@ -50,14 +62,23 @@ func (me *classicFileIo) rename(from, to string) error {
 
 func (me *classicFileIo) flush(name string, offset, nbytes int64) error {
 	me.mu.Lock()
-	defer me.mu.Unlock()
 	if err := me.closedErr(); err != nil {
+		me.mu.Unlock()
 		return err
 	}
-	if f, ok := me.writers[name]; ok {
-		return f.Sync()
+	h := me.writers[name]
+	if h == nil {
+		me.mu.Unlock()
+		// Gone means another piece already flushed and renamed the part file.
+		if err := fsync(name); !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		return nil
 	}
-	return fsync(name)
+	h.refs++
+	me.mu.Unlock()
+	defer me.release(h)
+	return h.f.Sync()
 }
 
 func (me *classicFileIo) openForSharedRead(name string) (sharableReader, error) {
@@ -66,7 +87,7 @@ func (me *classicFileIo) openForSharedRead(name string) (sharableReader, error) 
 	if err := me.closedErr(); err != nil {
 		return nil, err
 	}
-	return os.Open(name)
+	return openFile(name, os.O_RDONLY, 0)
 }
 
 func (me *classicFileIo) openForRead(name string) (fileReader, error) {
@@ -75,10 +96,11 @@ func (me *classicFileIo) openForRead(name string) (fileReader, error) {
 	if err := me.closedErr(); err != nil {
 		return nil, err
 	}
-	if writer, ok := me.writers[name]; ok {
-		return &classicBorrowedFileReader{f: writer}, nil
+	if h, ok := me.writers[name]; ok {
+		h.refs++
+		return &classicHandleReader{io: me, h: h}, nil
 	}
-	f, err := os.Open(name)
+	f, err := openFile(name, os.O_RDONLY, 0)
 	return classicFileReader{f}, err
 }
 
@@ -88,45 +110,55 @@ func (me *classicFileIo) openForWrite(p string, size int64) (f fileWriter, err e
 	if err := me.closedErr(); err != nil {
 		return nil, err
 	}
-	if cached, ok := me.writers[p]; ok {
-		return classicFileWriter{cached}, nil
+	h, ok := me.writers[p]
+	if !ok {
+		file, err := openFileExtra(p, os.O_RDWR)
+		if err != nil {
+			return nil, err
+		}
+		if me.writers == nil {
+			me.writers = make(map[string]*classicHandle)
+		}
+		h = &classicHandle{f: file}
+		me.writers[p] = h
 	}
-	cached, err := openFileExtra(p, os.O_RDWR)
-	if err != nil {
-		return nil, err
-	}
-	if me.writers == nil {
-		me.writers = make(map[string]*os.File)
-	}
-	me.writers[p] = cached
-	return classicFileWriter{cached}, nil
+	h.refs++
+	return &classicFileWriter{File: h.f, io: me, h: h}, nil
 }
 
-func (me *classicFileIo) closeWriterLocked(name string) error {
-	if me.writers == nil {
-		return nil
+// release drops one use of h, closing it if it was detached and now unused.
+func (me *classicFileIo) release(h *classicHandle) {
+	me.mu.Lock()
+	defer me.mu.Unlock()
+	h.refs--
+	if h.refs == 0 && h.detached {
+		h.f.Close()
 	}
-	f, ok := me.writers[name]
+}
+
+// closeWriterLocked removes name's cached handle, closing it now or, if it is
+// in use, when its last user is done.
+func (me *classicFileIo) closeWriterLocked(name string) error {
+	h, ok := me.writers[name]
 	if !ok {
 		return nil
 	}
 	delete(me.writers, name)
-	return f.Close()
+	if h.refs > 0 {
+		h.detached = true
+		return nil
+	}
+	return h.f.Close()
 }
 
 func (me *classicFileIo) closeWritersLocked() (closedPaths []string, remaining int, err error) {
-	if me.writers == nil {
-		return nil, 0, nil
-	}
 	closedPaths = make([]string, 0, len(me.writers))
 	for name := range me.writers {
 		closedPaths = append(closedPaths, name)
 	}
 	sort.Strings(closedPaths)
 	for _, name := range closedPaths {
-		f := me.writers[name]
-		delete(me.writers, name)
-		err = errors.Join(err, f.Close())
+		err = errors.Join(err, me.closeWriterLocked(name))
 	}
 	return closedPaths, len(me.writers), err
 }
@@ -140,9 +172,13 @@ func (me *classicFileIo) closedErr() error {
 
 type classicFileWriter struct {
 	*os.File
+	io   *classicFileIo
+	h    *classicHandle
+	once sync.Once
 }
 
-func (classicFileWriter) Close() error {
+func (w *classicFileWriter) Close() error {
+	w.once.Do(func() { w.io.release(w.h) })
 	return nil
 }
 
@@ -171,20 +207,22 @@ func (c classicFileReader) seekDataOrEof(offset int64) (ret int64, err error) {
 	return
 }
 
-// Reuses the open writer handle to avoid an extra open during piece hashing.
-// This is intentionally only used for openForRead, not shared readers, so the
-// borrowed handle lifetime stays scoped to storage-internal operations.
-type classicBorrowedFileReader struct {
-	f   *os.File
-	pos int64
+// classicHandleReader reads through a cached write handle (saving an open
+// during piece hashing) and holds a reference so it is not closed underneath.
+type classicHandleReader struct {
+	io   *classicFileIo
+	h    *classicHandle
+	pos  int64
+	once sync.Once
 }
 
-func (c *classicBorrowedFileReader) Close() error {
+func (c *classicHandleReader) Close() error {
+	c.once.Do(func() { c.io.release(c.h) })
 	return nil
 }
 
-func (c *classicBorrowedFileReader) Read(p []byte) (n int, err error) {
-	n, err = c.f.ReadAt(p, c.pos)
+func (c *classicHandleReader) Read(p []byte) (n int, err error) {
+	n, err = c.h.f.ReadAt(p, c.pos)
 	c.pos += int64(n)
 	if err == io.EOF && n > 0 {
 		err = nil
@@ -192,17 +230,17 @@ func (c *classicBorrowedFileReader) Read(p []byte) (n int, err error) {
 	return
 }
 
-func (c *classicBorrowedFileReader) writeToN(w io.Writer, n int64) (written int64, err error) {
-	written, err = io.Copy(w, io.NewSectionReader(c.f, c.pos, n))
+func (c *classicHandleReader) writeToN(w io.Writer, n int64) (written int64, err error) {
+	written, err = io.Copy(w, io.NewSectionReader(c.h.f, c.pos, n))
 	c.pos += written
 	return
 }
 
-func (c *classicBorrowedFileReader) seekDataOrEof(offset int64) (ret int64, err error) {
-	ret, err = seekData(c.f, offset)
+func (c *classicHandleReader) seekDataOrEof(offset int64) (ret int64, err error) {
+	ret, err = seekData(c.h.f, offset)
 	if err == io.EOF {
 		var fi os.FileInfo
-		fi, err = c.f.Stat()
+		fi, err = c.h.f.Stat()
 		if err != nil {
 			return c.pos, err
 		}
