@@ -1440,6 +1440,7 @@ async function openSettings() {
   $('#settings-form [name="notifyTelegramToken"]').placeholder = state.settings.notifyTelegramTokenSet ? "Saved - leave empty to keep" : "";
   syncProxy();
   $("#dlg-settings").showModal();
+  renderConnStatus();
 }
 $("#btn-settings").addEventListener("click", openSettings);
 async function fillInterfaces(current) {
@@ -1492,7 +1493,11 @@ async function saveSettings() {
   } catch (e) { $("#settings-err").textContent = e.message; }
 }
 function scheduleSettingsSave() { clearTimeout(settingsSaveTimer); settingsSaveTimer = setTimeout(saveSettings, 700); }
-$("#settings-form").addEventListener("submit", (ev) => ev.preventDefault());
+$("#settings-form").addEventListener("submit", (ev) => {
+  // The x and Done buttons (value="cancel") close the dialog; stop only an
+  // Enter keypress from closing it.
+  if (!ev.submitter || ev.submitter.value !== "cancel") ev.preventDefault();
+});
 $("#settings-form").addEventListener("input", (ev) => {
   if (ev.target.closest("#pw-current, #pw-new")) return; // password has its own control
   scheduleSettingsSave();
@@ -2492,25 +2497,59 @@ function renderConnection() {
   const pill = $("#g-conn");
   pill.className = "conn-pill " + c;
   pill.querySelector("span").textContent = CONN[c][0] + (c === "connectable" || c === "idle" ? ` · port ${s.listenPort}` : "");
+  renderConnStatus();
 }
-$("#g-conn").addEventListener("click", () => {
-  const s = state.stats, c = s.connection || "checking", port = s.listenPort || "?";
-  $("#conn-title").textContent = CONN[c][0];
-  $("#conn-text").textContent = CONN[c][1];
+// connSteps lists how to fix a connection state, shared by the health dialog
+// and the Connection settings panel.
+function connSteps(c, s) {
+  const port = s.listenPort || "?";
   const step = (...parts) => h("li", {}, ...parts.map((p) => (typeof p === "string" ? p : h("code", { text: p.code }))));
-  const steps = c === "connectable" || c === "idle" ? [] : c === "vpn-down" ? [
+  if (c === "connectable" || c === "idle") return [];
+  if (c === "vpn-down") return [
     step("Reconnect your VPN. Magnetar notices within a few seconds and resumes."),
     step("To stop using the kill switch, choose “Any connection” under Privacy & security."),
-  ] : c === "offline" ? [
+  ];
+  if (c === "offline") return [
     step("Check that this computer is online and the VPN (if any) is connected."),
     step("If “Bind traffic to IP address” is set in Privacy & security, make sure that address still exists."),
     step("Turn on DHT in Connection settings so peers can be found without trackers."),
-  ] : [
-    step(s.upnp ? "UPnP is on. Make sure UPnP/NAT-PMP is enabled in your router." : "Turn on “Forward port with UPnP / NAT-PMP” in Connection settings."),
+  ];
+  return [
+    step(s.upnp ? "UPnP is on. Make sure UPnP/NAT-PMP is enabled in your router." : "Turn on “Forward port with UPnP / NAT-PMP”."),
     step("Or forward port ", { code: `${port}` }, " (TCP and UDP) in your router to this computer."),
     step("Allow Magnetar through your firewall (on Windows: allow it when Windows Defender Firewall asks, or in “Allow an app through firewall”)."),
     step("Using a VPN? Many VPNs need port forwarding enabled in their app; then set that port as the listening port."),
   ];
+}
+async function allowFirewall(btn) {
+  btn.disabled = true;
+  try { await api("/api/system/firewall", { method: "POST" }); toast("Magnetar is now allowed through the firewall"); }
+  catch (err) { fail(err); } finally { btn.disabled = false; }
+}
+// renderConnStatus fills the panel at the top of Connection settings with the
+// live connectability state, the firewall button and how to fix it.
+function renderConnStatus() {
+  const box = $("#conn-status");
+  if (!box || !$("#dlg-settings").open) return;
+  const s = state.stats || {}, c = s.connection || "checking", port = s.listenPort || "?";
+  const ok = c === "connectable" || c === "idle";
+  box.className = "conn-status " + c;
+  const kids = [h("div", { class: "conn-status-head" }, h("span", { class: "conn-dot" }),
+    h("strong", { text: (CONN[c] || CONN.checking)[0] }),
+    h("span", { class: "muted small", text: ok || c === "checking" ? ` · port ${port}` : "" }))];
+  kids.push(h("p", { class: "muted small", text: (CONN[c] || CONN.checking)[1] }));
+  if (state.canFirewall && c === "firewalled")
+    kids.push(h("button", { type: "button", class: "btn ghost sm", onclick: (e) => allowFirewall(e.currentTarget) },
+      h("span", { text: "Allow through Windows Firewall" })));
+  const steps = connSteps(c, s);
+  if (steps.length) kids.push(h("ul", { class: "conn-steps" }, ...steps));
+  box.replaceChildren(...kids);
+}
+$("#g-conn").addEventListener("click", () => {
+  const s = state.stats, c = s.connection || "checking";
+  $("#conn-title").textContent = CONN[c][0];
+  $("#conn-text").textContent = CONN[c][1];
+  const steps = connSteps(c, s);
   $("#conn-steps").replaceChildren(...steps);
   $("#conn-steps").hidden = !steps.length;
   const fw = $("#conn-firewall");
@@ -2518,9 +2557,8 @@ $("#g-conn").addEventListener("click", () => {
   $("#dlg-conn").showModal();
 });
 $("#conn-firewall").addEventListener("click", async (e) => {
-  e.currentTarget.disabled = true;
-  try { await api("/api/system/firewall", { method: "POST" }); toast("Magnetar is now allowed through the firewall"); $("#dlg-conn").close(); }
-  catch (err) { fail(err); } finally { e.currentTarget.disabled = false; }
+  await allowFirewall(e.currentTarget);
+  $("#dlg-conn").close();
 });
 $("#conn-settings").addEventListener("click", async () => {
   $("#dlg-conn").close();

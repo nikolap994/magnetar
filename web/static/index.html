@@ -402,6 +402,7 @@
             <label class="field"><span>Hashing threads per torrent</span><input name="pieceHashers" type="number" min="1" max="64"></label>
           </section>
           <section data-sec="connection">
+            <div id="conn-status" class="conn-status"></div>
             <label class="field"><span>Listening port <em>(0 = random)</em></span><input name="listenPort" type="number" min="0" max="65535"></label>
             <label class="switch"><input type="checkbox" name="enableUPnP"><span></span>Forward port with UPnP / NAT-PMP</label>
             <label class="switch"><input type="checkbox" name="enableUTP"><span></span>Enable µTP (UDP transport, kinder to home networks)</label>
