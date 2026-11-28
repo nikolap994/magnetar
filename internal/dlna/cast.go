@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -25,36 +26,68 @@ type Renderer struct {
 // Discover finds media renderers (TVs) on the local networks by SSDP, within
 // about three seconds. Results are de-duplicated by device id.
 func Discover(ctx context.Context) ([]Renderer, error) {
-	ctx, cancel := context.WithTimeout(ctx, 3500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
-	conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	target := &net.UDPAddr{IP: net.IPv4(239, 255, 255, 250), Port: 1900}
-	const st = "urn:schemas-upnp-org:service:AVTransport:1"
-	msg := "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\n" +
-		"ST: " + st + "\r\n\r\n"
-	for i := 0; i < 2; i++ { // a couple of probes: UDP is lossy
-		_, _ = conn.WriteToUDP([]byte(msg), target)
-	}
 	deadline, _ := ctx.Deadline()
-	_ = conn.SetReadDeadline(deadline)
 
+	// Search from every real LAN interface, not one default socket: on a machine
+	// with virtual adapters (WSL, Hyper-V, VPNs) a single socket often sends the
+	// search out the wrong network, so the TV never hears it. TVs answer searches
+	// for the AVTransport service, the renderer device, or everything.
+	sts := []string{
+		"urn:schemas-upnp-org:service:AVTransport:1",
+		"urn:schemas-upnp-org:device:MediaRenderer:1",
+		"ssdp:all",
+	}
+	var mu sync.Mutex
 	seenLoc := map[string]bool{}
 	var locs []string
-	buf := make([]byte, 2048)
-	for {
-		n, _, err := conn.ReadFromUDP(buf)
-		if err != nil {
-			break // deadline reached
+	var wg sync.WaitGroup
+	ifs, _ := net.Interfaces()
+	for _, ifc := range ifs {
+		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagMulticast == 0 || ifc.Flags&net.FlagLoopback != 0 {
+			continue
 		}
-		if loc := headerValue(string(buf[:n]), "LOCATION"); loc != "" && !seenLoc[loc] {
-			seenLoc[loc] = true
-			locs = append(locs, loc)
+		addrs, _ := ifc.Addrs()
+		for _, a := range addrs {
+			ipn, ok := a.(*net.IPNet)
+			if !ok || ipn.IP.To4() == nil || !ipn.IP.IsPrivate() {
+				continue
+			}
+			wg.Add(1)
+			go func(ip net.IP) {
+				defer wg.Done()
+				conn, err := net.ListenUDP("udp4", &net.UDPAddr{IP: ip, Port: 0})
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+				for round := 0; round < 2; round++ { // UDP is lossy
+					for _, st := range sts {
+						msg := "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 2\r\nST: " + st + "\r\n\r\n"
+						_, _ = conn.WriteToUDP([]byte(msg), ssdpAddr)
+					}
+				}
+				_ = conn.SetReadDeadline(deadline)
+				buf := make([]byte, 2048)
+				for {
+					n, _, err := conn.ReadFromUDP(buf)
+					if err != nil {
+						return
+					}
+					if loc := headerValue(string(buf[:n]), "LOCATION"); loc != "" {
+						mu.Lock()
+						if !seenLoc[loc] {
+							seenLoc[loc] = true
+							locs = append(locs, loc)
+						}
+						mu.Unlock()
+					}
+				}
+			}(ipn.IP)
 		}
 	}
+	wg.Wait()
 
 	client := &http.Client{Timeout: 3 * time.Second}
 	seenUDN := map[string]bool{}

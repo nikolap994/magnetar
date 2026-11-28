@@ -437,7 +437,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); box-sha
 .drop-overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(11, 13, 18, .75); backdrop-filter: blur(6px); pointer-events: none; }
 .drop-overlay div { border: 2px dashed var(--accent); border-radius: 20px; padding: 50px 80px; text-align: center; color: var(--text); }
 .drop-overlay svg { width: 44px; height: 44px; color: var(--accent); }
-.toasts { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+.toasts { position: fixed; top: auto; left: auto; right: 20px; bottom: 20px; margin: 0; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
 .toast { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow); max-width: 380px; font-size: 13px; animation: pop .18s ease-out; }
 .toast.ok svg { color: var(--green); }
 .toast.err svg { color: var(--red); }

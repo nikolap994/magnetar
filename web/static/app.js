@@ -131,10 +131,21 @@ const FILTERS = [
 ];
 
 /* ---------- toasts ---------- */
+function showToastLayer(box) {
+  if (typeof box.showPopover === "function" && !box.matches(":popover-open")) box.showPopover();
+}
+function hideToastLayer(box) {
+  if (!box.children.length && typeof box.hidePopover === "function" && box.matches(":popover-open")) box.hidePopover();
+}
 function toast(msg, kind = "ok") {
+  const box = $("#toasts");
   const el = h("div", { class: "toast " + kind }, icon(kind === "ok" ? "check" : "alert"), h("span", { class: "t", text: msg }));
-  $("#toasts").append(el);
-  setTimeout(() => el.remove(), kind === "ok" ? 3500 : 6000);
+  box.append(el);
+  showToastLayer(box);
+  setTimeout(() => {
+    el.remove();
+    hideToastLayer(box);
+  }, kind === "ok" ? 3500 : 6000);
 }
 const fail = (e) => toast(e.message || String(e), "err");
 
@@ -737,6 +748,7 @@ function contextMenu(e, hash) {
     item("Tags…", "hash", () => openTagsDialog(targets)),
     item("Speed limit…", "gauge", () => openLimitDialog(targets)),
     item("Play", "play", () => playTorrent(hash)),
+    item("Cast to TV", "cast", () => castTorrent(hash)),
     item("Open folder", "folder", () => openFolder(hash)),
     item("Move files to…", "move", () => moveTo(targets)),
     item("Copy magnet link", "copy", () => copyMagnet(hash)),
@@ -1888,6 +1900,14 @@ async function playTorrent(hash) {
     openPreview(d, f);
   } catch (e) { fail(e); }
 }
+async function castTorrent(hash) {
+  try {
+    const d = await api(`/api/torrents/${hash}`);
+    const f = bestMediaFile(d);
+    if (!f) { toast("This torrent has no video or audio files to cast", "err"); return; }
+    castFlow(hash, f.index, f.path.split("/").pop());
+  } catch (e) { fail(e); }
+}
 $("#dlg-player").addEventListener("close", () => { stopPlayer(); playerCtx = null; });
 /* subtitles from OpenSubtitles */
 const subURL = (hash, i, extra = "") => `/api/torrents/${hash}/files/${i}/subtitles${extra}`;
@@ -1999,11 +2019,14 @@ async function checkClipboard() {
   const ih = (/btih:([a-z0-9]+)/i.exec(text) || [, text])[1].toLowerCase();
   if (state.torrents.some((t) => t.hash === ih)) return;
   const name = magnetName(text) || "a torrent";
+  const box = $("#toasts");
+  const dismiss = () => { el.remove(); hideToastLayer(box); };
   const el = h("div", { class: "toast ok" }, icon("copy"), h("span", { class: "t", text: `You copied a magnet link for ${name}.` }),
-    h("button", { class: "btn primary sm", onclick: () => { el.remove(); openAdd(text, true); } }, h("span", { text: "Add" })),
-    h("button", { class: "btn ghost sm", onclick: () => el.remove() }, h("span", { text: "No" })));
-  $("#toasts").append(el);
-  setTimeout(() => el.remove(), 15000);
+    h("button", { class: "btn primary sm", onclick: () => { dismiss(); openAdd(text, true); } }, h("span", { text: "Add" })),
+    h("button", { class: "btn ghost sm", onclick: dismiss }, h("span", { text: "No" })));
+  box.append(el);
+  showToastLayer(box);
+  setTimeout(dismiss, 15000);
 }
 window.addEventListener("focus", () => setTimeout(checkClipboard, 150));
 
@@ -2013,6 +2036,10 @@ $("#btn-more").addEventListener("click", (e) => {
   const menu = $("#ctx");
   const item = (label, ic, fn) => h("button", { onclick: () => { hideMenu(); fn(); } }, icon(ic), h("span", { text: label }));
   menu.replaceChildren(
+    item("Cast to TV", "cast", () => {
+      if (state.selected.size !== 1) { toast("Select one torrent to cast", "err"); return; }
+      castTorrent([...state.selected][0]);
+    }),
     item("Create torrent", "plus-file", openCreate),
     item("RSS feeds", "rss", () => openRSS()),
     item("Statistics", "chart", openStatistics),
