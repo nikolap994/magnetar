@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-11-28
+
+### Changed
+- When a video's audio can't play in the built-in player (often AC3/DTS in movies), the player now explains why
+  and points to Cast to TV or the system player for sound, instead of showing a silent, grayed-out control.
+
 ## [0.8.0] - 2026-11-28
 
 ### Added

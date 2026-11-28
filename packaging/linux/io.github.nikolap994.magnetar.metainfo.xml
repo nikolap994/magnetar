@@ -43,6 +43,9 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
+    <release version="0.8.1" date="2026-11-28">
+      <description><p>The player now explains when a video's audio can't be decoded (often AC3/DTS) and points to Cast to TV or the system player.</p></description>
+    </release>
     <release version="0.8.0" date="2026-11-28">
       <description><p>Cast videos from Magnetar straight to your TV - with sound for formats the built-in player can't decode - plus much faster TV discovery of the media server.</p></description>
     </release>
