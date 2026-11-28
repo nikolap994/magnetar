@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-11-28
+
+### Performance
+- Live UI updates send only changed torrent rows and skip unchanged snapshots, reducing idle work for the server and
+  app.
+
+### Changed
+- On Windows, the app window now tries WebView2 first and falls back to an installed Chromium browser if it cannot start.
+
 ## [0.7.3] - 2026-11-28
 
 ### Changed

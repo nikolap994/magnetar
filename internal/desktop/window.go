@@ -3,6 +3,7 @@
 package desktop
 
 import (
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,6 +22,11 @@ const (
 // back to the default browser when no Chromium-based browser is available.
 func OpenWindow(url, profileDir, size string, appWindow bool) error {
 	if appWindow {
+		if opened, err := openWebView2Window(url, profileDir, size); opened {
+			return nil
+		} else if err != nil {
+			log.Printf("WebView2 unavailable, falling back to Chromium: %v", err)
+		}
 		if bin := chromiumBinary(); bin != "" {
 			args := []string{
 				"--app=" + url,

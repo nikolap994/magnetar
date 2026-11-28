@@ -61,7 +61,7 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 - Powered by the battle-tested [`anacrolix/torrent`](https://github.com/anacrolix/torrent) engine
 - Saturates fast connections, keeps peers connected under speed limits, verifies existing data at disk speed
 - Low memory use (about 70 MiB while downloading), tuned connection limits and parallel piece hashing
-- Fully static Go binary (~22 MB), starts in milliseconds, no runtime to install
+- Fully static Go binary (~22 MB); no Go runtime to install
 
 **Secure by default** - see [Security model](#security-model)
 - Protocol encryption (MSE/PE) preferred, or **required** with one switch
@@ -95,6 +95,9 @@ A portable `.zip` is also available (run `magnetar.exe register` once to handle 
 
 > Windows SmartScreen may show *"Windows protected your PC"* for new releases. Click **More info → Run anyway**,
 > or [verify the download](#verify-your-download) first.
+
+The app window uses the WebView2 Runtime when available. If WebView2 cannot start, Magnetar falls back to an installed
+Edge, Chrome or Chromium app window, then to your default browser.
 
 ### macOS 11 or newer (Apple silicon and Intel)
 1. Open **`magnetar_<version>_macos_universal.dmg`** and drag **Magnetar** to **Applications**.
@@ -231,7 +234,7 @@ Magnetar is designed so that running it does not widen your attack surface.
 | Path traversal in torrents | File paths are confined to the download folder; symlinks out of it are rejected; "delete data" never leaves the save path or removes files shared with another torrent |
 | Metadata leaks | Magnet `xs`/`as` sources (arbitrary HTTP fetches) are ignored; optional anonymous mode hides client identity |
 | VPN drops | Binding to the VPN connection makes sockets fail rather than fall back to another interface |
-| Browser extensions reading the UI | The app window uses its own isolated browser profile with extensions disabled |
+| Browser extensions reading the UI | The app window uses an isolated WebView2 profile or a Chromium profile with extensions disabled |
 | Tampered downloads of Magnetar | Reproducible builds, Sigstore signatures and build-provenance attestations |
 | Malicious updates | Updates install only if `SHA256SUMS` carries a valid Ed25519 signature from the release key and the file's hash matches; HTTPS from GitHub hosts only |
 | Secrets on disk | Settings, keys and session files are written atomically with `0600` permissions |

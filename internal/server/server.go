@@ -2,6 +2,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -808,6 +809,84 @@ func (s *Server) handleShutdown(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+type liveSnapshot struct {
+	torrents map[string]json.RawMessage
+	stats    json.RawMessage
+	update   json.RawMessage
+	started  bool
+}
+
+func (s *liveSnapshot) delta(torrents []engine.Summary, stats engine.GlobalStats, update any) ([]byte, bool, error) {
+	rows := make(map[string]json.RawMessage, len(torrents))
+	changed := make([]json.RawMessage, 0, len(torrents))
+	for _, torrent := range torrents {
+		b, err := json.Marshal(torrent)
+		if err != nil {
+			return nil, false, err
+		}
+		rows[torrent.Hash] = b
+		if !s.started || !bytes.Equal(s.torrents[torrent.Hash], b) {
+			changed = append(changed, b)
+		}
+	}
+
+	statsJSON, err := json.Marshal(stats)
+	if err != nil {
+		return nil, false, err
+	}
+	statsChanged := !s.started || !bytes.Equal(s.stats, statsJSON)
+
+	var updateJSON json.RawMessage
+	updateChanged := false
+	if update != nil {
+		updateJSON, err = json.Marshal(update)
+		if err != nil {
+			return nil, false, err
+		}
+		updateChanged = !s.started || !bytes.Equal(s.update, updateJSON)
+	}
+
+	removed := make([]string, 0)
+	if s.started {
+		for hash := range s.torrents {
+			if _, ok := rows[hash]; !ok {
+				removed = append(removed, hash)
+			}
+		}
+	}
+	if s.started && len(changed) == 0 && len(removed) == 0 && !statsChanged && !updateChanged {
+		return nil, false, nil
+	}
+
+	payload := map[string]any{
+		"torrents": changed,
+	}
+	if !s.started {
+		payload["full"] = true
+	}
+	if len(removed) > 0 {
+		payload["removed"] = removed
+	}
+	if statsChanged {
+		payload["stats"] = json.RawMessage(statsJSON)
+	}
+	if updateChanged {
+		payload["update"] = updateJSON
+	}
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return nil, false, err
+	}
+
+	s.torrents = rows
+	s.stats = statsJSON
+	if update != nil {
+		s.update = updateJSON
+	}
+	s.started = true
+	return b, true, nil
+}
+
 // handleEvents streams list + stats snapshots and notifications via Server-Sent Events.
 func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	fl, ok := w.(http.Flusher)
@@ -836,12 +915,33 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 		fl.Flush()
 		return nil
 	}
-	snapshot := func() error {
-		snap := map[string]any{"torrents": s.eng.List(), "stats": s.eng.Stats()}
-		if s.updater != nil {
-			snap["update"] = s.updater.Status()
+	var current liveSnapshot
+	ping := func() error {
+		_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
+			return err
 		}
-		return send("snapshot", snap)
+		fl.Flush()
+		return nil
+	}
+	snapshot := func() error {
+		var update any
+		if s.updater != nil {
+			update = s.updater.Status()
+		}
+		b, changed, err := current.delta(s.eng.List(), s.eng.Stats(), update)
+		if err != nil {
+			return err
+		}
+		if !changed {
+			return ping()
+		}
+		_ = rc.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if _, err := fmt.Fprintf(w, "event: snapshot\ndata: %s\n\n", b); err != nil {
+			return err
+		}
+		fl.Flush()
+		return nil
 	}
 	if err := snapshot(); err != nil {
 		return

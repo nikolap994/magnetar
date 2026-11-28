@@ -9,6 +9,7 @@ require (
 	github.com/anacrolix/torrent v1.63.0
 	github.com/energye/systray v1.0.3
 	github.com/godbus/dbus/v5 v5.1.0
+	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
 	golang.org/x/crypto v0.59.0
 	golang.org/x/image v0.48.0
 	golang.org/x/net v0.62.0
@@ -53,6 +54,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
+	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.3 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect

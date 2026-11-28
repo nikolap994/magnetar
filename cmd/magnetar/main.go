@@ -137,6 +137,17 @@ func run() error {
 	)
 	flag.Usage = usage
 	flag.Parse()
+	if flag.Arg(0) == "webview2-window" {
+		args := flag.Args()
+		if len(args) != 4 {
+			_, _ = fmt.Fprintln(os.Stdout, "ERROR: invalid WebView2 helper arguments")
+			return nil
+		}
+		if err := desktop.RunWebView2Window(args[1], args[2], args[3]); err != nil {
+			_, _ = fmt.Fprintf(os.Stdout, "ERROR: %v\n", err)
+		}
+		return nil
+	}
 	if *version {
 		fmt.Println("magnetar", engine.Version)
 		return nil

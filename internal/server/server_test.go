@@ -11,6 +11,7 @@ import (
 
 	"github.com/nikolap994/magnetar/internal/auth"
 	"github.com/nikolap994/magnetar/internal/config"
+	"github.com/nikolap994/magnetar/internal/engine"
 )
 
 func newTestServer(t *testing.T) (*Server, *auth.Keyring) {
@@ -37,6 +38,48 @@ func do(s *Server, method, path string, mod func(*http.Request)) *httptest.Respo
 	rec := httptest.NewRecorder()
 	s.Handler().ServeHTTP(rec, req)
 	return rec
+}
+
+func TestLiveSnapshotDelta(t *testing.T) {
+	var current liveSnapshot
+	first, changed, err := current.delta(
+		[]engine.Summary{{Hash: "a", Name: "first"}, {Hash: "c", Name: "unchanged"}},
+		engine.GlobalStats{Torrents: 2},
+		nil,
+	)
+	if err != nil || !changed || !strings.Contains(string(first), `"full":true`) {
+		t.Fatalf("initial snapshot: changed=%v err=%v payload=%s", changed, err, first)
+	}
+
+	if payload, changed, err := current.delta(
+		[]engine.Summary{{Hash: "a", Name: "first"}, {Hash: "c", Name: "unchanged"}},
+		engine.GlobalStats{Torrents: 2},
+		nil,
+	); err != nil || changed || payload != nil {
+		t.Fatalf("unchanged snapshot: payload=%s changed=%v err=%v", payload, changed, err)
+	}
+
+	delta, changed, err := current.delta(
+		[]engine.Summary{{Hash: "a", Name: "renamed"}, {Hash: "b", Name: "second"}, {Hash: "c", Name: "unchanged"}},
+		engine.GlobalStats{Torrents: 3},
+		nil,
+	)
+	if err != nil || !changed ||
+		!strings.Contains(string(delta), `"hash":"a"`) ||
+		!strings.Contains(string(delta), `"hash":"b"`) ||
+		strings.Contains(string(delta), `"hash":"c"`) ||
+		!strings.Contains(string(delta), `"torrents":3`) {
+		t.Fatalf("changed snapshot: changed=%v err=%v payload=%s", changed, err, delta)
+	}
+
+	delta, changed, err = current.delta(
+		[]engine.Summary{{Hash: "b", Name: "second"}, {Hash: "c", Name: "unchanged"}},
+		engine.GlobalStats{Torrents: 2},
+		nil,
+	)
+	if err != nil || !changed || !strings.Contains(string(delta), `"removed":["a"]`) {
+		t.Fatalf("removed torrent: changed=%v err=%v payload=%s", changed, err, delta)
+	}
 }
 
 func TestSecurityHeaders(t *testing.T) {

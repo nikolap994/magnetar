@@ -139,6 +139,16 @@ async function boot() {
   $("#app").hidden = false;
   $("#about-ver").textContent = s.version;
   connect();
+  // Keep the bandwidth sparkline ticking once a second on its own, so the
+  // live snapshots can be skipped when nothing changes without freezing it.
+  if (!state.sparkTimer) {
+    state.sparkTimer = setInterval(() => {
+      const s = state.stats || {};
+      state.history.push([s.downRate || 0, s.upRate || 0]);
+      if (state.history.length > 90) state.history.shift();
+      drawSpark();
+    }, 1000);
+  }
   loadCategories();
   handleIncomingLinks();
 }
@@ -185,11 +195,16 @@ function connect() {
   es = new EventSource("/api/events");
   es.addEventListener("snapshot", (ev) => {
     const d = JSON.parse(ev.data);
-    state.torrents = d.torrents || [];
-    state.stats = d.stats || {};
+    if (d.full) {
+      state.torrents = d.torrents || [];
+    } else {
+      const byHash = new Map(state.torrents.map((t) => [t.hash, t]));
+      for (const hash of d.removed || []) byHash.delete(hash);
+      for (const torrent of d.torrents || []) byHash.set(torrent.hash, torrent);
+      state.torrents = [...byHash.values()];
+    }
+    if (d.stats) state.stats = d.stats;
     if (d.update) { state.update = d.update; renderUpdate(); }
-    state.history.push([state.stats.downRate || 0, state.stats.upRate || 0]);
-    if (state.history.length > 90) state.history.shift();
     const known = new Set(state.torrents.map((t) => t.hash));
     for (const hsh of state.selected) if (!known.has(hsh)) state.selected.delete(hsh);
     if (state.detail && !known.has(state.detail)) closeDetail();
@@ -451,6 +466,7 @@ function renderStats() {
 
 function drawSpark() {
   const c = $("#spark");
+  if (!c) return;
   const dpr = window.devicePixelRatio || 1;
   const w = c.clientWidth, hgt = c.clientHeight;
   if (c.width !== w * dpr) { c.width = w * dpr; c.height = hgt * dpr; }
