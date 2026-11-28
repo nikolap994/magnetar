@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-28
+
+### Fixed
+- Downloads on Windows no longer slow down, stall at 0 B/s for minutes or crawl as a download grows: a 6 GB
+  download from a public swarm now runs at the full speed of the connection from start to finish, and a large
+  local transfer went from about 18 MB/s to about 140 MB/s.
+- Large torrents no longer make Magnetar's memory grow by many gigabytes; memory stays flat while downloading.
+- Downloads can no longer stop with "file already closed" when files finish while other pieces are being written
+  or checked, which happened most with big multi-file torrents.
+- On Windows, a finished file is no longer blocked from being renamed while it is being read or uploaded, and
+  writing a piece far into a large new file no longer makes Windows fill everything before it with zeros first
+  (seconds per gigabyte, and the main reason large torrents were slow to start).
+
 ## [0.7.1] - 2026-11-28
 
 ### Fixed
