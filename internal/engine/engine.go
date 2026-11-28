@@ -168,6 +168,7 @@ func New(s config.Settings, dataDir string, logger *slog.Logger) (*Engine, error
 		return nil, err
 	}
 	e.cl = cl
+	e.loadDHTNodes(cl)
 	e.applyBansLocked()
 	e.ctx, e.cancel = context.WithCancel(context.Background())
 	e.started = time.Now()
@@ -1102,6 +1103,7 @@ func (e *Engine) restartLocked() error {
 		return err
 	}
 	e.cl = cl
+	e.loadDHTNodes(cl)
 	e.applyBansLocked()
 	var errs []error
 	for _, m := range running {
@@ -1119,6 +1121,7 @@ func (e *Engine) loop() {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	saveEvery := 0
+	dhtEvery := 0
 	for {
 		select {
 		case <-e.ctx.Done():
@@ -1142,6 +1145,11 @@ func (e *Engine) loop() {
 			}
 			e.dirty = false
 			saveEvery = 0
+		}
+		dhtEvery++
+		if dhtEvery >= 600 { // keep the warm-start list fresh (~10 min)
+			e.saveDHTNodes(e.cl)
+			dhtEvery = 0
 		}
 		e.mu.Unlock()
 	}
@@ -1358,6 +1366,7 @@ func (e *Engine) Close() error {
 		e.log.Warn("save statistics", "err", serr)
 	}
 	if e.cl != nil {
+		e.saveDHTNodes(e.cl)
 		e.cl.Close()
 		e.cl = nil
 	}
