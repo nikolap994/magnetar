@@ -154,6 +154,11 @@ func RunWebView2Window(target, profileDir, size string) error {
     }
     return nativeOpen(raw, target, features);
   };
+  // No page zoom, so the window behaves like a native app, not a browser tab.
+  window.addEventListener("wheel", (event) => { if (event.ctrlKey) event.preventDefault(); }, { passive: false });
+  window.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && ["=", "-", "+", "0"].includes(event.key)) event.preventDefault();
+  });
 })()`)
 	view.Navigate(target)
 	if _, err := fmt.Fprintln(os.Stdout, webView2Ready); err != nil {

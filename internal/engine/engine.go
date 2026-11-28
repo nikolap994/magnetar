@@ -349,7 +349,10 @@ func (e *Engine) newClient(s config.Settings) (*torrent.Client, error) {
 // sockets are released and finally falling back to a random listen port.
 func (e *Engine) newClientRetry(s config.Settings) (*torrent.Client, error) {
 	var err error
-	for range 10 {
+	// A short retry covers the moment an in-place update's old process is still
+	// releasing the port; beyond that the port is genuinely taken, so fall back
+	// to a random one quickly instead of blocking startup.
+	for range 3 {
 		var cl *torrent.Client
 		if cl, err = e.newClient(s); err == nil {
 			return cl, nil
@@ -357,7 +360,7 @@ func (e *Engine) newClientRetry(s config.Settings) (*torrent.Client, error) {
 		if !isAddrInUse(err) {
 			return nil, err
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 	if s.ListenPort != 0 {
 		e.log.Warn("configured listen port is busy, using a random port")

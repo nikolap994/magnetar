@@ -64,8 +64,13 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 .muted { color: var(--muted); }
 .error { color: var(--red); font-size: 13px; }
 ::selection { background: var(--accent-soft); }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; border: 2px solid var(--bg); }
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 7px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+::-webkit-scrollbar-track { background: transparent; }
+/* Chrome (toolbar, sidebar, buttons, tabs) isn't selectable, so dragging over
+   it feels like a native app instead of a web page; data stays selectable. */
+.sidebar, .toolbar, .seg, .tabs, .btn, .detail-actions, nav, header h2 { user-select: none; }
 
 /* Layout */
 .app { display: grid; grid-template-columns: 240px 1fr auto; height: 100vh; }

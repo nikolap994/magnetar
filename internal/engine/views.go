@@ -214,7 +214,9 @@ func (e *Engine) Stats() GlobalStats {
 		g.ListenPort = e.cl.LocalPort()
 		for _, s := range e.cl.DhtServers() {
 			if st, ok := s.Stats().(dht.ServerStats); ok {
-				g.DHTNodes += st.GoodNodes
+				// Total routing-table nodes, as other clients report, so the
+				// count is comparable and warm-start (saved nodes) shows at once.
+				g.DHTNodes += st.Nodes
 			}
 		}
 	}
