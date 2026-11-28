@@ -660,6 +660,7 @@ function renderBulk() {
   const n = state.selected.size;
   $("#bulk").hidden = n === 0;
   $("#bulk-count").textContent = n + " selected";
+  $(".toolbar").classList.toggle("bulk-active", n > 0);
 }
 $("#select-all").addEventListener("change", (e) => {
   const vis = visible().map((t) => t.hash);
