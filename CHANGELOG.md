@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-11-28
+
+### Fixed
+- On a phone, the interface now fits the screen instead of showing only a slice of a desktop-width page, so adding
+  and managing torrents from a phone works properly.
+
 ## [0.8.1] - 2026-11-28
 
 ### Changed
