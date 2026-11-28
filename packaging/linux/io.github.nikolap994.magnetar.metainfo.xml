@@ -43,7 +43,7 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
-    <release version="0.6.1" date="2026-11-28">
+    <release version="0.7.0" date="2026-11-28">
       <description><p>Large multi-file torrents that could stall at 0 bytes now download, public trackers are added by default for faster peer discovery, and settings save as you edit them.</p></description>
     </release>
     <release version="0.6.0" date="2026-11-27">

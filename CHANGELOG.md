@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [0.6.1] - 2026-11-28
+## [0.7.0] - 2026-11-28
 
 ### Fixed
 - Large multi-file torrents (big game repacks and similar) could stall at 0 bytes on Windows and never start
