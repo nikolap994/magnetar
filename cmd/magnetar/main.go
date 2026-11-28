@@ -306,6 +306,7 @@ func run() error {
 		ConfigDir:        cfgDir,
 		DataDir:          dataDir,
 		Applied:          tv.apply,
+		Cast:             tv,
 		HTTPSPort:        httpsPort,
 		HTTPSFingerprint: fingerprint,
 		Host:             settings.WebHost,
@@ -445,6 +446,7 @@ type mediaServer struct {
 	mu     sync.Mutex
 	cancel context.CancelFunc
 	name   string
+	srv    *dlna.Server // active server, nil when off
 }
 
 func (m *mediaServer) apply(s config.Settings) {
@@ -457,17 +459,50 @@ func (m *mediaServer) apply(s config.Settings) {
 	if m.cancel != nil && (!s.DLNAEnabled || name != m.name) {
 		m.cancel()
 		m.cancel = nil
+		m.srv = nil
 	}
 	if s.DLNAEnabled && m.cancel == nil {
 		ctx, cancel := context.WithCancel(m.ctx)
-		m.cancel, m.name = cancel, name
 		srv := dlna.New(m.eng, m.log, m.port, name)
+		m.cancel, m.name, m.srv = cancel, name, srv
 		go func() {
 			if err := srv.Run(ctx); err != nil {
 				m.log.Error("media server for TVs", "err", err)
 			}
 		}()
 	}
+}
+
+func (m *mediaServer) active() *dlna.Server {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.srv
+}
+
+// CastDevices implements server.Caster.
+func (m *mediaServer) CastDevices(ctx context.Context) ([]server.CastDevice, error) {
+	srv := m.active()
+	if srv == nil {
+		return nil, errors.New(`turn on "Play on your TV" to cast`)
+	}
+	rs, err := srv.CastDevices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]server.CastDevice, 0, len(rs))
+	for _, r := range rs {
+		out = append(out, server.CastDevice{ID: r.UDN, Name: r.Name})
+	}
+	return out, nil
+}
+
+// Cast implements server.Caster.
+func (m *mediaServer) Cast(ctx context.Context, device, hash, title string, index int) error {
+	srv := m.active()
+	if srv == nil {
+		return errors.New(`turn on "Play on your TV" to cast`)
+	}
+	return srv.CastTo(ctx, device, hash, index, title)
 }
 
 // onFinished runs the user's command for each finished download, sends phone

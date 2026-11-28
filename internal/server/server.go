@@ -57,6 +57,7 @@ type Server struct {
 	httpsPort int
 	httpsFP   string
 	applied   func(config.Settings)
+	cast      Caster
 	geo       *geoManager
 	windows   atomic.Int32 // connected app windows (live event streams)
 	mux       *http.ServeMux
@@ -90,6 +91,8 @@ type Options struct {
 	ConfigDir, DataDir string
 	// Applied is called after settings were saved (optional).
 	Applied func(config.Settings)
+	// Cast discovers TVs and plays a file on one (optional).
+	Cast Caster
 	// HTTPSPort and HTTPSFingerprint describe HTTPS phone access, if running.
 	HTTPSPort        int
 	HTTPSFingerprint string
@@ -105,7 +108,7 @@ type Updater interface {
 // New builds the server.
 func New(eng *engine.Engine, store *config.Store, keys *auth.Keyring, static fs.FS, logger *slog.Logger, o Options) *Server {
 	s := &Server{eng: eng, store: store, keys: keys, limiter: auth.NewLimiter(), log: logger, static: static,
-		port: o.Port, shutdown: o.Shutdown, register: o.Register, firewall: o.Firewall, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint, applied: o.Applied}
+		port: o.Port, shutdown: o.Shutdown, register: o.Register, firewall: o.Firewall, autoStart: o.AutoStart, updater: o.Updater, showUI: o.ShowUI, rss: o.RSS, host: o.Host, restart: o.Restart, finish: o.Finish, cfgDir: o.ConfigDir, dataDir: o.DataDir, httpsPort: o.HTTPSPort, httpsFP: o.HTTPSFingerprint, applied: o.Applied, cast: o.Cast}
 	s.geo = &geoManager{db: new(geoip.DB)}
 	s.routes()
 	go s.applyGeo(store.Get().ShowPeerCountries)
@@ -149,6 +152,8 @@ func (s *Server) routes() {
 	m.Handle("GET /api/settings", s.authed(s.handleGetSettings))
 	m.Handle("PUT /api/settings", s.authed(s.handlePutSettings))
 	m.Handle("POST /api/settings/reset", s.authed(s.handleResetSettings))
+	m.Handle("GET /api/cast/devices", s.authed(s.handleCastDevices))
+	m.Handle("POST /api/cast", s.authed(s.handleCast))
 	m.Handle("POST /api/password", s.authed(s.handlePassword))
 	m.Handle("POST /api/shutdown", s.authed(s.handleShutdown))
 	m.Handle("GET /api/fs/dirs", s.authed(s.handleDirs))

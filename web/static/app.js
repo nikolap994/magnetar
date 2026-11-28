@@ -1812,6 +1812,7 @@ function openPreview(d, f) {
   playerCtx = { hash: d.hash, file: f };
   $("#sub-panel").hidden = true;
   $("#pl-subs").hidden = kind !== "video";
+  $("#pl-cast").hidden = !(kind === "video" || kind === "audio");
   stopPlayer();
   $("#pl-title").textContent = f.path.split("/").pop();
   $("#pl-open").hidden = f.progress < 1 || BLOCKED_EXT.has(extOf(f.path));
@@ -1923,6 +1924,40 @@ $("#sub-q").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.prev
 
 $("#pl-open").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "open"));
 $("#pl-reveal").addEventListener("click", () => playerCtx && fileAction(playerCtx.hash, playerCtx.file.index, "reveal"));
+$("#pl-cast").addEventListener("click", () => { if (playerCtx) castFlow(playerCtx.hash, playerCtx.file.index, playerCtx.file.path.split("/").pop()); });
+
+// castFlow pushes a file to a TV: turns on TV sharing if needed, finds TVs, and
+// plays the file on the chosen one.
+async function castFlow(hash, index, title) {
+  const btn = $("#pl-cast");
+  btn.disabled = true;
+  try {
+    if (!state.settings || !state.settings.dlnaEnabled) {
+      toast("Turning on TV sharing…");
+      await api("/api/settings", { method: "PUT", body: { dlnaEnabled: true } });
+      if (state.settings) state.settings.dlnaEnabled = true;
+      await new Promise((r) => setTimeout(r, 1400)); // let the media server come up
+    }
+    toast("Searching for TVs…");
+    const { devices } = await api("/api/cast/devices");
+    if (!devices.length) { toast("No TVs found. Make sure the TV is on and on the same Wi-Fi.", "err"); return; }
+    const dev = devices.length === 1 ? devices[0] : await pickCastDevice(devices);
+    if (!dev) return;
+    await api("/api/cast", { method: "POST", body: { device: dev.id, hash, title, index } });
+    toast(`Casting to ${dev.name} — control playback on the TV.`);
+  } catch (e) { fail(e); } finally { btn.disabled = false; }
+}
+function pickCastDevice(devices) {
+  return new Promise((resolve) => {
+    const dlg = $("#dlg-cast");
+    $("#cast-list").replaceChildren(...devices.map((d) =>
+      h("button", { type: "button", class: "btn", onclick: () => { dlg.returnValue = "picked"; resolve(d); dlg.close(); } },
+        icon("cast"), h("span", { text: d.name }))));
+    dlg.returnValue = "";
+    dlg.onclose = () => { if (dlg.returnValue !== "picked") resolve(null); };
+    dlg.showModal();
+  });
+}
 
 /* ---------- clipboard: offer copied magnet links ---------- */
 // Off by default; a per-device choice kept in this browser. Reading the

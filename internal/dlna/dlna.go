@@ -16,6 +16,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nikolap994/magnetar/internal/engine"
@@ -53,6 +54,9 @@ type Server struct {
 	port int
 	uuid string
 	name string
+
+	castMu    sync.Mutex
+	renderers map[string]Renderer // last discovered TVs, by device id
 }
 
 // New creates a media server announced as name on port.
