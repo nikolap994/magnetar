@@ -397,11 +397,10 @@ func run() error {
 
 	logger.Info("shutting down")
 	stop()
-	// Close the app window too: ask it nicely, then end the browser process
-	// that uses Magnetar's private profile.
-	eng.AnnounceShutdown()
-	time.Sleep(700 * time.Millisecond)
+	// Close the app window first so quitting feels instant; notifying any remote
+	// viewers and saving/disconnecting then happen behind the closed window.
 	desktop.CloseWindows()
+	eng.AnnounceShutdown()
 	if cerr := eng.Close(); cerr != nil {
 		logger.Warn("close engine", "err", cerr)
 	}

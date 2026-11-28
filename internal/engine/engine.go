@@ -297,9 +297,10 @@ func (e *Engine) newClient(s config.Settings) (*torrent.Client, error) {
 	cfg.TorrentPeersLowWater = 200
 	cfg.PieceHashersPerTorrent = s.PieceHashers
 	cfg.DialRateLimiter = rate.NewLimiter(250, 500)
-	// Keep more data in flight before it is hash-checked, so large-piece
-	// torrents (4+ MiB pieces) don't stall waiting for verification.
-	cfg.MaxUnverifiedBytes = 256 << 20
+	// Cap data downloaded ahead of hash-checking. 64 MiB keeps even 4+ MiB-piece
+	// torrents pipelined without stalling, while holding far less in memory than
+	// the old 256 MiB so the app stays light on 4-8 GB machines under load.
+	cfg.MaxUnverifiedBytes = 64 << 20
 	cfg.DownloadRateLimiter = e.downLimiter
 	cfg.UploadRateLimiter = e.upLimiter
 
@@ -823,11 +824,16 @@ func (e *Engine) hashes() []string {
 // Remove deletes torrents, optionally deleting their downloaded data.
 func (e *Engine) Remove(deleteData bool, hashes ...string) error {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	var errs []error
+	type pendingDelete struct {
+		name, path string
+		info       *metainfo.Info
+	}
+	var toDelete []pendingDelete
 	for _, h := range hashes {
 		m, err := e.get(h)
 		if err != nil {
+			e.mu.Unlock()
 			return err
 		}
 		if m.moving {
@@ -849,13 +855,23 @@ func (e *Engine) Remove(deleteData bool, hashes ...string) error {
 		if deleteData && info != nil {
 			if other := e.sharesDataLocked(m.rec.SavePath, info.BestName()); other != "" {
 				errs = append(errs, fmt.Errorf("kept files of %q: they are also used by %q", m.rec.Name, other))
-			} else if err := deleteTorrentData(m.rec.SavePath, info); err != nil {
-				errs = append(errs, err)
+			} else {
+				toDelete = append(toDelete, pendingDelete{m.rec.Name, m.rec.SavePath, info})
 			}
 		}
 		e.publish(Event{Type: "removed", Hash: m.rec.InfoHash, Name: m.rec.Name})
 	}
 	e.dirty = true
+	e.mu.Unlock()
+	// Delete files off the lock, in the background: a large torrent's data can
+	// take a while to erase, and the app must stay responsive meanwhile.
+	for _, d := range toDelete {
+		go func(d pendingDelete) {
+			if err := deleteTorrentData(d.path, d.info); err != nil {
+				e.log.Warn("delete torrent data", "name", logSafe(d.name), "err", logSafe(err.Error()))
+			}
+		}(d)
+	}
 	return errors.Join(errs...)
 }
 

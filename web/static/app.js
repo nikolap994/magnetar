@@ -102,7 +102,22 @@ const state = {
   history: [],
   settings: null,
   pendingFiles: [],
+  pendingRemove: new Map(), // hash -> expires: removed in the UI, awaiting the server
+  pendingState: new Map(),  // hash -> {paused, expires}: optimistic pause/resume
 };
+
+// overlayPending makes just-clicked actions show instantly, before the server
+// round-trip, and self-heals from the next live update.
+function overlayPending() {
+  const now = Date.now();
+  for (const [h, p] of state.pendingState) if (p.expires < now) state.pendingState.delete(h);
+  for (const [h, t] of state.pendingRemove) if (t < now) state.pendingRemove.delete(h);
+  if (state.pendingRemove.size) state.torrents = state.torrents.filter((x) => !state.pendingRemove.has(x.hash));
+  for (const x of state.torrents) {
+    const p = state.pendingState.get(x.hash);
+    if (p) x.state = p.paused ? "paused" : x.progress >= 1 ? "seeding" : "downloading";
+  }
+}
 
 const FILTERS = [
   { id: "all", label: "All", icon: "all", match: () => true },
@@ -199,10 +214,15 @@ function connect() {
       state.torrents = d.torrents || [];
     } else {
       const byHash = new Map(state.torrents.map((t) => [t.hash, t]));
-      for (const hash of d.removed || []) byHash.delete(hash);
-      for (const torrent of d.torrents || []) byHash.set(torrent.hash, torrent);
+      for (const hash of d.removed || []) { byHash.delete(hash); state.pendingRemove.delete(hash); }
+      for (const torrent of d.torrents || []) {
+        const p = state.pendingState.get(torrent.hash);
+        if (p && p.paused === (torrent.state === "paused")) state.pendingState.delete(torrent.hash);
+        byHash.set(torrent.hash, torrent);
+      }
       state.torrents = [...byHash.values()];
     }
+    overlayPending();
     if (d.stats) state.stats = d.stats;
     if (d.update) { state.update = d.update; renderUpdate(); }
     const known = new Set(state.torrents.map((t) => t.hash));
@@ -659,10 +679,20 @@ $("#search").addEventListener("input", (e) => { state.query = e.target.value; re
 
 /* ---------- actions ---------- */
 async function act(action, hashes, extra = {}) {
+  const optimistic = action === "pause" || action === "resume";
+  if (optimistic) {
+    const paused = action === "pause", expires = Date.now() + 4000;
+    hashes.forEach((h) => state.pendingState.set(h, { paused, expires }));
+    overlayPending();
+    render();
+  }
   try {
     await api("/api/actions", { method: "POST", body: { action, hashes, ...extra } });
     if (action === "recheck") toast("Verifying data…");
-  } catch (e) { fail(e); }
+  } catch (e) {
+    if (optimistic) { hashes.forEach((h) => state.pendingState.delete(h)); render(); }
+    fail(e);
+  }
 }
 function confirmRemove(hashes) {
   const dlg = $("#dlg-remove");
@@ -673,9 +703,21 @@ function confirmRemove(hashes) {
   dlg.returnValue = "";
   dlg.onclose = async () => {
     if (dlg.returnValue !== "ok") return;
-    await act("remove", hashes, { deleteData: $("#rm-data").checked });
-    hashes.forEach((x) => state.selected.delete(x));
+    const deleteData = $("#rm-data").checked;
+    // Drop the rows right away so removal feels instant; the server catches up.
+    const expires = Date.now() + 8000;
+    hashes.forEach((x) => { state.pendingRemove.set(x, expires); state.selected.delete(x); });
+    if (state.detail && hashes.includes(state.detail)) closeDetail();
+    overlayPending();
+    render();
     toast(hashes.length > 1 ? `Removed ${hashes.length} torrents` : "Torrent removed");
+    try {
+      await api("/api/actions", { method: "POST", body: { action: "remove", hashes, deleteData } });
+    } catch (e) {
+      hashes.forEach((x) => state.pendingRemove.delete(x));
+      render();
+      fail(e);
+    }
   };
   dlg.showModal();
 }
