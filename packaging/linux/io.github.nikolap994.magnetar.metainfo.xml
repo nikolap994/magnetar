@@ -43,6 +43,9 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
+    <release version="0.7.3" date="2026-11-28">
+      <description><p>Faster peer discovery on public torrents by remembering DHT nodes between runs, and a hardening fix for saved subtitle file names.</p></description>
+    </release>
     <release version="0.7.2" date="2026-11-28">
       <description><p>Much faster and steadier downloads of large torrents, especially on Windows, with flat memory use and no more stalls or "file already closed" errors.</p></description>
     </release>

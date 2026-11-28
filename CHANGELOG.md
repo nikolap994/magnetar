@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-11-28
+
+### Changed
+- Magnetar now remembers the DHT nodes it has found and reloads them at startup, so on public torrents it finds
+  peers quickly from the first minute instead of slowly building up its node list from scratch each launch.
+
+### Fixed
+- Saving a subtitle now accepts only a real language code, so the saved file's name can never be influenced from
+  outside.
+
 ## [0.7.2] - 2026-11-28
 
 ### Fixed
