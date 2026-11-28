@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-28
+
+### Fixed
+- The x and Done buttons close the Settings window again.
+
+### Added
+- Connection settings show whether other peers can reach you, on which port, a one-click firewall allow when the
+  port is blocked, and how to fix it - updating live while the window is open.
+
 ## [0.7.0] - 2026-11-28
 
 ### Fixed
