@@ -339,9 +339,21 @@ func (s *Server) ssdp(ctx context.Context) {
 		return
 	}
 	go func() { <-ctx.Done(); _ = conn.Close() }()
-	s.notify("ssdp:alive")
 	go func() {
-		t := time.NewTicker(10 * time.Minute)
+		// Announce in a burst at first so a TV already on its media screen sees
+		// Magnetar within a second or two (single UDP announcements get lost),
+		// then keep re-announcing often so TVs that look a bit later also find it
+		// quickly instead of waiting minutes.
+		for _, after := range []time.Duration{0, 300 * time.Millisecond, 700 * time.Millisecond, 2 * time.Second, 4 * time.Second} {
+			select {
+			case <-ctx.Done():
+				s.notify("ssdp:byebye")
+				return
+			case <-time.After(after):
+				s.notify("ssdp:alive")
+			}
+		}
+		t := time.NewTicker(2 * time.Minute)
 		defer t.Stop()
 		for {
 			select {

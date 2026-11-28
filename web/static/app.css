@@ -190,9 +190,10 @@ h4.sub em { text-transform: none; letter-spacing: 0; font-style: normal; }
   all: unset; cursor: pointer; box-sizing: border-box;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   height: 38px; padding: 0 14px; border-radius: 10px;
-  font-weight: 600; font-size: 13.5px; color: var(--text);
+  font-weight: 600; font-size: 13.5px; color: var(--text); white-space: nowrap;
   transition: background .15s, transform .05s, box-shadow .15s;
 }
+.toolbar .btn { flex-shrink: 0; }
 .btn:active { transform: translateY(1px); }
 .btn:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); outline: 1px solid var(--accent); }
 .btn.primary { background: var(--grad); color: #fff; box-shadow: 0 6px 20px -8px rgba(139, 92, 246, .7); }
@@ -819,3 +820,5 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
   .rss-split { grid-template-columns: 1fr; max-height: none; }
   .rss-list { max-height: 30vh; }
 }
+.cast-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.cast-list .btn { justify-content: flex-start; width: 100%; }
