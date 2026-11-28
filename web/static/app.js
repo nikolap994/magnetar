@@ -505,6 +505,12 @@ function drawSpark() {
   const ctx = c.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, hgt);
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--line").trim() || "#232938";
+  ctx.lineWidth = 1;
+  for (const fraction of [.25, .5, .75]) {
+    const y = Math.round(hgt * fraction) + .5;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
   const hist = state.history;
   if (hist.length < 2) return;
   const max = Math.max(1024, ...hist.flat());

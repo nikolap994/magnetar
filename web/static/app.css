@@ -94,6 +94,20 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
   color: var(--muted); font-weight: 500;
 }
 .filters button:hover { background: var(--panel); color: var(--text); }
+.filters button:focus-visible,
+.alt-toggle:focus-visible,
+.conn-pill:focus-visible,
+.settings-nav button:focus-visible,
+.list-head .col:focus-visible,
+.seg button:focus-visible,
+.folder-roots button:focus-visible,
+.folder-list button:focus-visible,
+.presets button:focus-visible,
+.days button:focus-visible,
+.ctx-menu button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .filters button.active { background: var(--accent-soft); color: var(--text); }
 .filters button.active svg { color: var(--accent); }
 .filters .count { margin-left: auto; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
@@ -111,7 +125,8 @@ code { font-family: var(--mono); font-size: .92em; background: var(--panel-2); p
 .credit-star { margin-left: auto; width: 16px; height: 16px; color: var(--amber); opacity: .8; }
 .credit:hover .credit-star { opacity: 1; }
 .speed-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; cursor: pointer; transition: border-color .15s; }
-.speed-card:hover, .speed-card:focus-visible { border-color: var(--accent); outline: none; }
+.speed-card:hover { border-color: var(--accent); }
+.speed-card:focus-visible { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
 .speed-head { display: flex; justify-content: space-between; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin-bottom: 6px; }
 .speed-head .limits { text-transform: none; letter-spacing: 0; }
 .alt-box { display: flex; flex-direction: column; gap: 6px; }
@@ -219,7 +234,8 @@ h4.sub em { text-transform: none; letter-spacing: 0; font-style: normal; }
 }
 .list-head {
   height: 38px; border-bottom: 1px solid var(--line);
-  font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint);
+  background: var(--bg-2);
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
 }
 .list-head .col { all: unset; cursor: pointer; white-space: nowrap; }
 .list-head .col:hover { color: var(--muted); }

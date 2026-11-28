@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-11-28
+
+### Changed
+- Improved desktop keyboard focus visibility, table-header contrast, and the empty speed-chart appearance.
+- Refreshed the desktop screenshots used by the README and website.
+
 ## [0.8.3] - 2026-11-28
 
 ### Added

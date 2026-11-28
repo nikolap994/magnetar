@@ -13,7 +13,7 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
 [![Release](https://img.shields.io/github/v/release/nikolap994/magnetar?sort=semver)](https://github.com/nikolap994/magnetar/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-8b5cf6.svg)](LICENSE)
 
-<img src="docs/screenshot-list.png" alt="Magnetar torrent list with speed limits and turtle mode" width="900">
+<img src="docs/screenshot-list.png" alt="Magnetar desktop torrent list with categories, progress and live speeds" width="900">
 
 </div>
 
@@ -37,6 +37,8 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
   is written
 - **Play while downloading**: built-in player for video and audio (the part you watch comes first), with subtitles;
   quick look for images and text
+- **Cast to a TV** on your local network; the TV streams directly from Magnetar, including while the download is in
+  progress
 - **Download queue**: a few torrents at a time, the rest start by themselves; force start and queue order
 - **RSS auto-download** with filters and a smart episode filter, a **watch folder**, and **create torrents** from your
   own files
@@ -72,8 +74,11 @@ Windows · macOS · Ubuntu/Debian · Docker · No ads · No telemetry
   isolated browser profile for the app window
 
 <p align="center">
-  <img src="docs/screenshot-detail.png" alt="Torrent details with file priorities" width="49%">
-  <img src="docs/screenshot-speed.png" alt="Speed limits with alternative (turtle) mode" width="49%">
+  <img src="docs/screenshot-detail.png" alt="Torrent details with per-file priorities and progress" width="49%">
+  <img src="docs/screenshot-speed.png" alt="Global and alternative speed limits" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshot-settings.png" alt="Phone access and TV sharing settings" width="70%">
 </p>
 
 ## Install
