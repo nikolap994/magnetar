@@ -1790,6 +1790,24 @@ function stopPlayer() {
   if (el) { el.pause(); el.removeAttribute("src"); el.load(); }
   $("#pl-stage").replaceChildren();
 }
+// detectUnsupportedAudio warns, once playback has started, when the video plays
+// but its audio can't be decoded here (often AC3/DTS in movies) - pointing to
+// Cast to TV or the system player, which can.
+function detectUnsupportedAudio(el) {
+  let done = false;
+  const check = () => {
+    if (done || el.currentTime < 1.5) return;
+    const audio = el.webkitAudioDecodedByteCount, video = el.webkitVideoDecodedByteCount;
+    if (typeof audio !== "number" || typeof video !== "number" || video === 0) return;
+    done = true;
+    el.removeEventListener("timeupdate", check);
+    if (audio === 0) {
+      $("#pl-status").textContent = "No sound? This file's audio format (often AC3/DTS in movies) can't play here — use Cast to TV or Open in system player for sound.";
+      $("#pl-status").classList.add("warn");
+    }
+  };
+  el.addEventListener("timeupdate", check);
+}
 // streamBufferingOverlay shows "Buffering…" when playback outruns the download,
 // so a partly-downloaded video reads as streaming, not frozen.
 function streamBufferingOverlay(el) {
@@ -1830,12 +1848,13 @@ function openPreview(d, f) {
           src: contentURL(d.hash, s.index, extOf(s.path) === "srt" ? "?format=vtt" : "") }));
       });
     }
-    if (kind === "video") loadSavedSubs(el, d.hash, f.index);
+    if (kind === "video") { loadSavedSubs(el, d.hash, f.index); detectUnsupportedAudio(el); }
     el.addEventListener("error", () => playerMessage(
       "This file can't be played inside Magnetar (its format or codec isn't supported by the built-in player)." +
       (f.progress < 1 ? " Wait until it finishes, then open it in your system player." : " Open it in your system player instead.")));
     el.src = src;
     $("#pl-stage").replaceChildren(el, ...(f.progress < 1 ? [streamBufferingOverlay(el)] : []));
+    $("#pl-status").className = "muted";
     $("#pl-status").textContent = f.progress < 1 ? `Streaming while downloading - ${pct(f.progress)} of this file is ready; the next parts download as you watch.` : "";
   } else if (kind === "image") {
     const img = h("img", { alt: f.path });

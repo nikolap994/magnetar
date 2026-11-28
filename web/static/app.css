@@ -822,3 +822,4 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
 }
 .cast-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .cast-list .btn { justify-content: flex-start; width: 100%; }
+#pl-status.warn { color: var(--amber); font-weight: 600; }
