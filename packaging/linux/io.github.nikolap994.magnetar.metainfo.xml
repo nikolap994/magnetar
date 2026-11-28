@@ -43,6 +43,9 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
+    <release version="0.8.0" date="2026-11-28">
+      <description><p>Cast videos from Magnetar straight to your TV - with sound for formats the built-in player can't decode - plus much faster TV discovery of the media server.</p></description>
+    </release>
     <release version="0.7.9" date="2026-11-28">
       <description><p>Smoother in-app video streaming with a buffering indicator, and a clearer firewall step when turning on phone access.</p></description>
     </release>

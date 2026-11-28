@@ -5,6 +5,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-28
+
+### Added
+- **Cast to TV.** The built-in player has a "Cast to TV" button that finds TVs on your network and plays the video
+  on the one you pick. The TV plays it directly from Magnetar, so formats the built-in player can't handle
+  (for example AC3/DTS audio in many movies) play with sound, and it streams while still downloading.
+
+### Changed
+- TVs find Magnetar's media server much faster: it now announces itself in a burst at startup and re-announces
+  every couple of minutes instead of once every ten.
+
+### Fixed
+- The Add torrent button no longer wraps onto two lines.
+
 ## [0.7.9] - 2026-11-28
 
 ### Added
