@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-11-28
+
+### Added
+- Cast to TV is now available from torrent actions and the phone overflow menu.
+
+### Fixed
+- TV discovery now searches across available LAN interfaces, improving detection on computers with virtual or VPN adapters.
+- Cast notifications now appear above the video player.
+
 ## [0.8.2] - 2026-11-28
 
 ### Fixed

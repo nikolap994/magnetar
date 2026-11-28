@@ -43,6 +43,9 @@
     <color type="primary" scheme_preference="dark">#4c1d95</color>
   </branding>
   <releases>
+    <release version="0.8.3" date="2026-11-28">
+      <description><p>Cast to TV is now available from torrent actions and the phone menu, with improved TV discovery and notifications that remain visible over the player.</p></description>
+    </release>
     <release version="0.8.2" date="2026-11-28">
       <description><p>The phone interface now fits the screen, so adding and managing torrents from a phone works properly.</p></description>
     </release>
