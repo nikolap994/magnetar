@@ -823,7 +823,11 @@ input[type=time] { width: 100%; background: var(--panel); color: var(--text); bo
   .settings { grid-template-columns: 1fr; min-height: 0; }
   .detail { width: 100vw; }
   .settings-nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 4px; }
-  .settings-nav button { white-space: nowrap; }
+  .settings-nav button { box-sizing: border-box; min-height: 44px; padding: 8px 14px; white-space: nowrap; }
+  #dlg-settings .btn { min-height: 44px; }
+  #dlg-settings .btn.sm { height: 44px; padding: 0 12px; font-size: 14px; }
+  #dlg-settings .btn.icon { width: 44px; height: 44px; }
+  .settings-body .switch { min-height: 44px; }
 }
 @media (max-width: 480px) {
   .mobile-bar { gap: 8px; padding: 8px 10px; }
